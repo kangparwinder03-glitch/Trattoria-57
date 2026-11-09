@@ -85,6 +85,12 @@ class MainActivity : Activity() {
         wGroup.addView(r58); wGroup.addView(r80); wGroup.check(if (cols >= 48) 80 else 58)
         wGroup.setOnCheckedChangeListener { _, id -> cols = if (id == 80) 48 else 32; prefs.edit().putInt("cols", cols).apply() }
         root.addView(wGroup)
+        root.addView(label("Copies of each order ticket", 14f, true))
+        val cGroup = RadioGroup(this).apply { orientation = RadioGroup.HORIZONTAL }
+        listOf(1, 2, 3).forEach { n -> cGroup.addView(RadioButton(this).apply { text = "$n   "; textSize = 18f; id = 100 + n }) }
+        cGroup.check(100 + prefs.getInt("copies", 1))
+        cGroup.setOnCheckedChangeListener { _, id -> prefs.edit().putInt("copies", id - 100).apply(); addLog("Order tickets now print ${id - 100}x") }
+        root.addView(cGroup)
         logoBox = CheckBox(this).apply { text = "Print the Trattoria 57 logo"; textSize = 16f; isChecked = prefs.getBoolean("logo", true)
             setOnCheckedChangeListener { _, on -> prefs.edit().putBoolean("logo", on).apply() } }
         root.addView(logoBox)
@@ -186,7 +192,10 @@ class MainActivity : Activity() {
         for ((id, d) in tickets) {
             if (!running || station != st) return
             val label = if (d.optBoolean("pickup")) "Pickup #${d.optInt("pno")}" else d.optString("label")
-            if (!printNow(Format.ticket(d, cols, logos()), "$label · order #${d.optInt("no")}")) return
+            val copies = prefs.getInt("copies", 1).coerceIn(1, 3)
+            val lg = logos()
+            val bytes = (1..copies).map { Format.ticket(d, cols, lg, it, copies) }.reduce { a, b -> a + b }
+            if (!printNow(bytes, "$label · order #${d.optInt("no")}" + if (copies > 1) " (x$copies)" else "")) return
             markDone(done, "tickets", id)
         }
         // bills and reports sent from the website

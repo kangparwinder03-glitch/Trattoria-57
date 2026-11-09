@@ -48,10 +48,11 @@ object Cloud {
 object Format {
     private val ALG = Regex("allerg|gluten|coeliac|celiac|dairy|lactose|\\bnuts?\\b|peanut|shellfish|prawn|\\begg|sesame|vegan|soya|\\bfish\\b|mustard|celery|anaphyl", RegexOption.IGNORE_CASE)
 
-    fun ticket(t: JSONObject, cols: Int, lg: Logos): ByteArray = EscPos(cols).apply {
+    fun ticket(t: JSONObject, cols: Int, lg: Logos, copy: Int = 1, copies: Int = 1): ByteArray = EscPos(cols).apply {
         val bar = t.optString("station") == "bar"
         if (lg.small != null) image(lg.small).feed(1) else align(1).bold(true).line("TRATTORIA 57").bold(false)
         align(1).bold(true).line(if (bar) "*** BAR ***" else "*** KITCHEN ***")
+        if (copies > 1) line("Copy $copy of $copies")
         if (t.optBoolean("pickup")) {
             line("PICKUP").size(3, 3).line("#" + t.optInt("pno")).size(1, 1)
             val who = listOf(t.optString("pname"), t.optString("pphone")).filter { it.isNotBlank() }.joinToString(" · ")
