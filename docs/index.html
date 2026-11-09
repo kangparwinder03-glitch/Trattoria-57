@@ -177,6 +177,7 @@ footer{display:flex;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bo
 .sheet{width:100%;max-width:560px;max-height:88vh;display:flex;flex-direction:column;background:var(--cream);color:var(--ink);
   border-radius:22px 22px 0 0;box-shadow:0 -10px 40px rgba(0,0,0,.5);animation:up .28s cubic-bezier(.3,.8,.3,1)}
 @media(min-width:700px){.overlay{align-items:center}.sheet{border-radius:22px}}
+@media(min-width:900px){#ordOv .sheet{max-width:760px}}
 @keyframes up{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
 .sh-head{padding:16px 18px 12px;display:flex;align-items:flex-start;gap:10px;border-bottom:2px solid var(--wine);box-shadow:0 3px 0 -1px var(--cream),0 5px 0 -1px var(--olive-dk)}
 .sh-head h2{margin:0;font-family:"Cormorant Garamond",Georgia,serif;font-size:27px;line-height:1.1}
@@ -618,7 +619,8 @@ body.training{padding-top:30px}
 #oCats .sidetog button.on{background:var(--olive-dk);border-color:var(--olive-dk);color:#fff}
 #oCats .sidetog button[data-side=drinks].on{background:var(--wine);border-color:var(--wine)}
 #oCats .sidetog b{display:inline-block;min-width:22px;border-radius:11px;background:#fff;color:var(--ink);font-size:13px;padding:1px 6px;margin-left:4px}
-#oCats .catrow{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+#oCats .catrow{display:flex;flex-wrap:wrap;gap:6px}
+#oCats .tabchips{padding-bottom:0}
 #oCats .catrow::-webkit-scrollbar{display:none}
 
 .alertbar{top:68px;max-width:calc(100% - 120px)}
@@ -672,10 +674,8 @@ body.training{padding-top:30px}
   .sheet{max-height:calc(100dvh - 10px);max-height:calc(100vh - 10px)}
   .sh-head{padding:7px 14px 6px}.sh-head h2{font-size:21px}.sh-head .sub{display:none}
   .otabs{padding:4px 14px 0}.otabs button{padding:6px 10px!important}
-  #oCats{flex-direction:row!important;align-items:center!important;padding:6px 10px!important;gap:8px!important}
-  #oCats .sidetog{display:flex!important;flex:none}
-  #oCats .sidetog button{padding:7px 12px!important;font-size:14px!important}
-  #oCats .catrow{flex:1;min-width:0}
+  #oCats{padding:6px 12px!important;gap:6px!important}
+  #oCats .sidetog button{padding:8px 8px!important;font-size:15px!important}
   .mi{padding:8px 16px}
   .sh-foot{padding-top:8px!important;padding-bottom:8px!important}
   /* kitchen & bar: slimmer header, cards side by side */
@@ -708,7 +708,7 @@ body.training{padding-top:30px}
 .tbtns{display:flex;gap:6px}.tbtns button{border:1px solid var(--parch2);background:#fff;border-radius:10px;padding:8px 10px;font-size:16px}
 .tbtns .card{background:#3f5f86;border-color:#3f5f86}.tbtns .cash{background:var(--olive-dk);border-color:var(--olive-dk)}
 .tabnote{font-size:12px;color:#6d6448;padding-top:6px}
-#oCats{flex-wrap:wrap}#oCats .tabchips{flex:0 0 100%;order:-1}
+
 .takeord{background:#3f5f86!important;color:#fff!important;border-color:#3f5f86!important;font-weight:800!important}
 .btgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-top:10px}
 .btpick{border:1px solid var(--parch2);background:#fffaf0;border-radius:12px;padding:14px 8px;font-weight:800;font-size:15px;color:var(--ink)}
@@ -3476,7 +3476,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261109181715";
+const APP_BUILD="20261109191836";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
