@@ -97,10 +97,11 @@ class MainActivity : Activity() {
             var sock: BluetoothSocket? = null
             try {
                 adapter()?.cancelDiscovery()
-                sock = try { dev.createRfcommSocketToServiceRecord(spp).also { it.connect() } }
+                val s: BluetoothSocket = try { dev.createRfcommSocketToServiceRecord(spp).also { it.connect() } }
                        catch (e: Exception) { dev.createInsecureRfcommSocketToServiceRecord(spp).also { it.connect() } }
+                sock = s
                 // send in small pieces: cheap printers drop data (and garble the logo) if it arrives too fast
-                val os = sock.outputStream
+                val os = s.outputStream
                 var i = 0
                 while (i < bytes.size) { val n = minOf(512, bytes.size - i); os.write(bytes, i, n); os.flush(); i += n; Thread.sleep(25) }
                 Thread.sleep(1200 + bytes.size / 20L)
