@@ -860,6 +860,7 @@ body.training{padding-top:30px}
     <div class="sh-body">
       <div class="fld" style="margin-bottom:12px"><label for="sOwner">Owner's email</label><input id="sOwner" type="email" inputmode="email" placeholder="owner@example.com" maxlength="80"></div>
       <div class="fld" style="margin-bottom:12px"><label for="sReview">Google review link (QR printed on receipts)</label><input id="sReview" maxlength="300" placeholder="https://g.page/r/…/review" autocomplete="off"></div>
+      <div class="fld" style="margin-bottom:12px"><label for="sRcp">Receipts &amp; bills from THIS device print on</label><select id="sRcp"><option value="till">🧾 Till printer</option><option value="bar">🍸 Bar printer</option><option value="kitchen">🍝 Kitchen printer</option></select></div>
       <label style="display:flex;gap:10px;align-items:center;font-size:14px;margin-bottom:12px"><input type="checkbox" id="sAutoRc" style="width:20px;height:20px"> Print a receipt automatically when a bill is paid</label>
       <div class="fld" style="margin-bottom:12px"><label for="sIg">Instagram link or @username (printed on bills)</label><input id="sIg" maxlength="200" placeholder="@trattoria57" autocomplete="off"></div>
       <div class="fld" style="margin-bottom:12px"><label for="sFb">Facebook link (printed on bills)</label><input id="sFb" maxlength="200" placeholder="https://www.facebook.com/…" autocomplete="off"></div>
@@ -1418,13 +1419,14 @@ $("mailBody").addEventListener("click",e=>{
     const b=state.bookings[L];if(!b)return;const f=bt.dataset.k==="owner"?"sentOwner":"sentCustomer";
     b[f]=b[f]?0:Date.now();save();openMail(L)}
 });
-function openSettings(){$("sPick").value=settings.pickupPct;$("sOwner").value=settings.ownerEmail;$("sAuto").checked=settings.auto;$("sIg").value=settings.ig||"";$("sReview").value=settings.review||"";$("sAutoRc").checked=settings.autoRc!==false;$("sFb").value=settings.fb||"";$("setOv").classList.add("show")}
+function openSettings(){$("sPick").value=settings.pickupPct;$("sOwner").value=settings.ownerEmail;$("sAuto").checked=settings.auto;$("sIg").value=settings.ig||"";$("sReview").value=settings.review||"";$("sRcp").value=rcpPrinter();$("sAutoRc").checked=settings.autoRc!==false;$("sFb").value=settings.fb||"";$("setOv").classList.add("show")}
 $("setBtn").onclick=openSettings;
 $("setClose").onclick=()=>$("setOv").classList.remove("show");
 $("setOv").addEventListener("pointerdown",e=>{if(e.target===$("setOv"))$("setOv").classList.remove("show")});
 $("setSave").onclick=async()=>{
   const em=$("sOwner").value.trim();
   if(em&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){toast("That email doesn't look right");return}
+  try{localStorage.setItem("t57-rcp",$("sRcp").value)}catch(_){}
   settings={ownerEmail:em,auto:$("sAuto").checked,pickupPct:pickPct($("sPick").value),review:cleanLink($("sReview").value),autoRc:$("sAutoRc").checked,ig:cleanUrl($("sIg").value),fb:cleanUrl($("sFb").value)};
   try{localStorage.setItem("t57-3d-settings",JSON.stringify(settings))}catch(e){}
   $("setOv").classList.remove("show");toast("Settings saved");
@@ -1796,7 +1798,7 @@ function receiptHtml(B){
     ${B.disc?`<div class="rc-l rc-disc"><span>Discount (${esc(discLabel(B.disc))})${B.disc.note?`<i>${esc(B.disc.note)}</i>`:""}</span><span>−${money(B.orderDiscAmt)}</span></div>`:""}
     <div class="rc-l rc-tot"><span>TOTAL</span><span>${money(B.total)}</span></div>
     ${B.pays.length?B.pays.map(x=>`<div class="rc-l rc-pay"><span>Paid ${x.m==="cash"?"cash":"card"}${x.who?" · "+esc(x.who):""}</span><span>−${money(x.a)}</span></div>`).join("")+`<div class="rc-l rc-tot"><span>LEFT TO PAY</span><span>${money(B.left)}</span></div>`:""}
-    <div style="display:flex;gap:8px;margin-top:10px"><button class="btn sec" data-f="disc" style="flex:1">🏷 ${B.disc?"Change whole-bill discount":"Whole-bill discount"}</button><button class="btn sec" data-f="rpdf" style="flex:1">🧾 Receipt PDF</button>${canThermal()?`<button class="btn sec" data-f="tprint" style="flex:1">🧾 Print bill</button>`:""}</div>
+    <div style="display:flex;gap:8px;margin-top:10px"><button class="btn sec" data-f="disc" style="flex:1">🏷 ${B.disc?"Change whole-bill discount":"Whole-bill discount"}</button><button class="btn sec" data-f="rpdf" style="flex:1">🧾 Receipt PDF</button>${canThermal()?`<button class="btn sec" data-f="tprint" style="flex:1">🧾 Print bill · ${prName(rcpPrinter())}</button>`:""}</div>
     <div class="rc-f">Grazie! · Thank you for dining with us</div></div>`;
 }
 function timeOf(ms){if(!ms)return "";const d=new Date(ms);return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")}
@@ -1845,7 +1847,7 @@ $("oBody").addEventListener("click",e=>{
   const ldl=e.target.closest("[data-ld]");if(ldl){openItemDisc(ldl.dataset.ld);return}
   const vd=e.target.closest("[data-void]");if(vd){const [tid,xi]=vd.dataset.void.split("|");startVoid(tid,+xi);return}
   const tf=e.target.closest('[data-f="repeat"],[data-f="move"],[data-f="split"]');if(tf){({repeat:repeatDrinks,move:openMove,split:openSplit})[tf.dataset.f]();return}
-  if(e.target.closest('[data-f="tprint"]')){const B=billOf(ordTickets());printJob("bar","bill","Bill "+(ord.pickup?"Pickup "+ord.pno:gname(curGroup())),billLines(B),"full",socialLinks(),settings.review);return}
+  if(e.target.closest('[data-f="tprint"]')){const B=billOf(ordTickets());printJob(rcpPrinter(),"bill","Bill "+(ord.pickup?"Pickup "+ord.pno:gname(curGroup())),billLines(B),"full",socialLinks(),settings.review);return}
   if(e.target.closest('[data-f="rpdf"]')){const B=billOf(ordTickets());offerPdf(receiptPdf(B),`Trattoria57_Receipt_${ord.pickup?"Pickup"+ord.pno:gname(curGroup()).replace(/[^A-Za-z0-9+]/g,"")}_${dateKey}.pdf`);return}
   const qa=e.target.closest('[data-f="qrall"]');if(qa&&ord){if(readOnly){toast("View only");return}
     (async()=>{const list=ordTickets().filter(t=>t.hold);for(const t of list)await patchTicket(t,{hold:false,createdAt:Date.now()});toast(`Approved ${list.length} → kitchen/bar`);ticketsChanged()})();return}
@@ -2779,7 +2781,7 @@ async function finishBill(pay){
   const how=mode==="split"?"split payment":pay;
   if(settings.autoRc!==false&&canThermal()&&B.live.length){
     const L=billLines(B);L.splice(L.length-3,0,PL.lr("PAID ("+(mode==="split"?"split":pay)+")",money(B.total),1),PL.rule());
-    printJob("bar","receipt","Receipt "+(isP?"Pickup "+pno:gname(g)),L,"full",socialLinks(),settings.review);
+    printJob(rcpPrinter(),"receipt","Receipt "+(isP?"Pickup "+pno:gname(g)),L,"full",socialLinks(),settings.review);
   }
   if(isP){for(const id in flashes)if(flashes[id].pno===pno)delete flashes[id];renderAlerts();toast(`Pickup #${pno} paid · ${how}`);closeOrder();ticketsChanged();return}
   const L=leadOf(g),bk=state.bookings[L];
@@ -2877,7 +2879,7 @@ async function printJob(to,kind,title,lines,logo,social,review){
   const id=uid(),target=TRAIN&&db.base?db.base:db;   // training still prints, clearly marked
   if(TRAIN){lines=[PL.t("** TRAINING - NOT REAL **","c",1),PL.rule()].concat(lines);title="TRAINING "+title}
   try{await target.collection("printjobs").doc(id).set({to,kind,title,lines,logo:logo||"full",social:social||[],review:review||"",date:dateKey,createdAt:Date.now(),by:waiter?waiter.name:""});
-    toast(`🧾 Sent to the ${to==="kitchen"?"kitchen":"bar"} printer`)}catch(e){toast("Couldn't send to printer — try again")}
+    toast(`🧾 Sent to the ${prName(to)} printer`)}catch(e){toast("Couldn't send to printer — try again")}
 }
 const PL={t:(t,a,b,s)=>({t:String(t),a:a||"l",b:b?1:0,s:s||1}),lr:(l,r,b)=>({l:String(l),r:String(r),b:b?1:0}),rule:c=>({rule:c||"-"}),gap:()=>({t:""})};
 function billLines(B){
@@ -2909,9 +2911,12 @@ function reportLines(){
   L.push(PL.t("CASH-UP","l",1),PL.lr("Cash expected",money(R.cash)),PL.gap(),PL.t("Counted: £__________"),PL.gap(),PL.t("Signed: ____________"),PL.rule("="),PL.t("TRATTORIA 57","c",1),PL.t("Italian Kitchen & Bar","c"));
   return L;
 }
+const PRN={till:"till",bar:"bar",kitchen:"kitchen"};
+const rcpPrinter=()=>{try{const v=localStorage.getItem("t57-rcp");return PRN[v]||"till"}catch(e){return "till"}};
+const prName=t=>({till:"till",bar:"bar",kitchen:"kitchen"})[t]||"bar";
 function pickPrinter(then){
   openX("printer","Which printer?","",e=>{const b=e.target.closest("[data-pt]");if(!b)return;closeX();try{localStorage.setItem("t57-printer",b.dataset.pt)}catch(_){}then(b.dataset.pt)});
-  $("xBody").innerHTML=`<div class="wgrid"><button data-pt="bar"><span class="av" style="background:var(--wine)">🍸</span><b>Bar printer</b></button><button data-pt="kitchen"><span class="av" style="background:var(--olive-dk)">🍝</span><b>Kitchen printer</b></button></div>`;
+  $("xBody").innerHTML=`<div class="wgrid"><button data-pt="till"><span class="av" style="background:#3f5f86">🧾</span><b>Till printer</b></button><button data-pt="bar"><span class="av" style="background:var(--wine)">🍸</span><b>Bar printer</b></button><button data-pt="kitchen"><span class="av" style="background:var(--olive-dk)">🍝</span><b>Kitchen printer</b></button></div>`;
   $("xFoot").innerHTML=`<button class="btn sec" data-xdone>Cancel</button>`;
 }
 
