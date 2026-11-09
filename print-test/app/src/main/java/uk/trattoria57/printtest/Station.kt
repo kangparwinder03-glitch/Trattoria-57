@@ -67,10 +67,12 @@ object Format {
         if (t.optBoolean("qr")) line("Ordered by QR code") else if (by.isNotBlank()) line("Waiter: $by")
         align(0).rule()
         var alg = ALG.containsMatchIn(t.optString("note"))
+        var total = 0.0
         val items = t.optJSONArray("items") ?: JSONArray()
         for (i in 0 until items.length()) {
             val x = items.getJSONObject(i); if (x.optBoolean("v")) continue
-            bold(true).size(1, 2).line("${x.optInt("q", 1)} x ${x.optString("n")}").size(1, 1).bold(false)
+            val q = x.optInt("q", 1); val amt = q * x.optDouble("p", 0.0); total += amt
+            bold(true).size(1, 2).lr("$q x ${x.optString("n")}", money(amt)).size(1, 1).bold(false)
             val guest = x.optString("g")
             if (guest.isNotBlank()) line("   for: $guest")
             val note = x.optString("note")
@@ -78,6 +80,8 @@ object Format {
                 if (ALG.containsMatchIn(note)) { alg = true; bold(true).line("   > !! $note").bold(false) } else line("   > $note")
             }
         }
+        rule()
+        bold(true).lr("TOTAL", money(total)).bold(false)
         rule()
         val tn = t.optString("note")
         if (tn.isNotBlank()) { bold(true).line("NOTE: $tn").bold(false); rule() }
@@ -131,3 +135,5 @@ object Format {
         feed(4); cut()
     }.bytes()
 }
+
+private fun money(v: Double) = "£" + String.format(Locale.UK, "%.2f", v)
