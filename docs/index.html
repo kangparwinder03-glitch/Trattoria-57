@@ -606,6 +606,15 @@ body.training{padding-top:30px}
 .rc-it{cursor:pointer;border-radius:6px}.rc-it em{font-style:normal;font-size:11px;opacity:.35}.rc-it:active{background:#f3ead8}
 .rc-it.has em{opacity:1}.rc-idisc{color:var(--olive-dk);font-size:12px;font-weight:700;cursor:pointer}
 .dchips button.on{background:var(--olive-dk);color:#fff;border-color:var(--olive-dk)}
+
+#oCats{flex-direction:column;gap:8px;padding:10px 14px}
+#oCats .sidetog{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#oCats .sidetog button{border-radius:12px;padding:11px 8px;font-size:16px;font-weight:800;border:2px solid var(--parch2);background:#fffaf0;color:var(--ink)}
+#oCats .sidetog button.on{background:var(--olive-dk);border-color:var(--olive-dk);color:#fff}
+#oCats .sidetog button[data-side=drinks].on{background:var(--wine);border-color:var(--wine)}
+#oCats .sidetog b{display:inline-block;min-width:22px;border-radius:11px;background:#fff;color:var(--ink);font-size:13px;padding:1px 6px;margin-left:4px}
+#oCats .catrow{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+#oCats .catrow::-webkit-scrollbar{display:none}
 </style>
 </head>
 <body>
@@ -1724,7 +1733,11 @@ document.querySelector("#ordOv .otabs").addEventListener("click",e=>{
   if(bt.dataset.t==="booking"){const L=ord.lead;$("ordOv").classList.remove("show");ord=null;openSheet(L);return}
   ord.tab=bt.dataset.t;ord.review=false;renderOrder();
 });
-$("oCats").addEventListener("click",e=>{const bt=e.target.closest("button");if(!bt)return;ord.cat=bt.dataset.c;renderOrder();$("oBody").scrollTop=0});
+$("oCats").addEventListener("click",e=>{const bt=e.target.closest("button");if(!bt)return;
+  if(bt.dataset.side){const d=bt.dataset.side==="drinks";if(BAR_CATS.has(ord.cat)===d)return;
+    ord[BAR_CATS.has(ord.cat)?"lastDrink":"lastFood"]=ord.cat;
+    ord.cat=(d?ord.lastDrink:ord.lastFood)||CATS.find(k=>BAR_CATS.has(k)===d);renderOrder();$("oBody").scrollTop=0;return}
+  ord.cat=bt.dataset.c;renderOrder();$("oBody").scrollTop=0});
 function renderOrder(){
   if(!ord)return;
   const g=curGroup(),ids=g.slice().sort((a,b)=>a-b),b=ord.pickup?null:state.bookings[leadOf(g)];
@@ -1743,8 +1756,10 @@ function renderOrder(){
   const cats=$("oCats"),body=$("oBody"),foot=$("oFoot");
   if(ord.tab==="menu"&&!ord.review){
     cats.style.display="";
-    cats.innerHTML=CATS.map(k=>{const n=c.filter(x=>ITEMS[x.n].cat===k).reduce((a,x)=>a+x.q,0);
-      return `<button data-c="${esc(k)}" class="${k===ord.cat?"on":""}">${BAR_CATS.has(k)?"🍷 ":""}${esc(k)}${n?" · "+n:""}</button>`}).join("");
+    const drinks=BAR_CATS.has(ord.cat),cnt=d=>c.filter(x=>BAR_CATS.has(ITEMS[x.n].cat)===d).reduce((a,x)=>a+x.q,0);
+    cats.innerHTML=`<div class="sidetog"><button data-side="food" class="${drinks?"":"on"}">🍝 Food${cnt(false)?` <b>${cnt(false)}</b>`:""}</button><button data-side="drinks" class="${drinks?"on":""}">🍸 Drinks${cnt(true)?` <b>${cnt(true)}</b>`:""}</button></div>
+      <div class="catrow">${CATS.filter(k=>BAR_CATS.has(k)===drinks).map(k=>{const n=c.filter(x=>ITEMS[x.n].cat===k).reduce((a,x)=>a+x.q,0);
+      return `<button data-c="${esc(k)}" class="${k===ord.cat?"on":""}">${esc(k)}${n?" · "+n:""}</button>`}).join("")}</div>`;
     const list=MENU.find(m=>m[0]===ord.cat)[1];
     body.innerHTML=list.map(([n,p,d])=>{const q=c.filter(x=>x.n===n).reduce((a,x)=>a+x.q,0);
       const out=outSet.has(n);
