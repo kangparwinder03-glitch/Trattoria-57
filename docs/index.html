@@ -615,6 +615,19 @@ body.training{padding-top:30px}
 #oCats .sidetog b{display:inline-block;min-width:22px;border-radius:11px;background:#fff;color:var(--ink);font-size:13px;padding:1px 6px;margin-left:4px}
 #oCats .catrow{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
 #oCats .catrow::-webkit-scrollbar{display:none}
+
+.alertbar{top:68px;max-width:calc(100% - 120px)}
+.alertbar div{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.alertbar .ctl{display:flex;gap:6px;background:none!important;box-shadow:none!important;padding:0!important}
+.alertbar .ctl .clr{pointer-events:auto;cursor:pointer;background:#fffaf0;color:var(--ink);border:1px solid var(--parch2);font-size:12px;font-weight:800;padding:6px 12px;border-radius:14px;box-shadow:0 4px 12px rgba(0,0,0,.18)}
+.alertbar .an{display:inline-block;margin-left:6px;background:rgba(255,255,255,.3);border-radius:9px;padding:0 7px;font-size:12px}
+@media(max-width:700px){.alertbar{top:64px}.alertbar div{font-size:13px;padding:7px 12px}}
+
+/* alerts: one thin scrollable row of chips, so they never cover the tables */
+.alertbar{left:10px!important;right:64px;top:62px!important;transform:none!important;max-width:none!important;flex-direction:row!important;flex-wrap:nowrap;align-items:center!important;justify-content:flex-start;overflow-x:auto;scrollbar-width:none;pointer-events:auto!important;gap:6px!important;padding:2px 0}
+.alertbar::-webkit-scrollbar{display:none}
+.alertbar div{flex:none;font-size:12px!important;padding:6px 10px!important;border-radius:12px!important;box-shadow:0 3px 10px rgba(0,0,0,.22)!important}
+.alertbar .ctl{flex:none}
 </style>
 </head>
 <body>
@@ -1655,14 +1668,20 @@ function alertText(f){
   if(f.kind==="srv")return (f.st==="bar"?"🍷 ":"🔔 ")+esc(f.label)+(f.st==="bar"?" — drinks ready ✓":" — food ready ✓");
   return (f.st==="bar"?"🍸 ":"🍳 ")+esc(f.label)+(f.st==="bar"?" — drinks being made ✓":" — food preparing ✓");
 }
+let alertsOpen=false;
 function renderAlerts(){
   const now=Date.now();const list=Object.entries(flashes).filter(([,f])=>!f.until||f.until>now);
-  list.sort((a,b)=>FL_RANK[b[1].kind]-FL_RANK[a[1].kind]);
-  $("alertBar").innerHTML=list.slice(0,4).map(([id,f])=>`<div class="${f.kind}" data-t="${f.tables[0]}" data-fid="${esc(id)}">${alertText(f)}</div>`).join("")+
-    (list.length>1?`<div class="clr" data-clr>Clear all</div>`:"");
+  list.sort((a,b)=>FL_RANK[b[1].kind]-FL_RANK[a[1].kind]||(b[1].at||0)-(a[1].at||0));
+  // one alert per table / pickup (the most important), so repeats don't pile up
+  const seen={},one=[];list.forEach(([id,f])=>{const k=f.pno?"P"+f.pno:"T"+leadOf(groupFor(f.tables[0]));if(seen[k]){seen[k].n++;return}seen[k]={id,f,n:1};one.push(seen[k])});
+  const max=one.length,shown=one.slice(0,max),more=one.length-shown.length;
+  $("alertBar").innerHTML=shown.map(x=>`<div class="${x.f.kind}" data-t="${x.f.tables[0]}" data-fid="${esc(x.id)}">${alertText(x.f)}${x.n>1?` <b class="an">${x.n}</b>`:""}</div>`).join("")+
+    (one.length>1?`<div class="ctl">${more>0?`<span class="clr" data-more>+${more} more</span>`:alertsOpen?`<span class="clr" data-less>Show less</span>`:""}<span class="clr" data-clr>Clear all</span></div>`:"");
 }
 $("alertBar").addEventListener("click",e=>{
-  if(e.target.closest("[data-clr]")){for(const id in flashes){if(flashes[id].kind==="qr")continue;if(flashes[id].kind==="call")doneCall(flashes[id].cid);delete flashes[id]}renderAlerts();render();return}
+  if(e.target.closest("[data-more]")){alertsOpen=true;renderAlerts();return}
+  if(e.target.closest("[data-less]")){alertsOpen=false;renderAlerts();return}
+  if(e.target.closest("[data-clr]")){alertsOpen=false;for(const id in flashes){if(flashes[id].kind==="qr")continue;if(flashes[id].kind==="call")doneCall(flashes[id].cid);delete flashes[id]}renderAlerts();render();return}
   const d=e.target.closest("[data-t]");if(!d)return;const f=flashes[d.dataset.fid];
   if(f&&f.pno){const p=f.pno;for(const id in flashes)if(flashes[id].pno===p)delete flashes[id];renderAlerts();if(f.kind==="srv")openPickup(p,"sent");return}
   if(f&&f.kind==="qr"){openOrder(+d.dataset.t,"sent");return}
