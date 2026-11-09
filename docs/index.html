@@ -2063,7 +2063,7 @@ function openManage(){
     <p class="trial">Each person uses their PIN to clock in on this screen. PINs are stored scrambled, not as plain numbers.</p>
     <button class="btn dng" id="mgPin">Change manager PIN</button>
     <div class="livebox ${TRAIN?"tr":""}"><h3>${TRAIN?"🎓 This device is in TRAINING mode":"✅ This device is LIVE"}</h3>
-      <p>${TRAIN?"Orders, bookings and bills here are practice only: they're kept separate, never print and never show on the real day report.":liveSince?"Live since "+esc(new Date(liveSince).toLocaleString("en-GB",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}))+".":"Not gone live yet — everything so far counts as testing."}</p>
+      <p>${TRAIN?"Orders, bookings and bills here are practice only: they're kept separate and never show on the real day report. Anything printed is marked TRAINING.":liveSince?"Live since "+esc(new Date(liveSince).toLocaleString("en-GB",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}))+".":"Not gone live yet — everything so far counts as testing."}</p>
       <button class="btn sec" id="mgTrain">${TRAIN?"✅ Switch this device back to LIVE":"🎓 Switch this device to TRAINING"}</button>
       ${TRAIN?"":`<button class="btn dng" id="mgLive">🚀 Go live — delete all test data</button>`}</div>`;
   $("mgOv").classList.add("show");
@@ -2075,7 +2075,7 @@ $("mgBody").addEventListener("click",async e=>{
     if(!name){toast("Add a name");return}if(!/^\d{4}$/.test(pin)){toast("PIN must be 4 digits");return}
     const id=uid();try{await staffStore.put(id,{name,role,pin:await hashPin(pin,id),active:true});toast(name+" added")}catch(_){}
     openManage();return}
-  if(e.target.id==="mgTrain"){$("mgOv").classList.remove("show");ask(TRAIN?"Back to live on this device?":"Switch this device to training?",TRAIN?"Real orders and bookings will show again.":"Practice freely: nothing you do will touch real orders, bookings, printers or reports. Other devices stay live.",()=>setTraining(!TRAIN));return}
+  if(e.target.id==="mgTrain"){$("mgOv").classList.remove("show");ask(TRAIN?"Back to live on this device?":"Switch this device to training?",TRAIN?"Real orders and bookings will show again.":"Practice freely: nothing you do will touch real orders, bookings or reports. Printouts are marked TRAINING. Other devices stay live.",()=>setTraining(!TRAIN));return}
   if(e.target.id==="mgLive"){$("mgOv").classList.remove("show");goLive();return}
   if(e.target.id==="mgPin"){$("mgOv").classList.remove("show");
     askPin("New manager PIN","Choose a new 4-digit PIN",async v=>{try{await mgrStore.put("main",{pin:await hashPin(v,"manager")})}catch(_){return true}closePad();toast("Manager PIN changed");return true});return}
@@ -2845,10 +2845,10 @@ guestIndex();
 const canThermal=()=>!!(db&&db.supa);
 function socialLinks(){const a=[];if(settings.ig){const h=(settings.ig.match(/instagram\.com\/([^/?#]+)/)||[])[1];a.push({n:"Instagram",h:h?"@"+h:"",u:settings.ig})}if(settings.fb)a.push({n:"Facebook",h:"Trattoria 57",u:settings.fb});return a}
 async function printJob(to,kind,title,lines,logo,social){
-  if(TRAIN){toast("🎓 Training mode — nothing is printed");return}
   if(!canThermal()){toast("Thermal printing works on the website version (GitHub link)");return}
-  const id=uid();
-  try{await db.collection("printjobs").doc(id).set({to,kind,title,lines,logo:logo||"full",social:social||[],date:dateKey,createdAt:Date.now(),by:waiter?waiter.name:""});
+  const id=uid(),target=TRAIN&&db.base?db.base:db;   // training still prints, clearly marked
+  if(TRAIN){lines=[PL.t("** TRAINING - NOT REAL **","c",1),PL.rule()].concat(lines);title="TRAINING "+title}
+  try{await target.collection("printjobs").doc(id).set({to,kind,title,lines,logo:logo||"full",social:social||[],date:dateKey,createdAt:Date.now(),by:waiter?waiter.name:""});
     toast(`🧾 Sent to the ${to==="kitchen"?"kitchen":"bar"} printer`)}catch(e){toast("Couldn't send to printer — try again")}
 }
 const PL={t:(t,a,b,s)=>({t:String(t),a:a||"l",b:b?1:0,s:s||1}),lr:(l,r,b)=>({l:String(l),r:String(r),b:b?1:0}),rule:c=>({rule:c||"-"}),gap:()=>({t:""})};

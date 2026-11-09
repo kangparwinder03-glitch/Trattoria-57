@@ -186,17 +186,20 @@ class MainActivity : Activity() {
         val since = prefs.getLong("since", 0L)
         val done = prefs.getStringSet("done", emptySet())!!.toMutableSet()
         // orders for this station
-        val tickets = Cloud.list("tickets", listOf("date" to today, "station" to st))
-            .filter { (id, d) -> id !in done && !d.optBoolean("hold") && !d.optBoolean("rejected") && d.optLong("printed", 0L) == 0L && d.optLong("createdAt") >= since }
-            .sortedBy { it.second.optLong("createdAt") }
-        for ((id, d) in tickets) {
+        // real orders, plus training orders (printed marked TRAINING)
+        val tickets = listOf("tickets", "train_tickets").flatMap { coll ->
+            Cloud.list(coll, listOf("date" to today, "station" to st)).map { Triple(coll, it.first, it.second) } }
+            .filter { (_, id, d) -> id !in done && !d.optBoolean("hold") && !d.optBoolean("rejected") && d.optLong("printed", 0L) == 0L && d.optLong("createdAt") >= since }
+            .sortedBy { it.third.optLong("createdAt") }
+        for ((coll, id, d) in tickets) {
+            val training = coll == "train_tickets"
             if (!running || station != st) return
             val label = if (d.optBoolean("pickup")) "Pickup #${d.optInt("pno")}" else d.optString("label")
             val copies = prefs.getInt("copies", 1).coerceIn(1, 3)
             val lg = logos()
-            val bytes = (1..copies).map { Format.ticket(d, cols, lg, it, copies) }.reduce { a, b -> a + b }
-            if (!printNow(bytes, "$label · order #${d.optInt("no")}" + if (copies > 1) " (x$copies)" else "")) return
-            markDone(done, "tickets", id)
+            val bytes = (1..copies).map { Format.ticket(d, cols, lg, it, copies, training) }.reduce { a, b -> a + b }
+            if (!printNow(bytes, (if (training) "TRAINING " else "") + "$label · order #${d.optInt("no")}" + if (copies > 1) " (x$copies)" else "")) return
+            markDone(done, coll, id)
         }
         // bills and reports sent from the website
         val jobs = Cloud.list("printjobs", listOf("to" to st))
