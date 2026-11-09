@@ -19,3 +19,10 @@ The print-test app prints the Trattoria 57 logo at the top of every slip:
 The logo pictures are in `print-test/app/src/main/res/drawable-nodpi/` (`logo_58.png` / `logo_80.png` for 58mm / 80mm paper,
 `logo_small_*` for tickets). They are pure black & white at the printer's exact width (384 dots for 58mm, 576 for 80mm).
 Untick "Print the Trattoria 57 logo" in the app to print text-only.
+
+## Live system (Supabase)
+- Website: https://kangparwinder03-glitch.github.io/Trattoria-57/ — every device shares the same data through Supabase (`supabase/setup.sql`).
+- Kitchen / bar tablets: install **T57 Printer** from
+  https://github.com/kangparwinder03-glitch/Trattoria-57/releases/download/print-test-latest/T57-Print-Test.apk ,
+  choose Kitchen or Bar, pick the Bluetooth printer and tap **Start printing orders**. Leave the app open.
+- Bills (🧾 Print bill) and the day report (🧾 Thermal print, manager PIN) print on the bar or kitchen printer.

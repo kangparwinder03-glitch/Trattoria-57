@@ -1763,7 +1763,7 @@ function receiptHtml(B){
     ${B.disc?`<div class="rc-l rc-disc"><span>Discount (${esc(discLabel(B.disc))})${B.disc.note?`<i>${esc(B.disc.note)}</i>`:""}</span><span>−${money(B.discAmt)}</span></div>`:""}
     <div class="rc-l rc-tot"><span>TOTAL</span><span>${money(B.total)}</span></div>
     ${B.pays.length?B.pays.map(x=>`<div class="rc-l rc-pay"><span>Paid ${x.m==="cash"?"cash":"card"}${x.who?" · "+esc(x.who):""}</span><span>−${money(x.a)}</span></div>`).join("")+`<div class="rc-l rc-tot"><span>LEFT TO PAY</span><span>${money(B.left)}</span></div>`:""}
-    <div style="display:flex;gap:8px;margin-top:10px"><button class="btn sec" data-f="disc" style="flex:1">🏷 ${B.disc?"Change discount":"Add discount"}</button><button class="btn sec" data-f="rpdf" style="flex:1">🧾 Receipt PDF</button></div>
+    <div style="display:flex;gap:8px;margin-top:10px"><button class="btn sec" data-f="disc" style="flex:1">🏷 ${B.disc?"Change discount":"Add discount"}</button><button class="btn sec" data-f="rpdf" style="flex:1">🧾 Receipt PDF</button>${canThermal()?`<button class="btn sec" data-f="tprint" style="flex:1">🧾 Print bill</button>`:""}</div>
     <div class="rc-f">Grazie! · Thank you for dining with us</div></div>`;
 }
 function timeOf(ms){if(!ms)return "";const d=new Date(ms);return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")}
@@ -1811,6 +1811,7 @@ $("oBody").addEventListener("click",e=>{
   if(e.target.closest('[data-f="disc"]')){openDisc();return}
   const vd=e.target.closest("[data-void]");if(vd){const [tid,xi]=vd.dataset.void.split("|");startVoid(tid,+xi);return}
   const tf=e.target.closest('[data-f="repeat"],[data-f="move"],[data-f="split"]');if(tf){({repeat:repeatDrinks,move:openMove,split:openSplit})[tf.dataset.f]();return}
+  if(e.target.closest('[data-f="tprint"]')){const B=billOf(ordTickets());printJob("bar","bill","Bill "+(ord.pickup?"Pickup "+ord.pno:gname(curGroup())),billLines(B),"full");return}
   if(e.target.closest('[data-f="rpdf"]')){const B=billOf(ordTickets());offerPdf(receiptPdf(B),`Trattoria57_Receipt_${ord.pickup?"Pickup"+ord.pno:gname(curGroup()).replace(/[^A-Za-z0-9+]/g,"")}_${dateKey}.pdf`);return}
   const qa=e.target.closest('[data-f="qrall"]');if(qa&&ord){if(readOnly){toast("View only");return}
     (async()=>{const list=ordTickets().filter(t=>t.hold);for(const t of list)await patchTicket(t,{hold:false,createdAt:Date.now()});toast(`Approved ${list.length} → kitchen/bar`);ticketsChanged()})();return}
@@ -2273,7 +2274,7 @@ function renderReport(){
   const hs=Object.keys(R.hours).map(Number);const h0=hs.length?Math.min(12,...hs):12,h1=hs.length?Math.max(22,...hs):22;
   const hrs=[];for(let h=h0;h<=h1;h++)hrs.push([h,R.hours[h]||0]);const hmax=Math.max(...hrs.map(x=>x[1]),1);
   const staffRows=Object.entries(R.staffH).sort((a,b)=>b[1]-a[1]);
-  el.innerHTML=`<div class="rhead"><h2>DAY REPORT · ${esc(L.toUpperCase())}</h2><button class="pri" id="repPdf">🖨 Print / PDF</button><button id="repCopy">Copy report</button><button id="repMail">✉ Email to owner</button></div>
+  el.innerHTML=`<div class="rhead"><h2>DAY REPORT · ${esc(L.toUpperCase())}</h2><button class="pri" id="repPdf">🖨 Print / PDF</button>${canThermal()?`<button class="pri" id="repThermal">🧾 Thermal print</button>`:""}<button id="repCopy">Copy report</button><button id="repMail">✉ Email to owner</button></div>
   ${R.all.length?"":`<p class="trial">No orders on this day yet. Use the date arrows at the top to look at another day.</p>`}
   <div class="kpis">
     <div class="kpi hero"><span>Takings (paid)</span><b>${money(R.paidAmt)}</b><small>${R.openAmt?`+ ${money(R.openAmt)} still open on ${R.openTables} ${R.openTables===1?"table":"tables"}`:"All bills closed"}</small></div>
@@ -2319,6 +2320,7 @@ function reportText(){
 $("report").addEventListener("click",e=>{
   if(e.target.id==="repUnlock"){managerGate(()=>{repUnlockUntil=Date.now()+15*60000;renderReport()});return}
   if(e.target.id==="repPdf"){offerPdf(reportPdf(),`Trattoria57_Day_Report_${dateKey}.pdf`);return}
+  if(e.target.id==="repThermal"){pickPrinter(to=>printJob(to,"report","Day report "+dateKey,reportLines(),"full"));return}
   if(e.target.id==="repCopy"){const txt=reportText();
     (navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>toast("Report copied")).catch(()=>{
       const ta=document.createElement("textarea");ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand("copy");toast("Report copied")}catch(_){toast("Couldn't copy")}ta.remove()});return}
@@ -2557,7 +2559,7 @@ $("nbSave").onclick=async()=>{
 };
 
 // ---- QR code sheet ----
-const APP_URL="https://claude.ai/artifact/Kjbyve3vN9Jpzz9vBMD3So";
+const APP_URL=window.claude?"https://claude.ai/artifact/Kjbyve3vN9Jpzz9vBMD3So":location.origin+location.pathname;
 let qrLib=null;
 function loadQr(){if(qrLib)return qrLib;qrLib=new Promise(res=>{const sc=document.createElement("script");sc.src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js";
   sc.onload=()=>res(!!window.QRCode);sc.onerror=()=>res(false);document.head.appendChild(sc);setTimeout(()=>res(!!window.QRCode),6000)});return qrLib}
@@ -2819,6 +2821,50 @@ async function renderRemind(){
 $("bkRemind").onclick=openReminders;
 guestIndex();
 
+
+// ---------- thermal printing (website version): jobs picked up by the kitchen/bar printer tablets ----------
+const canThermal=()=>!!(db&&db.supa);
+async function printJob(to,kind,title,lines,logo){
+  if(!canThermal()){toast("Thermal printing works on the website version (GitHub link)");return}
+  const id=uid();
+  try{await db.collection("printjobs").doc(id).set({to,kind,title,lines,logo:logo||"full",date:dateKey,createdAt:Date.now(),by:waiter?waiter.name:""});
+    toast(`🧾 Sent to the ${to==="kitchen"?"kitchen":"bar"} printer`)}catch(e){toast("Couldn't send to printer — try again")}
+}
+const PL={t:(t,a,b,s)=>({t:String(t),a:a||"l",b:b?1:0,s:s||1}),lr:(l,r,b)=>({l:String(l),r:String(r),b:b?1:0}),rule:c=>({rule:c||"-"}),gap:()=>({t:""})};
+function billLines(B){
+  const head=ord.pickup?`Pickup #${ord.pno}`:gnameLong(curGroup());
+  const L=[PL.lr(head,new Date().toLocaleString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})),PL.rule()];
+  B.lines.forEach(l=>L.push(PL.lr(`${l.q} x ${l.n}`,money(l.q*l.p))));
+  L.push(PL.rule(),PL.lr("Subtotal",money(B.sub)));
+  if(B.disc)L.push(PL.lr(`Discount ${B.disc.type==="pct"?B.disc.value+"%":""}${B.disc.reason?" ("+B.disc.reason+")":""}`,"-"+money(B.discAmt)));
+  L.push(PL.rule("="),PL.lr("TOTAL",money(B.total),1),PL.rule("="));
+  B.pays.forEach(p=>L.push(PL.lr(`Paid ${p.m}`,"-"+money(p.a))));
+  if(B.pays.length)L.push(PL.lr("LEFT TO PAY",money(B.left),1));
+  L.push(PL.gap(),PL.t("Grazie! Thank you for","c"),PL.t("dining with us.","c"));
+  return L;
+}
+function reportLines(){
+  const R=buildReport(),top=Object.entries(R.items).sort((a,b)=>b[1].q-a[1].q).slice(0,8);
+  const L=[PL.t("END OF DAY REPORT","c",1,2),PL.t("Trattoria 57","c",1),PL.t(longDate(dateKey),"c"),PL.rule(),
+    PL.lr("TAKINGS",money(R.paidAmt),1),PL.lr("Card",money(R.card)),PL.lr("Cash",money(R.cash))];
+  if(R.discTotal)L.push(PL.lr(`Discounts (${R.discN} bills)`,money(R.discTotal)));
+  if(R.voids.length)L.push(PL.lr(`Voids (${R.voids.length})`,money(R.voidTotal)));
+  if(R.openAmt)L.push(PL.lr(`Still open (${R.openTables})`,money(R.openAmt)));
+  L.push(PL.rule(),PL.lr("Covers",R.covers),PL.lr("Spend per head",R.covers?money((R.sales-R.discTotal)/R.covers):"-"),PL.lr("Orders",R.all.length),PL.lr("Avg kitchen time",R.served.length?mins(R.avgKitchen):"-"),PL.rule());
+  if(top.length){L.push(PL.t("BEST SELLERS","l",1));top.forEach(([n,x],i)=>L.push(PL.lr(`${i+1}. ${n} x${x.q}`,money(x.v))));L.push(PL.rule())}
+  const w=Object.entries(R.byW).sort((a,b)=>b[1]-a[1]);if(w.length){L.push(PL.t("SALES BY WAITER","l",1));w.forEach(([k,v])=>L.push(PL.lr(k,money(v))));L.push(PL.rule())}
+  if(R.voids.length){L.push(PL.t("VOIDS","l",1));R.voids.forEach(x=>L.push(PL.lr(`${x.q}x ${x.n} (${x.r||"-"})`,money(x.v))));L.push(PL.rule())}
+  const sh=Object.entries(R.staffH);L.push(PL.t("STAFF HOURS","l",1));sh.forEach(([id,ms])=>L.push(PL.lr(R.names[id]||"Unknown",hm(ms))));L.push(PL.lr("Total",hm(R.labour)),PL.rule());
+  L.push(PL.lr("Bookings",`${R.bk.length} (${R.bGuests} guests)`),PL.lr("No-shows / cancelled",`${R.noShows} / ${R.cancels}`),PL.rule());
+  L.push(PL.t("CASH-UP","l",1),PL.lr("Cash expected",money(R.cash)),PL.gap(),PL.t("Counted: £__________"),PL.gap(),PL.t("Signed: ____________"),PL.rule("="),PL.t("TRATTORIA 57","c",1),PL.t("Italian Kitchen & Bar","c"));
+  return L;
+}
+function pickPrinter(then){
+  openX("printer","Which printer?","",e=>{const b=e.target.closest("[data-pt]");if(!b)return;closeX();try{localStorage.setItem("t57-printer",b.dataset.pt)}catch(_){}then(b.dataset.pt)});
+  $("xBody").innerHTML=`<div class="wgrid"><button data-pt="bar"><span class="av" style="background:var(--wine)">🍸</span><b>Bar printer</b></button><button data-pt="kitchen"><span class="av" style="background:var(--olive-dk)">🍝</span><b>Kitchen printer</b></button></div>`;
+  $("xFoot").innerHTML=`<button class="btn sec" data-xdone>Cancel</button>`;
+}
+
 // ---- views (#floor / #kitchen / #staff / #report) ----
 let view="floor";
 function route(){
@@ -2917,8 +2963,57 @@ function toast(m){const t=$("toast");t.textContent=m;t.classList.add("show");cle
 // ---------- boot ----------
 setDate(todayKey());
 fit();applyCam();startStaffStores();route();applyArea();
+// ---------- shared database for the standalone website (Supabase) ----------
+// Inside Claude the app uses Claude's database. Opened anywhere else (GitHub website, tablets),
+// it uses this Supabase project, with the same doc/collection calls.
+const SUPA_URL="https://uzrkewizkqdnqpovwune.supabase.co";
+const SUPA_KEY="sb_publishable_Hix2EgA_xpjxMYFvmarVIQ_Hj0qx3YM";
+const SUPA_LIB="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js";
+function loadSupaLib(){return new Promise((res,rej)=>{if(window.supabase&&window.supabase.createClient){res(window.supabase);return}
+  const s=document.createElement("script");s.src=SUPA_LIB;s.async=true;s.onload=()=>window.supabase?res(window.supabase):rej(new Error("no lib"));s.onerror=()=>rej(new Error("lib failed"));document.head.appendChild(s)})}
+function makeSupaDb(sb){
+  const TB="t57_docs",subs=new Set(),inflight={},lastSent={};
+  const err=e=>{const x=new Error((e&&e.message)||"db error");x.code=(e&&/fetch|network|Failed/i.test(e.message||""))?"unavailable":"unknown";return x};
+  const snapDoc=(coll,id,row,pending)=>({id,exists:!!row,data:()=>row?clone(row.data):undefined,metadata:{fromCache:false,hasPendingWrites:!!pending}});
+  const okWhere=(data,w)=>w.every(([f,op,v])=>{const a=data?data[f]:undefined;return op==="=="?a===v:op===">="?a>=v:op==="<="?a<=v:op===">"?a>v:op==="<"?a<v:true});
+  const applyWhere=(q,w)=>{w.forEach(([f,op,v])=>{const col=typeof v==="number"?"data->"+f:"data->>"+f;const m={"==":"eq",">=":"gte","<=":"lte",">":"gt","<":"lt"}[op];if(m)q=q.filter(col,m,typeof v==="number"?v:String(v))});return q};
+  async function fetchColl(coll,w){let q=sb.from(TB).select("id,data").eq("coll",coll);q=applyWhere(q,w);const {data,error}=await q.limit(5000);if(error)throw err(error);return (data||[]).filter(r=>okWhere(r.data,w))}
+  async function fetchDoc(coll,id){const {data,error}=await sb.from(TB).select("id,data").eq("coll",coll).eq("id",id).maybeSingle();if(error)throw err(error);return data}
+  function refreshAll(coll){subs.forEach(s=>{if(!coll||s.coll===coll)s.kick()})}
+  let chan=null;
+  function ensureChannel(){if(chan)return;chan=sb.channel("t57-all").on("postgres_changes",{event:"*",schema:"public",table:TB},p=>{const r=(p.new&&p.new.coll)?p.new:p.old;refreshAll(r&&r.coll)}).subscribe(st=>{if(st==="SUBSCRIBED")refreshAll()})}
+  setInterval(()=>refreshAll(),20000);   // safety net if live updates drop
+  document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshAll()});
+  function listen(coll,id,w,cb,ecb){
+    ensureChannel();let alive=true,t=null,running=false,again=false;
+    const run=async()=>{if(!alive)return;if(running){again=true;return}running=true;
+      try{if(id){const k=coll+"/"+id;if(inflight[k]){running=false;setTimeout(run,300);return}
+          const row=await fetchDoc(coll,id);if(!alive)return;const same=row&&lastSent[k]&&JSON.stringify(row.data)===lastSent[k];cb(snapDoc(coll,id,row,same))}
+        else{const rows=await fetchColl(coll,w);if(!alive)return;cb({docs:rows.map(r=>snapDoc(coll,r.id,r,false)),size:rows.length,empty:!rows.length})}}
+      catch(e){if(ecb)ecb(err(e))}
+      running=false;if(again){again=false;run()}};
+    const s={coll,kick:()=>{clearTimeout(t);t=setTimeout(run,120)}};subs.add(s);run();
+    return ()=>{alive=false;subs.delete(s)};
+  }
+  function docRef(coll,id){const k=coll+"/"+id;return {id,
+    get:async()=>snapDoc(coll,id,await fetchDoc(coll,id),false),
+    set:async data=>{inflight[k]=(inflight[k]||0)+1;lastSent[k]=JSON.stringify(data);
+      try{const {error}=await sb.from(TB).upsert({coll,id,data,updated_at:new Date().toISOString()});if(error)throw err(error)}finally{inflight[k]--}},
+    update:async fields=>{inflight[k]=(inflight[k]||0)+1;try{const {error}=await sb.rpc("t57_merge",{c:coll,i:id,patch:fields});if(error)throw err(error)}finally{inflight[k]--}},
+    delete:async()=>{const {error}=await sb.from(TB).delete().eq("coll",coll).eq("id",id);if(error)throw err(error)},
+    onSnapshot:(cb,ecb)=>listen(coll,id,null,cb,ecb)}}
+  function query(coll,w){return {where:(f,op,v)=>query(coll,w.concat([[f,op,v]])),doc:id=>docRef(coll,id),
+    get:async()=>{const rows=await fetchColl(coll,w);return {docs:rows.map(r=>snapDoc(coll,r.id,r,false)),size:rows.length,empty:!rows.length}},
+    onSnapshot:(cb,ecb)=>listen(coll,null,w,cb,ecb)}}
+  return {collection:name=>query(name,[]),doc:path=>{const [c,i]=path.split("/");return docRef(c,i)},supa:true};
+}
+
+function startDb(d){db=d;subscribe();subscribeSettings();subscribeTickets();startStaffStores();gIdx=null}
 if(window.claude&&typeof window.claude.use==="function"){
-  window.claude.use("db").then(d=>{if(!d){setStatus("local","This device");return}db=d;subscribe();subscribeSettings();subscribeTickets();startStaffStores()}).catch(()=>setStatus("local","This device"));
+  window.claude.use("db").then(d=>{if(!d){setStatus("local","This device");return}startDb(d)}).catch(()=>setStatus("local","This device"));
+}else if(SUPA_URL&&location.protocol.startsWith("http")){
+  setStatus("saving","Connecting…");
+  loadSupaLib().then(lib=>startDb(makeSupaDb(lib.createClient(SUPA_URL,SUPA_KEY,{auth:{persistSession:false}})))).catch(()=>setStatus("local","Offline — this device only"));
 }
 })();
 </script>
