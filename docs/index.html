@@ -594,9 +594,17 @@ input.ln.alg{border-color:#b3261e!important;background:#fff4f2!important}
 #xOv .btn[disabled]{opacity:.4}
 .khead{flex-wrap:wrap;row-gap:8px}
 @media(max-width:600px){.khead [data-stock]{order:5}}
+
+.trainbar{position:fixed;left:0;right:0;top:0;z-index:9999;background:repeating-linear-gradient(135deg,#e8912d 0 16px,#d9801c 16px 32px);color:#fff;font-weight:900;font-size:13px;letter-spacing:.5px;text-align:center;padding:5px 8px;box-shadow:0 2px 6px rgba(0,0,0,.2)}
+.trainbar button{margin-left:8px;border:0;border-radius:8px;background:#fff;color:#a85a00;font-weight:800;padding:3px 9px}
+body.training{padding-top:30px}
+.livebox{margin-top:16px;border:2px solid var(--olive-dk);background:#eef3e6;border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.livebox.tr{border-color:#e8912d;background:#fff4e6}.livebox h3{margin:0;font-size:16px}.livebox p{margin:0;font-size:13px;color:#5c574a}
+.livebox .btn{max-width:none}
 </style>
 </head>
 <body>
+<div id="trainBar" class="trainbar" hidden>🎓 TRAINING MODE — practice only, nothing here is real · <button id="trainOff">Back to live</button></div>
 <div id="app">
   <header>
     <div class="brand"><h1>Trattoria <em>57</em></h1><span>Floor · Kitchen · Staff</span></div>
@@ -1043,6 +1051,8 @@ function joinPlan(id,target){
 function theta(){return view3d?46*Math.PI/180:0}
 function kEff(){return kFit*zoom}
 const AREAS={all:{x:0,y:0,w:2000,h:1460},bar:{x:140,y:0,w:1850,h:775},din:{x:0,y:745,w:2000,h:715}};
+const TRAIN=(()=>{try{return localStorage.getItem("t57-train")==="1"&&!/^#table-/.test(location.hash)}catch(e){return false}})();
+const LK=TRAIN?"t57-tr-":"t57-";
 let area="all";try{area=localStorage.getItem("t57-area")||"all";if(!AREAS[area])area="all"}catch(e){}
 function fit(){
   const r=stage.getBoundingClientRect();
@@ -1537,10 +1547,10 @@ function orderStatus(g){
   return {st,items,total};
 }
 // storage: shared db when available, otherwise this browser (syncs across tabs)
-function localTickets(){try{return (JSON.parse(localStorage.getItem("t57-tk-"+dateKey)||"[]")||[]).map(t=>cleanTicket(t.id,t)).filter(Boolean)}catch(e){return []}}
-function storeLocal(){try{localStorage.setItem("t57-tk-"+dateKey,JSON.stringify(tickets))}catch(e){}}
-addEventListener("storage",e=>{if(!db&&e.key==="t57-tk-"+dateKey){tickets=localTickets();ticketsChanged()}});
-addEventListener("storage",e=>{if(!db&&e.key==="t57-p23-"+dateKey){const v=loadLocal(dateKey);if(v&&!dragging){state=v;render();if(view==="guest")renderGuest();if(typeof syncCalls==="function")syncCalls()}}});
+function localTickets(){try{return (JSON.parse(localStorage.getItem(LK+"tk-"+dateKey)||"[]")||[]).map(t=>cleanTicket(t.id,t)).filter(Boolean)}catch(e){return []}}
+function storeLocal(){try{localStorage.setItem(LK+"tk-"+dateKey,JSON.stringify(tickets))}catch(e){}}
+addEventListener("storage",e=>{if(!db&&e.key===LK+"tk-"+dateKey){tickets=localTickets();ticketsChanged()}});
+addEventListener("storage",e=>{if(!db&&e.key===LK+"p23-"+dateKey){const v=loadLocal(dateKey);if(v&&!dragging){state=v;render();if(view==="guest")renderGuest();if(typeof syncCalls==="function")syncCalls()}}});
 function subscribeTickets(){
   if(ticketUnsub){ticketUnsub();ticketUnsub=null}
   if(!db){tickets=localTickets();ticketsChanged();return}
@@ -1917,7 +1927,7 @@ setInterval(()=>{if(view==="kitchen"||view==="bar")renderKitchen()},30000);
 const stores={};
 function useColl(name,onChange,query){
   const st=stores[name]={docs:{},onChange,query,unsub:null};
-  const lkey="t57-c-"+name;
+  const lkey=LK+"c-"+name;
   st.loadLocal=()=>{try{st.docs=JSON.parse(localStorage.getItem(lkey)||"{}")||{}}catch(e){st.docs={}}};
   st.saveLocal=()=>{try{localStorage.setItem(lkey,JSON.stringify(st.docs))}catch(e){}};
   st.start=()=>{
@@ -2048,7 +2058,11 @@ function openManage(){
     <div class="row2"><div class="fld"><label for="nPin">4-digit PIN</label><input id="nPin" inputmode="numeric" maxlength="4" placeholder="••••"></div>
     <div class="fld" style="justify-content:flex-end"><button class="btn pri" id="nAdd" style="max-width:none">Add staff</button></div></div>
     <p class="trial">Each person uses their PIN to clock in on this screen. PINs are stored scrambled, not as plain numbers.</p>
-    <button class="btn dng" id="mgPin">Change manager PIN</button>`;
+    <button class="btn dng" id="mgPin">Change manager PIN</button>
+    <div class="livebox ${TRAIN?"tr":""}"><h3>${TRAIN?"🎓 This device is in TRAINING mode":"✅ This device is LIVE"}</h3>
+      <p>${TRAIN?"Orders, bookings and bills here are practice only: they're kept separate, never print and never show on the real day report.":liveSince?"Live since "+esc(new Date(liveSince).toLocaleString("en-GB",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}))+".":"Not gone live yet — everything so far counts as testing."}</p>
+      <button class="btn sec" id="mgTrain">${TRAIN?"✅ Switch this device back to LIVE":"🎓 Switch this device to TRAINING"}</button>
+      ${TRAIN?"":`<button class="btn dng" id="mgLive">🚀 Go live — delete all test data</button>`}</div>`;
   $("mgOv").classList.add("show");
 }
 $("mgClose").onclick=()=>$("mgOv").classList.remove("show");
@@ -2058,6 +2072,8 @@ $("mgBody").addEventListener("click",async e=>{
     if(!name){toast("Add a name");return}if(!/^\d{4}$/.test(pin)){toast("PIN must be 4 digits");return}
     const id=uid();try{await staffStore.put(id,{name,role,pin:await hashPin(pin,id),active:true});toast(name+" added")}catch(_){}
     openManage();return}
+  if(e.target.id==="mgTrain"){$("mgOv").classList.remove("show");ask(TRAIN?"Back to live on this device?":"Switch this device to training?",TRAIN?"Real orders and bookings will show again.":"Practice freely: nothing you do will touch real orders, bookings, printers or reports. Other devices stay live.",()=>setTraining(!TRAIN));return}
+  if(e.target.id==="mgLive"){$("mgOv").classList.remove("show");goLive();return}
   if(e.target.id==="mgPin"){$("mgOv").classList.remove("show");
     askPin("New manager PIN","Choose a new 4-digit PIN",async v=>{try{await mgrStore.put("main",{pin:await hashPin(v,"manager")})}catch(_){return true}closePad();toast("Manager PIN changed");return true});return}
   const b=e.target.closest("button[data-m]");if(!b)return;
@@ -2483,13 +2499,13 @@ async function loadDay(k){
 }
 async function saveDay(k,st){
   if(k===dateKey){state=st;render();save();return}
-  try{localStorage.setItem("t57-p23-"+k,JSON.stringify(st))}catch(e){}
+  try{localStorage.setItem(LK+"p23-"+k,JSON.stringify(st))}catch(e){}
   if(db){const body=clone(st);body.updatedAt=Date.now();await db.doc("plan23/"+k).set(body)}
 }
 async function allDays(){
   const out={},t=todayKey();
   if(db){try{const sn=await db.collection("plan23").get();sn.docs.forEach(d=>{if(d.id>=t)out[d.id]=sanitize(clone(d.data()))})}catch(e){}}
-  try{for(let i=0;i<localStorage.length;i++){const key=localStorage.key(i);if(key&&key.startsWith("t57-p23-")){const k=key.slice(8);if(k>=t&&!out[k]){const v=loadLocal(k);if(v)out[k]=v}}}}catch(e){}
+  try{for(let i=0;i<localStorage.length;i++){const key=localStorage.key(i);if(key&&key.startsWith(LK+"p23-")){const k=key.slice((LK+"p23-").length);if(k>=t&&!out[k]){const v=loadLocal(k);if(v)out[k]=v}}}}catch(e){}
   if(dateKey>=t)out[dateKey]=state;
   return out;
 }
@@ -2746,7 +2762,7 @@ const normPh=p=>{const d=String(p||"").replace(/\D/g,"");return d.length>=7?d.sl
 async function allDaysAny(){
   const out={};
   if(db){try{const sn=await db.collection("plan23").get();sn.docs.forEach(d=>{out[d.id]=sanitize(clone(d.data()))})}catch(e){}}
-  try{for(let i=0;i<localStorage.length;i++){const key=localStorage.key(i);if(key&&key.startsWith("t57-p23-")){const k=key.slice(8);if(!out[k]){const v=loadLocal(k);if(v)out[k]=v}}}}catch(e){}
+  try{for(let i=0;i<localStorage.length;i++){const key=localStorage.key(i);if(key&&key.startsWith(LK+"p23-")){const k=key.slice((LK+"p23-").length);if(!out[k]){const v=loadLocal(k);if(v)out[k]=v}}}}catch(e){}
   out[dateKey]=state;return out;
 }
 async function guestIndex(force){
@@ -2825,6 +2841,7 @@ guestIndex();
 // ---------- thermal printing (website version): jobs picked up by the kitchen/bar printer tablets ----------
 const canThermal=()=>!!(db&&db.supa);
 async function printJob(to,kind,title,lines,logo){
+  if(TRAIN){toast("🎓 Training mode — nothing is printed");return}
   if(!canThermal()){toast("Thermal printing works on the website version (GitHub link)");return}
   const id=uid();
   try{await db.collection("printjobs").doc(id).set({to,kind,title,lines,logo:logo||"full",date:dateKey,createdAt:Date.now(),by:waiter?waiter.name:""});
@@ -2922,8 +2939,8 @@ $("dateInput").addEventListener("change",e=>{if(/^\d{4}-\d{2}-\d{2}$/.test(e.tar
 
 // ---------- persistence ----------
 function setStatus(cls,txt){const s=$("status");s.className="status "+cls;s.textContent=txt}
-function loadLocal(k){try{const v=localStorage.getItem("t57-p23-"+k);return v?sanitize(JSON.parse(v)):null}catch(e){return null}}
-function saveLocal(){try{localStorage.setItem("t57-p23-"+dateKey,JSON.stringify(state))}catch(e){}}
+function loadLocal(k){try{const v=localStorage.getItem(LK+"p23-"+k);return v?sanitize(JSON.parse(v)):null}catch(e){return null}}
+function saveLocal(){try{localStorage.setItem(LK+"p23-"+dateKey,JSON.stringify(state))}catch(e){}}
 let writing=false,again=false,pendingSnap=null;
 async function save(){
   saveLocal();
@@ -3008,7 +3025,36 @@ function makeSupaDb(sb){
   return {collection:name=>query(name,[]),doc:path=>{const [c,i]=path.split("/");return docRef(c,i)},supa:true};
 }
 
-function startDb(d){db=d;subscribe();subscribeSettings();subscribeTickets();startStaffStores();gIdx=null}
+if(TRAIN){document.body.classList.add("training");$("trainBar").hidden=false;$("trainOff").onclick=()=>ask("Back to live on this device?","Real orders and bookings will show again.",()=>setTraining(false))}
+
+// ---------- training mode & going live ----------
+const NS_COLLS=["tickets","plan23","printjobs","calls","shifts","stock"];   // kept separate in training
+function nsDb(d){const m=n=>NS_COLLS.includes(n)?"train_"+n:n;
+  return {collection:n=>d.collection(m(n)),doc:p=>{const i=p.indexOf("/");return d.doc(m(p.slice(0,i))+p.slice(i))},supa:d.supa,base:d}}
+function setTraining(on){try{on?localStorage.setItem("t57-train","1"):localStorage.removeItem("t57-train")}catch(e){}location.reload()}
+function wipeLocalData(prefix){try{const ks=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&["tk-","p23-","c-"].some(x=>k.startsWith(prefix+x)))ks.push(k)}ks.forEach(k=>localStorage.removeItem(k))}catch(e){}}
+let liveSince=0;try{liveSince=+localStorage.getItem("t57-liveSeen")||0}catch(e){}
+function subscribeLive(){
+  const base=db&&db.base?db.base:db;if(!base)return;
+  base.doc("settings/live").onSnapshot(sn=>{if(!sn.exists)return;const d=sn.data()||{};const s=+d.since||0;
+    if(s>liveSince){wipeLocalData("t57-");try{localStorage.setItem("t57-liveSeen",String(s))}catch(e){}
+      liveSince=s;if(!TRAIN){toast("🚀 Gone live — test data cleared");setTimeout(()=>location.reload(),900)}}},()=>{});
+}
+async function goLive(){
+  if(TRAIN){toast("Switch this device back to live first");return}
+  ask("Go live and delete ALL test data?","Deletes every order, bill, booking, pickup, shift, print job and out-of-stock mark made so far — on every device. Staff, PINs and settings are kept.",()=>{
+    setTimeout(()=>ask("Are you sure? This can't be undone.","After this, everything that happens is real and shows on the day reports.",async()=>{
+      toast("Clearing test data…");let n=0;
+      if(db){for(const c of NS_COLLS){try{const sn=await db.collection(c).get();for(const d of sn.docs){try{await db.collection(c).doc(d.id).delete();n++}catch(_){}}}catch(_){}}
+        try{await db.doc("settings/live").set({since:Date.now()})}catch(_){toast("Couldn't finish — check the connection and try again");return}}
+      else{try{localStorage.setItem("t57-liveSeen",String(Date.now()))}catch(_){}}
+      wipeLocalData("t57-");["t57-waiter"].forEach(k=>{try{localStorage.removeItem(k)}catch(_){}});
+      try{localStorage.setItem("t57-liveSeen",String(Date.now()))}catch(_){}
+      toast(`🚀 You're live! ${n} test items deleted`);setTimeout(()=>location.reload(),1200);
+    }),250)});
+}
+
+function startDb(d){db=TRAIN?nsDb(d):d;subscribeLive();subscribe();subscribeSettings();subscribeTickets();startStaffStores();gIdx=null}
 if(window.claude&&typeof window.claude.use==="function"){
   window.claude.use("db").then(d=>{if(!d){setStatus("local","This device");return}startDb(d)}).catch(()=>setStatus("local","This device"));
 }else if(SUPA_URL&&location.protocol.startsWith("http")){
