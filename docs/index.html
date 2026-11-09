@@ -722,6 +722,14 @@ body.training{padding-top:30px}
 @media (orientation:landscape) and (max-height:640px){.ostrip{margin:6px 12px 0;padding:6px 10px;font-size:13px}.ostrip button{padding:5px 10px!important}}
 .otools .deltool{color:var(--wine)!important;border-color:#e6c3bb!important}
 .delt{border:0;background:none;font-size:15px;padding:0 4px;margin-left:6px;cursor:pointer;opacity:.75}
+.aofilt{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}.aofilt button{border:1px solid var(--parch2);background:#fffaf0;border-radius:16px;padding:6px 12px;font-weight:700;color:#5d5640}
+.aofilt button.on{background:var(--olive-dk);border-color:var(--olive-dk);color:#fff}.aofilt b{opacity:.7;margin-left:2px}
+.aorow{border-top:1px dashed var(--parch2)}.aohead{display:flex;align-items:center;gap:8px;width:100%;background:none;border:0;padding:10px 2px;text-align:left;font:inherit;color:var(--ink)}
+.aohead>span{flex:1;min-width:0;font-size:14px}.aohead .amt{min-width:64px;text-align:right}.aorow.del .aohead,.aorow.rej .aohead{opacity:.55}
+.aost{font-style:normal;font-size:11px;font-weight:800;border-radius:9px;padding:2px 8px;background:#f1ead8;color:#6d6448;text-transform:uppercase}
+.aost.open{background:#fdf3d6;color:#8a6a10}.aost.paid{background:#e6efd8;color:var(--olive-dk)}.aost.del,.aost.rej{background:#f6e1dc;color:var(--wine)}
+.aoitems{padding:0 4px 12px 10px;font-size:14px}.aoitems>div{display:flex;justify-content:space-between;gap:8px;padding:3px 0}.aoitems i{color:#6d6448;font-size:12px}
+.aoitems .void span{text-decoration:line-through;color:#9a917a}.aodel{margin-top:8px;width:100%;max-width:none}
 </style>
 </head>
 <body>
@@ -2523,7 +2531,7 @@ function renderReport(){
   const hs=Object.keys(R.hours).map(Number);const h0=hs.length?Math.min(12,...hs):12,h1=hs.length?Math.max(22,...hs):22;
   const hrs=[];for(let h=h0;h<=h1;h++)hrs.push([h,R.hours[h]||0]);const hmax=Math.max(...hrs.map(x=>x[1]),1);
   const staffRows=Object.entries(R.staffH).sort((a,b)=>b[1]-a[1]);
-  el.innerHTML=`<div class="rhead"><h2>DAY REPORT · ${esc(L.toUpperCase())}</h2><button class="pri" id="repPdf">🖨 Print / PDF</button>${canThermal()?`<button class="pri" id="repThermal">🧾 Thermal print</button>`:""}<button id="repCopy">Copy report</button><button id="repMail">✉ Email to owner</button></div>
+  el.innerHTML=`<div class="rhead"><h2>DAY REPORT · ${esc(L.toUpperCase())}</h2><button class="pri" id="repPdf">🖨 Print / PDF</button>${canThermal()?`<button class="pri" id="repThermal">🧾 Thermal print</button>`:""}<button class="pri" id="repOrders">📋 All orders</button><button id="repCopy">Copy report</button><button id="repMail">✉ Email to owner</button></div>
   ${R.all.length?"":`<p class="trial">No orders on this day yet. Use the date arrows at the top to look at another day.</p>`}
   <div class="kpis">
     <div class="kpi hero"><span>Takings (paid)</span><b>${money(R.paidAmt)}</b><small>${R.openAmt?`+ ${money(R.openAmt)} still open on ${R.openTables} ${R.openTables===1?"table":"tables"}`:"All bills closed"}</small></div>
@@ -2570,6 +2578,7 @@ $("report").addEventListener("click",e=>{
   if(e.target.id==="repUnlock"){managerGate(()=>{repUnlockUntil=Date.now()+15*60000;renderReport()});return}
   if(e.target.id==="repPdf"){offerPdf(reportPdf(),`Trattoria57_Day_Report_${dateKey}.pdf`);return}
   if(e.target.id==="repThermal"){pickPrinter(to=>printJob(to,"report","Day report "+dateKey,reportLines(),"full"));return}
+  if(e.target.id==="repOrders"){openAllOrders();return}
   if(e.target.id==="repCopy"){const txt=reportText();
     (navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>toast("Report copied")).catch(()=>{
       const ta=document.createElement("textarea");ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand("copy");toast("Report copied")}catch(_){toast("Couldn't copy")}ta.remove()});return}
@@ -2896,6 +2905,42 @@ function startVoid(tid,xi){
     $("xFoot").innerHTML=`<button class="btn sec" data-xdone>Cancel</button>`},"Voids need a manager");
 }
 
+async function delCore(list,why,closeAll){const by=waiter?waiter.name:"Manager";
+  for(const t of list){const wasLive=t.status!=="served"&&!t.closed;
+    const items=t.items.map(x=>x.v?x:Object.assign({},x,{v:true,vr:"Deleted · "+why,vb:by}));
+    await patchTicket(t,Object.assign({items,status:"served"},closeAll?{closed:true}:{}));
+    if(wasLive&&canThermal())printJob(stOf(t),"cancel","CANCELLED "+t.label,[{t:"*** CANCELLED ***",a:"c",b:1,s:2},{t:t.label+" · order "+(t.no||""),a:"c"},{rule:"-"},
+      ...t.items.filter(x=>!x.v).map(x=>({t:x.q+" x "+x.n,b:1})),{rule:"-"},{t:"Reason: "+why},{t:"By: "+by}],"small")}}
+// ---- Report → All orders: every order that day, open any, delete (manager) ----
+let aoOpen=null,aoDel=null,aoF="all";
+function openAllOrders(){aoOpen=null;aoDel=null;aoF="all";
+  openX("allord","All orders · "+$("dateLabel").textContent,"Tap an order to see what was on it",e=>{
+    const f=e.target.closest("[data-aof]");if(f){aoF=f.dataset.aof;renderAllOrders();return}
+    const d=e.target.closest("[data-aodel]");if(d){const go=()=>{aoDel=d.dataset.aodel;renderAllOrders()};if(Date.now()<repUnlockUntil)go();else mgrCheck(go,"Deleting orders needs a manager");return}
+    if(e.target.closest("[data-aoback]")){aoDel=null;renderAllOrders();return}
+    const r=e.target.closest("[data-aodr]");if(r){const t=tickets.find(x=>x.id===aoDel);if(!t)return;
+      delCore([t],r.dataset.aodr,!t.closed).then(()=>{toast(`Order ${t.no||""} deleted · ${r.dataset.aodr}`);aoDel=null;ticketsChanged();renderAllOrders()});return}
+    const o=e.target.closest("[data-aoid]");if(o){aoOpen=aoOpen===o.dataset.aoid?null:o.dataset.aoid;renderAllOrders()}});
+  renderAllOrders()}
+function aoState(t){if(t.rejected)return ["rej","Rejected"];if(t.items.length&&t.items.every(x=>x.v))return ["del","Deleted"];if(t.closed&&t.paid)return ["paid","Paid "+t.paid];if(t.closed)return ["paid","Closed"];return ["open","Open"]}
+function renderAllOrders(){
+  if(xKind!=="allord")return;
+  if(aoDel){const t=tickets.find(x=>x.id===aoDel);if(!t){aoDel=null;return renderAllOrders()}
+    const val=t.items.reduce((a,x)=>a+lv(x),0);
+    $("xBody").innerHTML=`<div class="gl-title"><span>Delete order ${t.no||""} · ${esc(t.label)} · ${money(val)}</span></div>
+      <p class="trial">${t.closed&&t.paid?"⚠ This order was already paid — deleting it takes "+money(val)+" off the takings.":"It comes off the bill."} It stays on the report under Voids with the reason.${t.status!=="served"&&!t.closed?" The "+(stOf(t)==="bar"?"bar":"kitchen")+" gets a CANCELLED slip.":""}</p>
+      <div class="gl-title"><span>Why?</span></div><div class="dchips">${DEL_REASONS.map(r=>`<button data-aodr="${r}">${r}</button>`).join("")}</div>`;
+    $("xFoot").innerHTML=`<button class="btn sec" data-aoback>‹ Back</button>`;return}
+  const all=tickets.filter(t=>t.items.length&&!t.hold).sort((a,b)=>b.createdAt-a.createdAt);
+  const cnt=k=>all.filter(t=>k==="all"||aoState(t)[0]===k).length;
+  const list=all.filter(t=>aoF==="all"||aoState(t)[0]===aoF);
+  $("xBody").innerHTML=`<div class="aofilt">${[["all","All"],["open","Open"],["paid","Paid"],["del","Deleted"]].map(([k,l])=>`<button data-aof="${k}" class="${aoF===k?"on":""}">${l} <b>${cnt(k)}</b></button>`).join("")}</div>
+    ${list.map(t=>{const [k,lab]=aoState(t),val=t.items.reduce((a,x)=>a+lv(x),0),open=aoOpen===t.id;
+      return `<div class="aorow ${k}${open?" open":""}"><button class="aohead" data-aoid="${t.id}"><span><b>${t.walk?"🍸":t.pickup?"🥡":""}${esc(t.label)}</b> · #${t.no||""} · ${timeOf(t.createdAt)} · ${stOf(t)==="bar"?"Bar":"Kitchen"}${t.byName?" · "+esc(t.byName):""}</span><em class="aost ${k}">${esc(lab)}</em><b class="amt">${money(val)}</b></button>
+        ${open?`<div class="aoitems">${t.items.map(x=>`<div class="${x.v?"void":""}"><span>${x.q}× ${esc(x.n)}${x.g?" · "+esc(x.g):""}${x.note?` <i>${esc(x.note)}</i>`:""}${x.v?` <i>${esc(x.vr||"void")}${x.vb?" · "+esc(x.vb):""}</i>`:""}</span><span>${money(x.q*x.p)}</span></div>`).join("")}
+          ${t.note?`<div><i>Note: ${esc(t.note)}</i></div>`:""}${k==="del"||k==="rej"?"":`<button class="btn dng aodel" data-aodel="${t.id}">🗑 Delete this order</button>`}</div>`:""}</div>`}).join("")||`<p class="trial">No orders here.</p>`}`;
+  $("xFoot").innerHTML=`<button class="btn pri" data-xdone>Done</button>`}
+
 // ---- delete a whole order (or one ticket) — manager only; kept on the day report under Voids ----
 const DEL_REASONS=["Wrong table","Customer left","Duplicate order","Test order","Mistake"];
 function deleteOrders(ids){
@@ -2907,12 +2952,7 @@ function deleteOrders(ids){
   mgrCheck(()=>{
     openX("del",ids?`Delete order ${list[0].no||""}`:`Delete the whole order`,`${ids?list[0].label:gname(curGroup())} · ${n} order${n===1?"":"s"} · ${money(val)}`,async e=>{
       const b=e.target.closest("[data-dr]");if(!b)return;closeX();const why=b.dataset.dr,by=waiter?waiter.name:"Manager";
-      for(const t of list){
-        const wasLive=t.status!=="served";
-        const items=t.items.map(x=>x.v?x:Object.assign({},x,{v:true,vr:"Deleted · "+why,vb:by}));
-        await patchTicket(t,Object.assign({items,status:"served"},ids?{}:{closed:true}));
-        if(wasLive&&canThermal())printJob(stOf(t),"cancel","CANCELLED "+t.label,[{t:"*** CANCELLED ***",a:"c",b:1,s:2},{t:t.label+" · order "+(t.no||""),a:"c"},{rule:"-"},
-          ...t.items.filter(x=>!x.v).map(x=>({t:x.q+" x "+x.n,b:1})),{rule:"-"},{t:"Reason: "+why},{t:"By: "+by}],"small")}
+      await delCore(list,why,!ids);
       if(!ids){const g=curGroup();toast(`Order deleted · ${why}`);closeOrder&&closeOrder()}else toast(`Order ${list[0].no||""} deleted · ${why}`);
       ticketsChanged()});
     $("xBody").innerHTML=`<div class="gl-title"><span>Why?</span></div><div class="dchips">${DEL_REASONS.map(r=>`<button data-dr="${r}">${r}</button>`).join("")}</div>
@@ -3503,7 +3543,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261109204443";
+const APP_BUILD="20261109213714";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
