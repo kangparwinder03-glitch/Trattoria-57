@@ -63,7 +63,7 @@ object Samples {
         lr("Subtotal", "£60.60"); lr("Discount 10% (Friends)", "-£6.06"); rule('=')
         bold(true).size(1, 2).lr("TOTAL", "£54.54").size(1, 1).bold(false); rule('=')
         align(1).line("Grazie! Thank you for").line("dining with us.").align(0)
-        social(listOf(Triple("Facebook", "Trattoria 57", "https://www.facebook.com/share/1BcKcA1rHr/")))
+        social(listOf(Triple("Instagram", "@trattoria_57", "https://www.instagram.com/trattoria_57/"), Triple("Facebook", "Trattoria 57", "https://www.facebook.com/share/1BcKcA1rHr/")))
         feed(4); cut()
     }.bytes()
 

@@ -111,9 +111,9 @@ object Format {
         val review = j.optString("review")
         if (review.isNotBlank()) {
             rule(); align(1).bold(true).size(1, 2).line("ENJOYED YOUR MEAL?").size(1, 1).bold(false)
-            line("Scan to leave us a review"); line()
-            qr(review, if (cols >= 48) 6 else 5)
-            line("Grazie mille!"); align(0)
+            line("Scan to leave us a review"); feed(2)
+            qr(review, if (cols >= 48) 7 else 6)
+            feed(1); line("Grazie mille!"); align(0)
         }
         val soc = j.optJSONArray("social")
         if (soc != null) social((0 until soc.length()).mapNotNull { soc.optJSONObject(it) }

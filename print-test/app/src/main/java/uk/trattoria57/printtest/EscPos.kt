@@ -71,8 +71,13 @@ class EscPos(val cols: Int) {
     fun social(list: List<Triple<String, String, String>>): EscPos {
         if (list.isEmpty()) return this
         rule(); align(1).bold(true).size(1, 2).line("FOLLOW US").size(1, 1).bold(false).line("for news, specials & events")
-        list.forEach { (name, handle, url) -> line(); qr(url, if (cols >= 48) 6 else 5); bold(true).line(name).bold(false); if (handle.isNotBlank()) line(handle) }
-        line(); line("Scan to follow our journey"); return align(0)
+        // generous white space around each code so phones can pick them up easily
+        list.forEachIndexed { i, (name, handle, url) ->
+            feed(if (i == 0) 2 else 3)
+            qr(url, if (cols >= 48) 7 else 6)
+            feed(1); bold(true).line(name).bold(false); if (handle.isNotBlank()) line(handle)
+        }
+        feed(2); line("Scan to follow our journey"); return align(0)
     }
 
     fun bytes(): ByteArray = out.toByteArray()
