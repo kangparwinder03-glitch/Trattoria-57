@@ -633,17 +633,18 @@ body.training{padding-top:30px}
 
   <div id="stage">
     <div id="floor">
-      <div class="zone bar" style="left:160px;top:18px;width:1808px;height:742px"></div>
-      <div class="zone din" style="left:160px;top:760px;width:1808px;height:488px"></div>
+      <div class="zone bar" style="left:160px;top:18px;width:1808px;height:582px"></div>
+      <div class="zone din" style="left:160px;top:600px;width:1808px;height:648px"></div>
       <div class="zone din" style="left:16px;top:1060px;width:304px;height:380px"></div>
-      <div class="zlabel" style="left:220px;top:420px">BAR</div>
-      <div class="zlabel" style="left:960px;top:960px">RISTORANTE</div>
+      <div class="zlabel" style="left:880px;top:380px">BAR</div>
+      <div class="zlabel" style="left:700px;top:880px">RISTORANTE</div>
       <div id="walls" class="p3" style="position:absolute;inset:0;pointer-events:none"></div>
       <div class="counter" id="counter" style="left:1560px;top:18px;width:408px;height:290px"></div>
       <div class="counter" id="bar2" style="left:960px;top:40px;width:260px;height:250px"></div>
       <div class="counter" id="till" style="left:1336px;top:18px;width:180px;height:280px"></div>
-      <div class="zlabel" style="left:1010px;top:178px;font-size:20px;letter-spacing:6px;color:#fff3dc;transform:translateZ(52px)">TILL</div>
-      <div class="zlabel" style="left:1352px;top:200px;font-size:20px;letter-spacing:6px;color:#fff3dc;transform:translateZ(52px)">BAR 2</div>
+      <div class="zlabel" style="left:1000px;top:178px;font-size:20px;letter-spacing:6px;color:#fff3dc;transform:translateZ(52px)">BAR 2</div>
+      <div class="zlabel" style="left:1366px;top:200px;font-size:20px;letter-spacing:6px;color:#fff3dc;transform:translateZ(52px)">TILL</div>
+      <div class="zlabel" id="bar1lbl" style="left:1780px;top:150px;font-size:20px;letter-spacing:6px;color:#fff3dc;transform:translateZ(52px)">BAR 1</div>
       <div class="barrel" style="left:1880px;top:330px"><i style="transform:translateZ(46px)"></i></div>
       <div class="mat" style="left:1880px;top:400px;width:80px;height:150px;font-size:0"></div>
       <div class="door">FRONT DOOR</div>
@@ -898,37 +899,37 @@ const FW=2000, FH=1460, W=100, H=84;
 // ---- Trattoria 57 floor plan (from the owner's sketch). x,y = top-left in floor units ----
 // chairs: tb = top+bottom, lr = left+right, round = all round, sofa = bench seat (no chairs)
 const PLAN=[
- // bar area (from the owner's 2nd sketch, with seat counts)
- {name:"B1",zone:"bar",x:1744,y:604,w:84,h:72,seats:2,ch:"tb",join:1},
- {name:"B2",zone:"bar",x:1512,y:604,w:84,h:72,seats:2,ch:"tb",join:1},
- {name:"B3",zone:"bar",x:1340,y:540,w:80,h:160,seats:2,ch:"lr",join:0},
- {name:"B4",zone:"bar",x:520,y:628,w:180,h:84,seats:4,ch:"tb",join:1},
- {name:"B5",zone:"bar",x:256,y:640,w:84,h:72,seats:2,ch:"tb",join:1},
- {name:"B6",zone:"bar",x:384,y:640,w:84,h:72,seats:2,ch:"tb",join:1},
- {name:"B7",zone:"bar",x:300,y:110,w:110,h:200,seats:4,ch:"lr",join:0},
- {name:"B8",zone:"bar",x:650,y:120,w:110,h:200,seats:4,ch:"lr",join:0},
- // restaurant
- {name:"1",zone:"din",x:248,y:812,w:84,h:72,seats:2,ch:"tb",join:1},
- {name:"2",zone:"din",x:392,y:812,w:84,h:72,seats:2,ch:"tb",join:1},
- {name:"3",zone:"din",x:536,y:812,w:84,h:72,seats:2,ch:"tb",join:1},
- {name:"4",zone:"din",x:1364,y:800,w:120,h:120,seats:4,ch:"round",join:0},
- {name:"5",zone:"din",x:1580,y:812,w:120,h:120,seats:4,ch:"round",join:0},
- {name:"6",zone:"din",x:1780,y:820,w:120,h:120,seats:4,ch:"round",join:0},
- {name:"7",zone:"din",x:352,y:1104,w:84,h:72,seats:2,ch:"tb",join:1},
- {name:"8",zone:"din",x:560,y:1104,w:84,h:72,seats:2,ch:"tb",join:1},
- {name:"9",zone:"din",x:768,y:1104,w:84,h:72,seats:2,ch:"tb",join:1},
- {name:"10",zone:"din",x:968,y:1104,w:84,h:72,seats:2,ch:"tb",join:1},
- {name:"11",zone:"din",x:1144,y:1104,w:84,h:72,seats:2,ch:"tb",join:1},
- {name:"12",zone:"din",x:1530,y:1052,w:130,h:130,seats:4,ch:"round",join:0},
- {name:"13",zone:"din",x:1780,y:1046,w:130,h:130,seats:4,ch:"round",join:0},
- {name:"14",zone:"din",x:84,y:1120,w:100,h:84,seats:4,ch:"lr",join:1},
- {name:"15",zone:"din",x:84,y:1262,w:100,h:84,seats:4,ch:"lr",join:1},
+ // bar area (from the owner's 2nd sketch, with seat counts) — tables enlarged, bar area made shallower
+ {name:"B1",zone:"bar",x:1740,y:466,w:105,h:90,seats:2,ch:"tb",join:1},
+ {name:"B2",zone:"bar",x:1510,y:466,w:105,h:90,seats:2,ch:"tb",join:1},
+ {name:"B3",zone:"bar",x:1330,y:376,w:100,h:190,seats:2,ch:"lr",join:0},
+ {name:"B4",zone:"bar",x:540,y:460,w:220,h:100,seats:4,ch:"tb",join:1},
+ {name:"B5",zone:"bar",x:244,y:466,w:105,h:90,seats:2,ch:"tb",join:1},
+ {name:"B6",zone:"bar",x:390,y:466,w:105,h:90,seats:2,ch:"tb",join:1},
+ {name:"B7",zone:"bar",x:300,y:70,w:135,h:240,seats:4,ch:"lr",join:0},
+ {name:"B8",zone:"bar",x:650,y:70,w:135,h:240,seats:4,ch:"lr",join:0},
+ // restaurant (now the bigger area)
+ {name:"1",zone:"din",x:292,y:672,w:125,h:105,seats:2,ch:"tb",join:1},
+ {name:"2",zone:"din",x:497,y:672,w:125,h:105,seats:2,ch:"tb",join:1},
+ {name:"3",zone:"din",x:702,y:672,w:125,h:105,seats:2,ch:"tb",join:1},
+ {name:"4",zone:"din",x:1320,y:666,w:150,h:150,seats:4,ch:"round",join:0},
+ {name:"5",zone:"din",x:1545,y:666,w:150,h:150,seats:4,ch:"round",join:0},
+ {name:"6",zone:"din",x:1770,y:666,w:150,h:150,seats:4,ch:"round",join:0},
+ {name:"7",zone:"din",x:352,y:1086,w:105,h:90,seats:2,ch:"tb",join:1},
+ {name:"8",zone:"din",x:560,y:1086,w:105,h:90,seats:2,ch:"tb",join:1},
+ {name:"9",zone:"din",x:768,y:1086,w:105,h:90,seats:2,ch:"tb",join:1},
+ {name:"10",zone:"din",x:976,y:1086,w:105,h:90,seats:2,ch:"tb",join:1},
+ {name:"11",zone:"din",x:1184,y:1086,w:105,h:90,seats:2,ch:"tb",join:1},
+ {name:"12",zone:"din",x:1500,y:1010,w:160,h:160,seats:4,ch:"round",join:0},
+ {name:"13",zone:"din",x:1760,y:1010,w:160,h:160,seats:4,ch:"round",join:0},
+ {name:"14",zone:"din",x:80,y:1104,w:120,h:100,seats:4,ch:"lr",join:1},
+ {name:"15",zone:"din",x:80,y:1276,w:120,h:100,seats:4,ch:"lr",join:1},
 ];
 const N=PLAN.length;
 const T={};PLAN.forEach((p,i)=>T[i+1]=Object.assign({id:i+1},p));
-const ZONES=[{x:160,y:18,w:1808,h:742},{x:160,y:760,w:1808,h:488},{x:16,y:1060,w:304,h:380}];
+const ZONES=[{x:160,y:18,w:1808,h:582},{x:160,y:600,w:1808,h:648},{x:16,y:1060,w:304,h:380}];
 const WALLS=[[160,4,1822,14],[146,4,14,1056],[1968,4,14,380],[1968,560,14,702],[320,1248,1662,14],
-  [2,1046,158,14],[2,1046,14,408],[2,1440,332,14],[320,1248,14,206],[224,760,800,16]];
+  [2,1046,158,14],[2,1046,14,408],[2,1440,332,14],[320,1248,14,206],[224,600,800,16]];
 const tname=id=>T[id]?T[id].name:"?";
 const isBar=id=>T[id]&&T[id].zone==="bar";
 function tlabel(id){const n=tname(id);return isBar(id)?"Bar "+n.slice(1):"Table "+n}
@@ -1069,7 +1070,7 @@ function joinPlan(id,target){
 // ---------- camera ----------
 function theta(){return view3d?46*Math.PI/180:0}
 function kEff(){return kFit*zoom}
-const AREAS={all:{x:0,y:0,w:2000,h:1460},bar:{x:140,y:0,w:1850,h:775},din:{x:0,y:745,w:2000,h:715}};
+const AREAS={all:{x:0,y:0,w:2000,h:1460},bar:{x:140,y:0,w:1850,h:615},din:{x:0,y:585,w:2000,h:875}};
 const TRAIN=(()=>{try{return localStorage.getItem("t57-train")==="1"&&!/^#table-/.test(location.hash)}catch(e){return false}})();
 const LK=TRAIN?"t57-tr-":"t57-";
 let area="all";try{area=localStorage.getItem("t57-area")||"all";if(!AREAS[area])area="all"}catch(e){}
