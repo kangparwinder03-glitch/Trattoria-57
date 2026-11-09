@@ -108,11 +108,19 @@ object Format {
                 }
             }
         }
-        val review = j.optString("review")
-        if (review.isNotBlank()) {
+        // review codes: "reviews" = [{n,u}] (Google, TripAdvisor…); older pages send a single "review" link
+        val revArr = j.optJSONArray("reviews")
+        val reviews = if (revArr != null) (0 until revArr.length()).mapNotNull { revArr.optJSONObject(it) }
+            .filter { it.optString("u").isNotBlank() }.map { it.optString("n") to it.optString("u") }
+            else j.optString("review").let { if (it.isNotBlank()) listOf("" to it) else emptyList() }
+        if (reviews.isNotEmpty()) {
             rule(); align(1).bold(true).size(1, 2).line("ENJOYED YOUR MEAL?").size(1, 1).bold(false)
-            line("Scan to leave us a review"); feed(2)
-            qr(review, if (cols >= 48) 7 else 6)
+            line("Scan to leave us a review")
+            reviews.forEachIndexed { i, (name, url) ->
+                feed(if (i == 0) 2 else 3)
+                qr(url, if (cols >= 48) 7 else 6)
+                if (name.isNotBlank()) { feed(1); bold(true).line(name).bold(false) }
+            }
             feed(1); line("Grazie mille!"); align(0)
         }
         val soc = j.optJSONArray("social")
