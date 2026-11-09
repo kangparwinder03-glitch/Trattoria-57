@@ -709,6 +709,11 @@ body.training{padding-top:30px}
 .tbtns .card{background:#3f5f86;border-color:#3f5f86}.tbtns .cash{background:var(--olive-dk);border-color:var(--olive-dk)}
 .tabnote{font-size:12px;color:#6d6448;padding-top:6px}
 #oCats{flex-wrap:wrap}#oCats .tabchips{flex:0 0 100%;order:-1}
+.takeord{background:#3f5f86!important;color:#fff!important;border-color:#3f5f86!important;font-weight:800!important}
+.btgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-top:10px}
+.btpick{border:1px solid var(--parch2);background:#fffaf0;border-radius:12px;padding:14px 8px;font-weight:800;font-size:15px;color:var(--ink)}
+.btpick small{display:block;font-size:11px;color:var(--wine);font-weight:700}.btpick.busy{border-color:var(--wine);background:#fbeee8}
+.btpick.isbar{background:#f3ead6}.btpick.walk{width:100%;background:var(--olive-dk);color:#fff;border-color:var(--olive-dk)}
 </style>
 </head>
 <body>
@@ -780,7 +785,7 @@ body.training{padding-top:30px}
   <section id="bar" class="station" data-st="bar">
     <div class="kwrap">
       <div class="khead">
-        <span class="sttitle">BAR</span><button class="sndbtn" data-snd>🔔 Sound on</button><button class="sndbtn ld" data-loud="bar"></button><button class="sndbtn ot" data-onetap="bar"></button><button class="sndbtn" data-stock="bar">⛔ Out of stock<span class="n-out"></span></button><div class="kseg"><button data-kf="todo" class="on">To do <span class="n-todo">0</span></button><button data-kf="served">Served <span class="n-served">0</span></button></div>
+        <span class="sttitle">BAR</span><button class="sndbtn takeord" id="barTake">➕ Take drinks order</button><button class="sndbtn" data-snd>🔔 Sound on</button><button class="sndbtn ld" data-loud="bar"></button><button class="sndbtn ot" data-onetap="bar"></button><button class="sndbtn" data-stock="bar">⛔ Out of stock<span class="n-out"></span></button><div class="kseg"><button data-kf="todo" class="on">To do <span class="n-todo">0</span></button><button data-kf="served">Served <span class="n-served">0</span></button></div>
       </div>
       <div class="ksum"></div>
       <div class="klist"></div>
@@ -1889,7 +1894,7 @@ $("oCats").addEventListener("click",e=>{const bt=e.target.closest("button");if(!
 function renderOrder(){
   if(!ord)return;
   const g=curGroup(),ids=g.slice().sort((a,b)=>a-b),b=ord.pickup?null:state.bookings[leadOf(g)];
-  if(ord.pickup){$("oTitle").innerHTML=`🥡 Pickup <span style="color:var(--wine)">#${ord.pno}</span><span class="chip" style="background:#3f5f86">No table</span>`;
+  if(ord.pickup){$("oTitle").innerHTML=ord.pname==="Bar walk-up"?`🍸 Bar walk-up <span style="color:var(--wine)">#${ord.pno}</span>`:`🥡 Pickup <span style="color:var(--wine)">#${ord.pno}</span><span class="chip" style="background:#3f5f86">No table</span>`;
     $("oSub").textContent=(ord.pname?ord.pname+(ord.pphone?" · "+ord.pphone:""):"Collection order")+" · tell the customer their number";}
   else{$("oTitle").innerHTML=esc(gnameLong(g))+`<span class="chip">${seatsOf(g)} seats</span>`;
   const lead=b&&b.guests[0]&&b.guests[0].name;
@@ -1905,7 +1910,7 @@ function renderOrder(){
   if(ord.tab==="menu"&&!ord.review){
     cats.style.display="";
     const drinks=BAR_CATS.has(ord.cat),cnt=d=>c.filter(x=>BAR_CATS.has(ITEMS[x.n].cat)===d).reduce((a,x)=>a+x.q,0);
-    cats.innerHTML=tabChips(drinks)+`<div class="sidetog"><button data-side="food" class="${drinks?"":"on"}">🍝 Food${cnt(false)?` <b>${cnt(false)}</b>`:""}</button><button data-side="drinks" class="${drinks?"on":""}">🍸 Drinks${cnt(true)?` <b>${cnt(true)}</b>`:""}</button></div>
+    cats.innerHTML=tabChips(drinks)+`<div class="sidetog">${ord.barMode?"":`<button data-side="food" class="${drinks?"":"on"}">🍝 Food${cnt(false)?` <b>${cnt(false)}</b>`:""}</button>`}<button data-side="drinks" class="${drinks?"on":""}">🍸 Drinks${cnt(true)?` <b>${cnt(true)}</b>`:""}</button></div>
       <div class="catrow">${CATS.filter(k=>BAR_CATS.has(k)===drinks).map(k=>{const n=c.filter(x=>ITEMS[x.n].cat===k).reduce((a,x)=>a+x.q,0);
       return `<button data-c="${esc(k)}" class="${k===ord.cat?"on":""}">${esc(k)}${n?" · "+n:""}</button>`}).join("")}</div>`;
     const list=MENU.find(m=>m[0]===ord.cat)[1];
@@ -2912,6 +2917,18 @@ async function doMove(from,to){
   toast(`Moved to ${lab}`);ticketsChanged();renderAlerts();
 }
 
+// ---- bar staff take drinks orders from the bar screen ----
+function barTake(){
+  const gs=groupsOf(state.tables).slice().sort((a,b)=>(isBar(Math.min(...b))-isBar(Math.min(...a)))||Math.min(...a)-Math.min(...b));
+  openX("bartake","Drinks order for…","Pick the table, or Walk-up for someone paying at the bar",e=>{
+    const b=e.target.closest("[data-bt]");if(!b)return;closeX();
+    if(b.dataset.bt==="walk"){openPickup(0,"menu");ord.pname="Bar walk-up"}else openOrder(+b.dataset.bt,"menu");
+    ord.barMode=true;ord.cat=CATS.find(k=>BAR_CATS.has(k));renderOrder()});
+  $("xBody").innerHTML=`<button class="btpick walk" data-bt="walk">🚶 Walk-up · pay now</button><div class="btgrid">${gs.map(g=>{const busy=activeFor(g).length;
+    return `<button class="btpick${busy?" busy":""}${isBar(Math.min(...g))?" isbar":""}" data-bt="${leadOf(g)}">${esc(gname(g))}${busy?"<small>open</small>":""}</button>`}).join("")}</div>`;
+  $("xFoot").innerHTML=`<button class="btn sec" data-xdone style="max-width:none">Cancel</button>`}
+$("barTake").onclick=barTake;
+
 // ---- name tabs: one table, separate bills (e.g. shared food, everyone pays their own drinks) ----
 function tabNames(all){const set=[];(all||[]).forEach(t=>t.items.forEach(x=>{if(x.g&&!set.includes(x.g))set.push(x.g)}));
   if(ord&&ord.guests)ord.guests.forEach(n=>{if(!set.includes(n))set.push(n)});cart().forEach(x=>{if(x.g&&!set.includes(x.g))set.push(x.g)});return set}
@@ -3381,7 +3398,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261109180225";
+const APP_BUILD="20261109180312";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
