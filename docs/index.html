@@ -571,7 +571,7 @@ input.ln.alg{border-color:#b3261e!important;background:#fff4f2!important}
 .wgrid button.on{border-color:var(--olive-dk);background:#eef3e6}
 .wgrid .av{width:42px;height:42px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px}
 .wgrid small{color:#6d6448}
-#waiterBtn.on{background:#eef3e6;border-color:var(--olive-dk)}
+#barWho.on,#waiterBtn.on{background:#eef3e6;border-color:var(--olive-dk)}
 .regc{border-radius:12px;background:#eef3e6;border:1px solid #c9d6b0;padding:10px 12px;margin:0 0 12px;font-size:13px;display:flex;flex-direction:column;gap:3px}
 .regc b{font-size:14px;color:var(--olive-dk)}
 .regc.bad{background:#fdf3d6;border-color:#f0dca0}
@@ -785,7 +785,7 @@ body.training{padding-top:30px}
   <section id="bar" class="station" data-st="bar">
     <div class="kwrap">
       <div class="khead">
-        <span class="sttitle">BAR</span><button class="sndbtn takeord" id="barTake">➕ Take drinks order</button><button class="sndbtn" data-snd>🔔 Sound on</button><button class="sndbtn ld" data-loud="bar"></button><button class="sndbtn ot" data-onetap="bar"></button><button class="sndbtn" data-stock="bar">⛔ Out of stock<span class="n-out"></span></button><div class="kseg"><button data-kf="todo" class="on">To do <span class="n-todo">0</span></button><button data-kf="served">Served <span class="n-served">0</span></button></div>
+        <span class="sttitle">BAR</span><button class="sndbtn takeord" id="barTake">➕ Take drinks order</button><button class="sndbtn" id="barWho" style="color:var(--ink)">👤 Who's on the bar?</button><button class="sndbtn" data-snd>🔔 Sound on</button><button class="sndbtn ld" data-loud="bar"></button><button class="sndbtn ot" data-onetap="bar"></button><button class="sndbtn" data-stock="bar">⛔ Out of stock<span class="n-out"></span></button><div class="kseg"><button data-kf="todo" class="on">To do <span class="n-todo">0</span></button><button data-kf="served">Served <span class="n-served">0</span></button></div>
       </div>
       <div class="ksum"></div>
       <div class="klist"></div>
@@ -2826,21 +2826,21 @@ function copyText(txt,msg){(navigator.clipboard?navigator.clipboard.writeText(tx
 function mgrCheck(then,why){if(Date.now()<mgrUntil){then();return}managerGate(()=>{mgrUntil=Date.now()+5*60000;then()},why)}
 
 // ---- waiter login ----
-function updWaiter(){const b=$("waiterBtn");if(b){b.textContent=waiter?"👤 "+waiter.name:"👤 Log in";b.classList.toggle("on",!!waiter)}}
+function updWaiter(){const b=$("waiterBtn");if(b){b.textContent=waiter?"👤 "+waiter.name:"👤 Log in";b.classList.toggle("on",!!waiter)}const w=$("barWho");if(w){w.textContent=waiter?"👤 Bar: "+waiter.name:"👤 Who's on the bar?";w.classList.toggle("on",!!waiter)}}
 function setWaiter(w){waiter=w;try{localStorage.setItem("t57-waiter",JSON.stringify(w))}catch(e){}updWaiter();if(ord&&$("ordOv").classList.contains("show"))renderOrder()}
-function pickWaiter(then){
+function pickWaiter(then,title){
   const list=staffList();
   if(!list.length){toast("Add staff first: Staff → Manage staff");if(then)then();return}
-  openX("waiter","Who's serving?",waiter?"Logged in: "+waiter.name:"Tap your name, then your PIN",e=>{
+  openX("waiter",title||(location.hash==="#bar"?"Who's on the bar?":"Who's serving?"),waiter?"Logged in: "+waiter.name:"Tap your name, then your PIN",e=>{
     const b=e.target.closest("[data-w]");
     if(b){const p=list.find(x=>x.id===b.dataset.w);if(!p)return;closeX();
-      askPin(p.name,"Enter your PIN",async v=>{if(await hashPin(v,p.id)!==p.pin)return false;closePad();setWaiter({id:p.id,name:p.name});toast("👤 "+p.name+" is serving");if(then)then();return true});return}
+      askPin(p.name,"Enter your PIN",async v=>{if(await hashPin(v,p.id)!==p.pin)return false;closePad();setWaiter({id:p.id,name:p.name});toast("👤 "+p.name+(location.hash==="#bar"?" is on the bar":" is serving"));if(then)then();return true});return}
     if(e.target.closest("[data-wout]")){setWaiter(null);closeX();toast("Logged out")}});
   $("xBody").innerHTML=`<div class="wgrid">${list.map((p,i)=>`<button data-w="${p.id}" class="${waiter&&waiter.id===p.id?"on":""}"><span class="av" style="background:${COLORS[i%COLORS.length]}">${esc(p.name[0].toUpperCase())}</span><b>${esc(p.name)}</b><small>${esc(p.role||"Staff")}</small></button>`).join("")}</div>
     <p class="trial">Orders, voids and discounts are saved under your name and show on the day report. This device remembers you until someone else logs in.</p>`;
   $("xFoot").innerHTML=waiter?`<button class="btn dng" data-wout>Log out ${esc(waiter.name)}</button><button class="btn sec" data-xdone>Close</button>`:`<button class="btn sec" data-xdone>Close</button>`;
 }
-$("waiterBtn").onclick=()=>pickWaiter();
+$("waiterBtn").onclick=()=>pickWaiter();$("barWho").onclick=()=>pickWaiter();
 setTimeout(updWaiter,0);
 
 // ---- out of stock (kitchen & bar) ----
@@ -2927,7 +2927,7 @@ function barTake(){
   $("xBody").innerHTML=`<button class="btpick walk" data-bt="walk">🚶 Walk-up · pay now</button><div class="btgrid">${gs.map(g=>{const busy=activeFor(g).length;
     return `<button class="btpick${busy?" busy":""}${isBar(Math.min(...g))?" isbar":""}" data-bt="${leadOf(g)}">${esc(gname(g))}${busy?"<small>open</small>":""}</button>`}).join("")}</div>`;
   $("xFoot").innerHTML=`<button class="btn sec" data-xdone style="max-width:none">Cancel</button>`}
-$("barTake").onclick=barTake;
+$("barTake").onclick=()=>{if(!waiter&&staffList().length){toast("Who's on the bar? Pick your name");pickWaiter(barTake);return}barTake()};
 
 // ---- name tabs: one table, separate bills (e.g. shared food, everyone pays their own drinks) ----
 function tabNames(all){const set=[];(all||[]).forEach(t=>t.items.forEach(x=>{if(x.g&&!set.includes(x.g))set.push(x.g)}));
@@ -3398,7 +3398,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261109180312";
+const APP_BUILD="20261109181048";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
