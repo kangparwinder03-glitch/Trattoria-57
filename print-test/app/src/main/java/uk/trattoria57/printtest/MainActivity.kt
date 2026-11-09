@@ -41,6 +41,8 @@ class MainActivity : Activity() {
     private lateinit var logoBox: CheckBox
     private var cols = 32
     private var station = "kitchen"
+    private lateinit var cGroup: RadioGroup
+    private fun copiesFor(st: String) = prefs.getInt("copies_$st", if (st == "kitchen") 2 else 1).coerceIn(1, 3)
     @Volatile private var running = false
     private var worker: Thread? = null
     private var lastSlip: ByteArray? = null
@@ -72,7 +74,7 @@ class MainActivity : Activity() {
         val rK = RadioButton(this).apply { text = "🍝 Kitchen  "; textSize = 18f; id = 1 }
         val rB = RadioButton(this).apply { text = "🍸 Bar"; textSize = 18f; id = 2 }
         stGroup.addView(rK); stGroup.addView(rB); stGroup.check(if (station == "bar") 2 else 1)
-        stGroup.setOnCheckedChangeListener { _, id -> station = if (id == 2) "bar" else "kitchen"; prefs.edit().putString("station", station).apply(); addLog("Now printing for the ${station.uppercase(Locale.UK)}") }
+        stGroup.setOnCheckedChangeListener { _, id -> station = if (id == 2) "bar" else "kitchen"; prefs.edit().putString("station", station).apply(); cGroup.check(100 + copiesFor(station)); addLog("Now printing for the ${station.uppercase(Locale.UK)}") }
         root.addView(stGroup)
 
         // ---- printer ----
@@ -85,6 +87,12 @@ class MainActivity : Activity() {
         wGroup.addView(r58); wGroup.addView(r80); wGroup.check(if (cols >= 48) 80 else 58)
         wGroup.setOnCheckedChangeListener { _, id -> cols = if (id == 80) 48 else 32; prefs.edit().putInt("cols", cols).apply() }
         root.addView(wGroup)
+        root.addView(label("Copies of each order ticket", 14f, true))
+        cGroup = RadioGroup(this).apply { orientation = RadioGroup.HORIZONTAL }
+        listOf(1, 2, 3).forEach { n -> cGroup.addView(RadioButton(this).apply { text = "$n   "; textSize = 18f; id = 100 + n }) }
+        cGroup.check(100 + copiesFor(station))
+        cGroup.setOnCheckedChangeListener { _, id -> prefs.edit().putInt("copies_$station", id - 100).apply(); addLog("${station.replaceFirstChar { it.uppercase() }} tickets now print ${id - 100}x") }
+        root.addView(cGroup)
         logoBox = CheckBox(this).apply { text = "Print the Trattoria 57 logo"; textSize = 16f; isChecked = prefs.getBoolean("logo", true)
             setOnCheckedChangeListener { _, on -> prefs.edit().putBoolean("logo", on).apply() } }
         root.addView(logoBox)
@@ -189,7 +197,7 @@ class MainActivity : Activity() {
             val training = coll == "train_tickets"
             if (!running || station != st) return
             val label = if (d.optBoolean("pickup")) "Pickup #${d.optInt("pno")}" else d.optString("label")
-            val copies = if (st == "kitchen") 2 else 1   // kitchen always gets 2 copies, bar 1
+            val copies = copiesFor(st)
             val lg = logos()
             val bytes = (1..copies).map { Format.ticket(d, cols, lg, it, copies, training) }.reduce { a, b -> a + b }
             if (!printNow(bytes, (if (training) "TRAINING " else "") + "$label · order #${d.optInt("no")}" + if (copies > 1) " (x$copies)" else "")) return
