@@ -1675,6 +1675,7 @@ const lv=x=>x.v?0:x.q*x.p;   // line value (voided lines are free)
 const ALG=/allerg|gluten|coeliac|celiac|dairy|lactose|\bnuts?\b|peanut|shellfish|prawn|\begg|sesame|vegan|soya|\bfish\b|mustard|celery|anaphyl/i;
 const isAlg=t=>!!t&&ALG.test(t);
 const ALG_CHIPS=["Nut allergy","Gluten free","Dairy free","Shellfish allergy","Egg allergy","Vegan"];
+const DRINK_CHIPS=["No ice","Ice & lemon","Ice & lime","Slice of orange","Straw","Slimline tonic","Diet mixer","Large glass","Jug","Bottle & glass"];
 const PREP_CHIPS=["No onion","No chilli","Extra hot","Well done","Medium","Rare","Starter size","Halal","Sauce on side"];
 const DISC_REASONS=["Pickup","Friends & family","Promotion","Voucher","Staff meal","Complaint","Other"];
 function cleanIdisc(x){const o={};if(x&&typeof x==="object")Object.keys(x).slice(0,60).forEach(k=>{const d=x[k];if(!d||typeof d!=="object")return;const t=d.t==="amt"?"amt":"pct";const v=Math.max(0,Math.min(t==="pct"?100:9999,+d.v||0));if(v>0)o[str(k,100)]={t,v,r:str(d.r,30),by:str(d.by,40)}});return o}
@@ -1945,9 +1946,10 @@ function renderOrder(){
     body.innerHTML=(ord.pickup&&c.length?`<div class="guests" style="gap:8px"><input id="pName" placeholder="Name (optional)" maxlength="40" value="${esc(ord.pname||"")}" style="flex:1.2"><input id="pPhone" type="tel" inputmode="tel" placeholder="Phone (optional)" maxlength="30" value="${esc(ord.pphone||"")}" style="flex:1"></div>`:"")+(firstOrder&&c.length?`<div class="guests"><b>Guests at table</b><div class="step"><button data-g="-1">−</button><span>${ord.covers}</span><button class="add" data-g="1">+</button></div></div>`:"")+(c.length?c.map((x,i)=>`<div class="cl" data-i="${i}"><div class="r1"><b>${esc(x.n)}</b><span class="pr">${money(ITEMS[x.n].p*x.q)}</span>
       <div class="step">${x.g?`<span class="gtag">👤 ${esc(x.g)}</span>`:""}<button data-a="dec">−</button><span>${x.q}</span><button class="add" data-a="inc">+</button></div></div>
       ${outSet.has(x.n)?`<div class="note" style="margin:4px 0">⛔ Out of stock — remove this</div>`:""}
-      <input class="ln${isAlg(x.note)?" alg":""}" placeholder="Note for kitchen (e.g. no onions)" maxlength="120" value="${esc(x.note)}">
+      ${ITEMS[x.n].station==="bar"?`<input class="ln" placeholder="Note for the bar (e.g. no ice)" maxlength="120" value="${esc(x.note)}">
+      <div class="qn">${DRINK_CHIPS.map(t=>`<button data-q="${t}">${t}</button>`).join("")}</div></div>`:`<input class="ln${isAlg(x.note)?" alg":""}" placeholder="Note for kitchen (e.g. no onions)" maxlength="120" value="${esc(x.note)}">
       <div class="qn alg">${ALG_CHIPS.map(t=>`<button data-q="${t}">⚠ ${t}</button>`).join("")}</div>
-      <div class="qn">${PREP_CHIPS.map(t=>`<button data-q="${t}">${t}</button>`).join("")}</div></div>`).join("")+
+      <div class="qn">${PREP_CHIPS.map(t=>`<button data-q="${t}">${t}</button>`).join("")}</div></div>`}`).join("")+
       `<div class="cl"><b style="font-size:13px">Note for the whole table</b><input id="oNote" placeholder="Allergies, timing…" maxlength="200" value="${esc(ord.note||"")}"></div>`
       :`<div class="empty">Nothing in this order yet.</div>`);
     foot.innerHTML=`<button class="btn sec" data-f="back">‹ Menu</button><button class="btn pri" data-f="send"${c.length?"":" disabled"}>${c.every(x=>ITEMS[x.n].station==="bar")?"Send to bar":c.some(x=>ITEMS[x.n].station==="bar")?"Send to kitchen + bar":"Send to kitchen"} · ${money(sum)}</button>`;
@@ -3543,7 +3545,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261109213714";
+const APP_BUILD="20261109221840";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
