@@ -628,6 +628,11 @@ body.training{padding-top:30px}
 .alertbar::-webkit-scrollbar{display:none}
 .alertbar div{flex:none;font-size:12px!important;padding:6px 10px!important;border-radius:12px!important;box-shadow:0 3px 10px rgba(0,0,0,.22)!important}
 .alertbar .ctl{flex:none}
+
+#floor.moving{will-change:transform}
+#floor.moving .tbl .ttop,#floor.moving .tbl{animation-play-state:paused!important}
+#floor.moving .tbl,#floor.moving .chair{transition:none!important}
+.updbtn{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:10000;border:0;border-radius:22px;background:var(--olive-dk);color:#fff;font-weight:800;font-size:15px;padding:12px 18px;box-shadow:0 8px 24px rgba(0,0,0,.3)}
 </style>
 </head>
 <body>
@@ -1110,6 +1115,10 @@ function unproject(cx,cy){
   let vx=x/k,vy=y/k;if(rot){const t=vx;vx=vy;vy=-t}
   return {x:vx+FW/2-panX,y:vy+FH/2-panY};
 }
+// smooth camera: redraw at most once per screen frame, and mark the floor as moving while a gesture runs
+let camRaf=0;function camSoon(){if(!camRaf)camRaf=requestAnimationFrame(()=>{camRaf=0;applyCam()})}
+function gestureOn(){floor.classList.remove("anim");floor.classList.add("moving")}
+function gestureOff(){clearTimeout(gestureOff.t);gestureOff.t=setTimeout(()=>floor.classList.remove("moving"),120)}
 function animCam(){floor.classList.add("anim");applyCam();clearTimeout(animCam.t);animCam.t=setTimeout(()=>floor.classList.remove("anim"),600)}
 function clampPan(){panX=Math.max(-FW/2,Math.min(FW/2,panX));panY=Math.max(-FH/2,Math.min(FH/2,panY))}
 
@@ -1223,32 +1232,39 @@ stage.addEventListener("pointerdown",e=>{
   if(e.target.closest(".ctrls,.hint,.stage-snd,.alertbar,.datebanner"))return;
   if(e.target.closest(".areabar,#tilesView"))return;
   const tEl=e.target.closest(".tbl");
-  if(tEl&&!pinch&&pointers.size===0){startDrag(e,+tEl.dataset.id,tEl);return}
+  // a second finger while a table is only being touched (not yet dragged) = pinch-zoom, not a drag
+  if(dragging&&!dragging.moved){const d=dragging;try{d.el.releasePointerCapture(d.pid)}catch(_){}pointers.set(d.pid,{x:d.sx,y:d.sy});dragging=null}
+  else if(tEl&&!pinch&&pointers.size===0){startDrag(e,+tEl.dataset.id,tEl);return}
   pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
-  stage.setPointerCapture(e.pointerId);
+  try{stage.setPointerCapture(e.pointerId)}catch(_){}
+  gestureOn();
   if(pointers.size===1){const f=unproject(e.clientX,e.clientY);pan={fx:f.x,fy:f.y}}
-  else if(pointers.size===2){const [a,b]=[...pointers.values()];pinch={d:Math.hypot(a.x-b.x,a.y-b.y),z:zoom};pan=null}
+  else if(pointers.size===2){const [a,b]=[...pointers.values()],mx=(a.x+b.x)/2,my=(a.y+b.y)/2;pinch={d:Math.hypot(a.x-b.x,a.y-b.y)||1,z:zoom,f:unproject(mx,my)};pan=null}
 });
 stage.addEventListener("pointermove",e=>{
   if(dragging&&e.pointerId===dragging.pid){moveDrag(e);return}
   if(!pointers.has(e.pointerId))return;
   pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(pinch&&pointers.size===2){const [a,b]=[...pointers.values()];
-    zoom=Math.max(.6,Math.min(3.2,pinch.z*Math.hypot(a.x-b.x,a.y-b.y)/pinch.d));applyCam()}
-  else if(pan){const k=kEff();
+    // zoom around the point between the fingers, and let two fingers pan at the same time
+    zoom=Math.max(.6,Math.min(3.2,pinch.z*Math.hypot(a.x-b.x,a.y-b.y)/pinch.d));
+    const cur=unproject((a.x+b.x)/2,(a.y+b.y)/2);panX+=cur.x-pinch.f.x;panY+=cur.y-pinch.f.y;clampPan();camSoon()}
+  else if(pan){
     // keep the grabbed floor point under the finger
-    const cur=unproject(e.clientX,e.clientY);panX+=cur.x-pan.fx;panY+=cur.y-pan.fy;clampPan();applyCam()}
+    const cur=unproject(e.clientX,e.clientY);panX+=cur.x-pan.fx;panY+=cur.y-pan.fy;clampPan();camSoon()}
 });
 function endPointer(e){
   if(dragging&&e.pointerId===dragging.pid){endDrag(e);return}
   pointers.delete(e.pointerId);
   if(pointers.size<2)pinch=null;
   if(pointers.size===1){const [p]=[...pointers.values()];const f=unproject(p.x,p.y);pan={fx:f.x,fy:f.y}}
-  if(pointers.size===0)pan=null;
+  if(pointers.size===0){pan=null;gestureOff()}
 }
 stage.addEventListener("pointerup",endPointer);
 stage.addEventListener("pointercancel",endPointer);
-stage.addEventListener("wheel",e=>{if(e.target.closest("#tilesView"))return;e.preventDefault();zoom=Math.max(.6,Math.min(3.2,zoom*Math.exp(-e.deltaY*0.0015)));applyCam()},{passive:false});
+stage.addEventListener("wheel",e=>{if(e.target.closest("#tilesView"))return;e.preventDefault();gestureOn();
+  const f=unproject(e.clientX,e.clientY);zoom=Math.max(.6,Math.min(3.2,zoom*Math.exp(-e.deltaY*0.0015)));
+  const cur=unproject(e.clientX,e.clientY);panX+=cur.x-f.x;panY+=cur.y-f.y;clampPan();camSoon();gestureOff()},{passive:false});
 
 function startDrag(e,id,el){
   e.preventDefault();
@@ -3163,6 +3179,20 @@ async function goLive(){
     }),250)});
 }
 
+// ---------- auto-update (website only): checks for a newer published version and refreshes ----------
+const APP_BUILD="20261109162706";
+function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
+function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
+function newVersion(v){
+  if(!appBusy()){goNewVersion(v);return}
+  let b=document.getElementById("updBtn");
+  if(!b){b=document.createElement("button");b.id="updBtn";b.className="updbtn";b.textContent="✨ New version — tap to update";b.onclick=()=>goNewVersion(v);document.body.appendChild(b)}
+}
+if(!window.claude&&location.protocol.startsWith("http")&&APP_BUILD!=="dev"){
+  const chk=async()=>{try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return;const v=(await r.json()).build;if(v&&v!==APP_BUILD)newVersion(v)}catch(_){}};
+  setTimeout(chk,4000);setInterval(chk,60000);
+  document.addEventListener("visibilitychange",()=>{if(!document.hidden)chk()});
+}
 function startDb(d){db=TRAIN?nsDb(d):d;subscribeLive();subscribe();subscribeSettings();subscribeTickets();startStaffStores();gIdx=null}
 if(window.claude&&typeof window.claude.use==="function"){
   window.claude.use("db").then(d=>{if(!d){setStatus("local","This device");return}startDb(d)}).catch(()=>setStatus("local","This device"));
