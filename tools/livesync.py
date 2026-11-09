@@ -2,7 +2,6 @@
 import asyncio, time
 from playwright.async_api import async_playwright
 URL = "https://kangparwinder03-glitch.github.io/Trattoria-57/?v=" + str(int(time.time()))
-TID = 23   # table 15 (corner annex)
 def log(*a): print(time.strftime("%H:%M:%S"), *a, flush=True)
 async def waitfor(pg, js, secs):
     t0 = time.time()
@@ -27,6 +26,9 @@ async def main():
         for n, pg in (("waiter", W), ("kitchen", K)):
             st = await waitfor(pg, "document.getElementById('status').textContent.includes('live')", 20)
             log(n, "connected after", st, "s; status:", await pg.inner_text("#status"), "| training bar:", not await pg.evaluate("document.getElementById('trainBar').hidden"))
+        TID = await W.evaluate("(()=>{const t=[...document.querySelectorAll('.tbl')].filter(e=>!/booked|seated|fl-/.test(e.className)&&!e.className.includes('bart'));return +t[t.length-1].dataset.id})()")
+        TNAME = await W.evaluate(f"document.querySelector('.tbl[data-id=\"{TID}\"] .ttop').innerText.split('\\n')[0]")
+        log("using free table id", TID, "name", TNAME)
         before = await K.evaluate("document.querySelectorAll('#kitchen .tk').length")
         # waiter sends food to table 15
         x, y = await W.evaluate(f"(()=>{{const r=document.querySelector('.tbl[data-id=\"{TID}\"] .ttop').getBoundingClientRect();return [r.x+r.width/2,r.y+r.height/2]}})()")
@@ -47,7 +49,7 @@ async def main():
         rd = lambda: W.evaluate("(()=>{const c=[...document.querySelectorAll('#oBody .st-card')].pop();return c?c.querySelector('.h').innerText.replace(/\\s+/g,' '):'(none)'})()")
         log("waiter sees:", await rd())
         for step in range(3):
-            pressed = await K.evaluate("""(()=>{const c=[...document.querySelectorAll('#kitchen .tk')].filter(t=>t.innerText.includes('15'));const t=c[c.length-1];if(!t)return false;const b=t.querySelector('button[data-k=next]');if(!b)return false;const tx=b.innerText;b.click();return tx})()""")
+            pressed = await K.evaluate("""(NAME)=>{const c=[...document.querySelectorAll('#kitchen .tk')].filter(t=>t.innerText.toUpperCase().includes(('TABLE '+NAME).toUpperCase()));const t=c[c.length-1];if(!t)return false;const b=t.querySelector('button[data-k=next]');if(!b)return false;const tx=b.innerText;b.click();return tx}""", TNAME)
             before = await rd(); t0 = time.time(); now = before
             while time.time() - t0 < 30:
                 now = await rd()
