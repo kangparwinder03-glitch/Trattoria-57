@@ -854,6 +854,8 @@ body.training{padding-top:30px}
     <div class="sh-head"><div><h2>Settings</h2><div class="sub">Booking emails · trial</div></div><button class="x" id="setClose" aria-label="Close">×</button></div>
     <div class="sh-body">
       <div class="fld" style="margin-bottom:12px"><label for="sOwner">Owner's email</label><input id="sOwner" type="email" inputmode="email" placeholder="owner@example.com" maxlength="80"></div>
+      <div class="fld" style="margin-bottom:12px"><label for="sIg">Instagram link or @username (printed on bills)</label><input id="sIg" maxlength="200" placeholder="@trattoria57" autocomplete="off"></div>
+      <div class="fld" style="margin-bottom:12px"><label for="sFb">Facebook link (printed on bills)</label><input id="sFb" maxlength="200" placeholder="https://www.facebook.com/…" autocomplete="off"></div>
       <div class="fld" style="margin-bottom:12px"><label for="sPick">Pickup discount (%)</label><input id="sPick" type="number" inputmode="decimal" min="0" max="50" step="1" placeholder="10"></div>
       <label style="display:flex;gap:10px;align-items:center;font-size:14px;margin-bottom:10px"><input type="checkbox" id="sAuto" style="width:20px;height:20px"> Show the emails after every booking is saved</label>
       <p class="trial">Nothing is connected yet, so emails are written for you and you send them from your own mail app. Customers confirm by replying YES; then set the booking to Confirmed.</p>
@@ -1355,9 +1357,10 @@ $("shMail").onclick=()=>{const L=leadOf(groupFor(sheetGroup[0]));closeSheet();op
 
 // ---------- emails (trial: compose only, sent from the user's own mail app) ----------
 const R={name:"Trattoria 57",tag:"Italian Kitchen & Bar",addr:"55/57 Gisburn Road, Barnoldswick, Lancashire, BB18 5HB",tel:"01282 816554"};
-let settings={ownerEmail:"",auto:true,pickupPct:10};
+let settings={ownerEmail:"",auto:true,pickupPct:10,ig:"",fb:"https://www.facebook.com/share/1BcKcA1rHr/"};
+const cleanUrl=u=>{u=str(u,200).trim();if(!u)return "";if(/^@?[A-Za-z0-9._]{2,30}$/.test(u))return "https://www.instagram.com/"+u.replace(/^@/,"")+"/";return /^https?:\/\//.test(u)?u:"https://"+u};
 const pickPct=v=>v===undefined||v===null||v===""?10:Math.max(0,Math.min(50,+v||0));
-try{const v=JSON.parse(localStorage.getItem("t57-3d-settings")||"null");if(v)settings={ownerEmail:str(v.ownerEmail,80),auto:v.auto!==false,pickupPct:pickPct(v.pickupPct)}}catch(e){}
+try{const v=JSON.parse(localStorage.getItem("t57-3d-settings")||"null");if(v)settings={ownerEmail:str(v.ownerEmail,80),auto:v.auto!==false,pickupPct:pickPct(v.pickupPct),ig:cleanUrl(v.ig),fb:v.fb===undefined?settings.fb:cleanUrl(v.fb)}}catch(e){}
 function longDate(k){return new Date(k+"T12:00:00").toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}
 function shortDate(k){return new Date(k+"T12:00:00").toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"})}
 let mailLead=null;
@@ -1407,23 +1410,23 @@ $("mailBody").addEventListener("click",e=>{
     const b=state.bookings[L];if(!b)return;const f=bt.dataset.k==="owner"?"sentOwner":"sentCustomer";
     b[f]=b[f]?0:Date.now();save();openMail(L)}
 });
-function openSettings(){$("sPick").value=settings.pickupPct;$("sOwner").value=settings.ownerEmail;$("sAuto").checked=settings.auto;$("setOv").classList.add("show")}
+function openSettings(){$("sPick").value=settings.pickupPct;$("sOwner").value=settings.ownerEmail;$("sAuto").checked=settings.auto;$("sIg").value=settings.ig||"";$("sFb").value=settings.fb||"";$("setOv").classList.add("show")}
 $("setBtn").onclick=openSettings;
 $("setClose").onclick=()=>$("setOv").classList.remove("show");
 $("setOv").addEventListener("pointerdown",e=>{if(e.target===$("setOv"))$("setOv").classList.remove("show")});
 $("setSave").onclick=async()=>{
   const em=$("sOwner").value.trim();
   if(em&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){toast("That email doesn't look right");return}
-  settings={ownerEmail:em,auto:$("sAuto").checked,pickupPct:pickPct($("sPick").value)};
+  settings={ownerEmail:em,auto:$("sAuto").checked,pickupPct:pickPct($("sPick").value),ig:cleanUrl($("sIg").value),fb:cleanUrl($("sFb").value)};
   try{localStorage.setItem("t57-3d-settings",JSON.stringify(settings))}catch(e){}
   $("setOv").classList.remove("show");toast("Settings saved");
-  if(db&&!readOnly){try{await db.doc("settings/main").set({ownerEmail:settings.ownerEmail,auto:settings.auto,pickupPct:settings.pickupPct})}catch(e){}}
+  if(db&&!readOnly){try{await db.doc("settings/main").set({ownerEmail:settings.ownerEmail,auto:settings.auto,pickupPct:settings.pickupPct,ig:settings.ig,fb:settings.fb})}catch(e){}}
   ticketsChanged();
 };
 function subscribeSettings(){
   if(!db)return;
   db.doc("settings/main").onSnapshot(sn=>{if(!sn.exists||sn.metadata.hasPendingWrites)return;const d=sn.data()||{};
-    settings={ownerEmail:str(d.ownerEmail,80),auto:d.auto!==false,pickupPct:pickPct(d.pickupPct)};try{localStorage.setItem("t57-3d-settings",JSON.stringify(settings))}catch(e){}},()=>{});
+    settings={ownerEmail:str(d.ownerEmail,80),auto:d.auto!==false,pickupPct:pickPct(d.pickupPct),ig:cleanUrl(d.ig),fb:d.fb===undefined?settings.fb:cleanUrl(d.fb)};try{localStorage.setItem("t57-3d-settings",JSON.stringify(settings))}catch(e){}},()=>{});
 }
 
 // Drinks — from the Trattoria 57 drinks list. These categories go to the BAR.
@@ -1821,7 +1824,7 @@ $("oBody").addEventListener("click",e=>{
   if(e.target.closest('[data-f="disc"]')){openDisc();return}
   const vd=e.target.closest("[data-void]");if(vd){const [tid,xi]=vd.dataset.void.split("|");startVoid(tid,+xi);return}
   const tf=e.target.closest('[data-f="repeat"],[data-f="move"],[data-f="split"]');if(tf){({repeat:repeatDrinks,move:openMove,split:openSplit})[tf.dataset.f]();return}
-  if(e.target.closest('[data-f="tprint"]')){const B=billOf(ordTickets());printJob("bar","bill","Bill "+(ord.pickup?"Pickup "+ord.pno:gname(curGroup())),billLines(B),"full");return}
+  if(e.target.closest('[data-f="tprint"]')){const B=billOf(ordTickets());printJob("bar","bill","Bill "+(ord.pickup?"Pickup "+ord.pno:gname(curGroup())),billLines(B),"full",socialLinks());return}
   if(e.target.closest('[data-f="rpdf"]')){const B=billOf(ordTickets());offerPdf(receiptPdf(B),`Trattoria57_Receipt_${ord.pickup?"Pickup"+ord.pno:gname(curGroup()).replace(/[^A-Za-z0-9+]/g,"")}_${dateKey}.pdf`);return}
   const qa=e.target.closest('[data-f="qrall"]');if(qa&&ord){if(readOnly){toast("View only");return}
     (async()=>{const list=ordTickets().filter(t=>t.hold);for(const t of list)await patchTicket(t,{hold:false,createdAt:Date.now()});toast(`Approved ${list.length} → kitchen/bar`);ticketsChanged()})();return}
@@ -2840,11 +2843,12 @@ guestIndex();
 
 // ---------- thermal printing (website version): jobs picked up by the kitchen/bar printer tablets ----------
 const canThermal=()=>!!(db&&db.supa);
-async function printJob(to,kind,title,lines,logo){
+function socialLinks(){const a=[];if(settings.ig){const h=(settings.ig.match(/instagram\.com\/([^/?#]+)/)||[])[1];a.push({n:"Instagram",h:h?"@"+h:"",u:settings.ig})}if(settings.fb)a.push({n:"Facebook",h:"Trattoria 57",u:settings.fb});return a}
+async function printJob(to,kind,title,lines,logo,social){
   if(TRAIN){toast("🎓 Training mode — nothing is printed");return}
   if(!canThermal()){toast("Thermal printing works on the website version (GitHub link)");return}
   const id=uid();
-  try{await db.collection("printjobs").doc(id).set({to,kind,title,lines,logo:logo||"full",date:dateKey,createdAt:Date.now(),by:waiter?waiter.name:""});
+  try{await db.collection("printjobs").doc(id).set({to,kind,title,lines,logo:logo||"full",social:social||[],date:dateKey,createdAt:Date.now(),by:waiter?waiter.name:""});
     toast(`🧾 Sent to the ${to==="kitchen"?"kitchen":"bar"} printer`)}catch(e){toast("Couldn't send to printer — try again")}
 }
 const PL={t:(t,a,b,s)=>({t:String(t),a:a||"l",b:b?1:0,s:s||1}),lr:(l,r,b)=>({l:String(l),r:String(r),b:b?1:0}),rule:c=>({rule:c||"-"}),gap:()=>({t:""})};

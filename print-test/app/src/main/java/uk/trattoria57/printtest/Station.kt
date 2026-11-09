@@ -107,6 +107,9 @@ object Format {
                 }
             }
         }
+        val soc = j.optJSONArray("social")
+        if (soc != null) social((0 until soc.length()).mapNotNull { soc.optJSONObject(it) }
+            .filter { it.optString("u").isNotBlank() }.map { Triple(it.optString("n"), it.optString("h"), it.optString("u")) })
         feed(4); cut()
     }.bytes()
 }

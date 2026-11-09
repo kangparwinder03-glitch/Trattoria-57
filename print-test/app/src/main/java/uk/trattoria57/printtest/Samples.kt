@@ -62,7 +62,9 @@ object Samples {
         lr("2 x Fracosta di Bue", "£55.80"); lr("1 x Coke · Pint", "£4.80"); rule()
         lr("Subtotal", "£60.60"); lr("Discount 10% (Friends)", "-£6.06"); rule('=')
         bold(true).size(1, 2).lr("TOTAL", "£54.54").size(1, 1).bold(false); rule('=')
-        align(1).line("Grazie! Thank you for").line("dining with us.").align(0); feed(4); cut()
+        align(1).line("Grazie! Thank you for").line("dining with us.").align(0)
+        social(listOf(Triple("Facebook", "Trattoria 57", "https://www.facebook.com/share/1BcKcA1rHr/")))
+        feed(4); cut()
     }.bytes()
 
     fun dayReport(cols: Int, lg: Logos) = EscPos(cols).apply {

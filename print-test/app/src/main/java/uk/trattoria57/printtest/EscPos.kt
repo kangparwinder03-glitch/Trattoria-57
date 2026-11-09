@@ -55,6 +55,26 @@ class EscPos(val cols: Int) {
         return this
     }
 
+    /** A QR code drawn by the printer itself (sharp and scannable), centred. */
+    fun qr(data: String, size: Int = 5): EscPos {
+        val b = data.toByteArray(Charsets.UTF_8); val len = b.size + 3
+        align(1)
+        raw(0x1D, 0x28, 0x6B, 4, 0, 0x31, 0x41, 0x32, 0x00)          // model 2
+        raw(0x1D, 0x28, 0x6B, 3, 0, 0x31, 0x43, size)                // dot size
+        raw(0x1D, 0x28, 0x6B, 3, 0, 0x31, 0x45, 0x31)                // error correction M
+        raw(0x1D, 0x28, 0x6B, len and 0xFF, len shr 8, 0x31, 0x50, 0x30); out.write(b)
+        raw(0x1D, 0x28, 0x6B, 3, 0, 0x31, 0x51, 0x30)                // print it
+        return raw(0x0A)
+    }
+
+    /** "Follow us" block with a QR code per social account. */
+    fun social(list: List<Triple<String, String, String>>): EscPos {
+        if (list.isEmpty()) return this
+        rule(); align(1).bold(true).size(1, 2).line("FOLLOW US").size(1, 1).bold(false).line("for news, specials & events")
+        list.forEach { (name, handle, url) -> line(); qr(url, if (cols >= 48) 6 else 5); bold(true).line(name).bold(false); if (handle.isNotBlank()) line(handle) }
+        line(); line("Scan to follow our journey"); return align(0)
+    }
+
     fun bytes(): ByteArray = out.toByteArray()
 }
 
