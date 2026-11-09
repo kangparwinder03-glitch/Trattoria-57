@@ -71,6 +71,8 @@ object Format {
         for (i in 0 until items.length()) {
             val x = items.getJSONObject(i); if (x.optBoolean("v")) continue
             bold(true).size(1, 2).line("${x.optInt("q", 1)} x ${x.optString("n")}").size(1, 1).bold(false)
+            val guest = x.optString("g")
+            if (guest.isNotBlank()) line("   for: $guest")
             val note = x.optString("note")
             if (note.isNotBlank()) {
                 if (ALG.containsMatchIn(note)) { alg = true; bold(true).line("   > !! $note").bold(false) } else line("   > $note")

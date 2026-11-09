@@ -694,6 +694,21 @@ body.training{padding-top:30px}
 }
 @media(max-width:560px){.vsw{gap:0}.vsw a{padding:8px 2px!important;font-size:12px!important}}
 .vsw a.vact{cursor:pointer;color:var(--ac)}.vsw a.vact:active{background:var(--ac);color:#fff}
+.tabchips{display:flex;gap:6px;align-items:center;overflow-x:auto;padding:2px 0 8px;scrollbar-width:none}
+.tabchips .tcl{font-size:12px;color:#6d6448;font-weight:700;white-space:nowrap}
+.tabchips button{flex:none;border:1px solid var(--parch2);background:#fffaf0;border-radius:18px;padding:6px 12px;font-weight:700;font-size:13px;color:#5d5640}
+.tabchips button.on{background:#3f5f86;border-color:#3f5f86;color:#fff}.tabchips button.add{border-style:dashed}
+.gtag{display:inline-block;font-size:11px;font-weight:700;color:#3f5f86;background:#eef3f9;border:1px solid #c9d6e6;border-radius:10px;padding:2px 7px;margin:0 6px;font-style:normal}
+.gtag.g0{color:#8a8068;background:#f6f0e2;border-color:var(--parch2)}button.gtag{cursor:pointer}
+.kg{font-style:normal;color:#3f5f86;font-weight:700;margin-left:6px}
+.tabsbox{background:#fffaf0;border:1px solid var(--parch2);border-radius:12px;padding:10px 12px;margin:10px 0}
+.tabrow{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px dashed var(--parch2)}
+.tabrow>span{flex:1;min-width:0}.tabrow small{display:block;color:#6d6448;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tabrow .amt{font-size:16px}.tabrow em{font-style:normal;color:var(--olive-dk);font-weight:700;font-size:13px}.tabrow.paid{opacity:.55}
+.tbtns{display:flex;gap:6px}.tbtns button{border:1px solid var(--parch2);background:#fff;border-radius:10px;padding:8px 10px;font-size:16px}
+.tbtns .card{background:#3f5f86;border-color:#3f5f86}.tbtns .cash{background:var(--olive-dk);border-color:var(--olive-dk)}
+.tabnote{font-size:12px;color:#6d6448;padding-top:6px}
+#oCats{flex-wrap:wrap}#oCats .tabchips{flex:0 0 100%;order:-1}
 </style>
 </head>
 <body>
@@ -1475,7 +1490,7 @@ let settings={ownerEmail:"",auto:true,pickupPct:10,review:"https://maps.app.goo.
 const cleanLink=u=>{u=str(u,300).trim();if(!u)return "";return /^https?:\/\//.test(u)?u:"https://"+u};
 const cleanUrl=u=>{u=str(u,200).trim();if(!u)return "";if(/^@?[A-Za-z0-9._]{2,30}$/.test(u))return "https://www.instagram.com/"+u.replace(/^@/,"")+"/";return /^https?:\/\//.test(u)?u:"https://"+u};
 const pickPct=v=>v===undefined||v===null||v===""?10:Math.max(0,Math.min(50,+v||0));
-try{const v=JSON.parse(localStorage.getItem("t57-3d-settings")||"null");if(v)settings={ownerEmail:str(v.ownerEmail,80),auto:v.auto!==false,pickupPct:pickPct(v.pickupPct),review:cleanLink(v.review)||"https://maps.app.goo.gl/sYsLiAabsE6TCct89",autoRc:v.autoRc!==false,ig:cleanUrl(v.ig)||settings.ig,fb:v.fb===undefined?settings.fb:cleanUrl(v.fb)}}catch(e){}
+try{const v=JSON.parse(localStorage.getItem("t57-3d-settings")||"null");if(v)settings={ownerEmail:str(v.ownerEmail,80),auto:v.auto!==false,pickupPct:pickPct(v.pickupPct),review:cleanLink(v.review)||"https://maps.app.goo.gl/sYsLiAabsE6TCct89",autoRc:v.autoRc!==false,ig:cleanUrl(v.ig)||settings.ig,fb:v.fb===undefined?settings.fb:cleanUrl(v.fb),ta:v.ta===undefined?settings.ta:cleanLink(v.ta)}}catch(e){}
 function longDate(k){return new Date(k+"T12:00:00").toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}
 function shortDate(k){return new Date(k+"T12:00:00").toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"})}
 let mailLead=null;
@@ -1487,7 +1502,7 @@ function composeFor(L){
   const time=b.time||"(time to be confirmed)";
   const owner={to:settings.ownerEmail,
     subject:`New booking: ${lead.name||"Guest"}, ${party} ${party===1?"guest":"guests"}, ${shortDate(dateKey)} ${b.time||""}`.trim(),
-    body:`New booking at ${R.name}\n\nDate: ${longDate(dateKey)}\nTime: ${time}\n${tables} (${cap} seats)\nGuests: ${party}\nStatus: ${b.status==="confirmed"?"Confirmed":"Waiting for customer to confirm"}\n\nLead guest: ${lead.name}${lead.phone?"\nPhone: "+lead.phone:""}${b.email?"\nEmail: "+b.email:""}\n\nGuest list:\n${named.map((x,i)=>`${i+1}. ${x.name}${x.phone?" — "+x.phone:""}`).join("\n")}${b.notes?"\n\nNotes: "+b.notes:""}`,ta:v.ta===undefined?"https://www.tripadvisor.co.uk/Restaurant_Review-g668053-d2211833-Reviews-Trattoria_57-Barnoldswick_Lancashire_England.html":cleanLink(v.ta)};
+    body:`New booking at ${R.name}\n\nDate: ${longDate(dateKey)}\nTime: ${time}\n${tables} (${cap} seats)\nGuests: ${party}\nStatus: ${b.status==="confirmed"?"Confirmed":"Waiting for customer to confirm"}\n\nLead guest: ${lead.name}${lead.phone?"\nPhone: "+lead.phone:""}${b.email?"\nEmail: "+b.email:""}\n\nGuest list:\n${named.map((x,i)=>`${i+1}. ${x.name}${x.phone?" — "+x.phone:""}`).join("\n")}${b.notes?"\n\nNotes: "+b.notes:""}`};
   const cust={to:b.email,
     subject:`Your table at ${R.name}: ${shortDate(dateKey)}${b.time?", "+b.time:""}`,
     body:`Hi ${first},\n\nThank you for booking with ${R.name}. Here are your details:\n\nDate: ${longDate(dateKey)}\nTime: ${time}\nGuests: ${party}\n\nPlease reply YES to this email to confirm your booking.\nIf your plans change, just reply or call us on ${R.tel}.\n\nWe look forward to seeing you.\n\n${R.name} · ${R.tag}\n${R.addr}\nTel: ${R.tel}`};
@@ -1627,13 +1642,13 @@ let mgrUntil=0;
 const money=n=>"£"+n.toFixed(2);
 function cleanTicket(id,d){
   if(!d||typeof d!=="object")return null;
-  const items=Array.isArray(d.items)?d.items.slice(0,80).map(x=>({n:str(x&&x.n,80),q:Math.max(1,Math.min(99,Math.floor(+(x&&x.q))||1)),p:Math.max(0,+(x&&x.p)||0),note:str(x&&x.note,120),v:!!(x&&x.v),vr:str(x&&x.vr,40),vb:str(x&&x.vb,40)})):[];
+  const items=Array.isArray(d.items)?d.items.slice(0,80).map(x=>({n:str(x&&x.n,80),q:Math.max(1,Math.min(99,Math.floor(+(x&&x.q))||1)),p:Math.max(0,+(x&&x.p)||0),note:str(x&&x.note,120),v:!!(x&&x.v),vr:str(x&&x.vr,40),vb:str(x&&x.vb,40),g:str(x&&x.g,20)})):[];
   const tables=Array.isArray(d.tables)?d.tables.map(Number).filter(i=>i>=1&&i<=N):[];
   return {id,date:str(d.date,10),tables,label:str(d.label,30),items,note:str(d.note,200),
     status:FLOW.includes(d.status)?d.status:"new",createdAt:+d.createdAt||0,updatedAt:+d.updatedAt||0,closed:!!d.closed,no:+d.no||0,station:d.station==="bar"?"bar":"kitchen",hold:!!d.hold,qr:!!d.qr,rejected:!!d.rejected,disc:cleanDisc(d.disc),discAmt:Math.max(0,+d.discAmt||0),pickup:!!d.pickup,pno:Math.max(0,Math.floor(+d.pno)||0),pname:str(d.pname,40),pphone:str(d.pphone,30),covers:Math.max(0,Math.min(99,Math.floor(+d.covers)||0)),paid:['card','cash','split'].includes(d.paid)?d.paid:'',by:str(d.by,40),byName:str(d.byName,40),pays:cleanPays(d.pays),idisc:cleanIdisc(d.idisc),discBy:cleanNumMap(d.discBy),paidAt:+d.paidAt||0,tRec:+d.tRec||0,tPrep:+d.tPrep||0,tSrv:+d.tSrv||0};
 }
 function cleanPays(a){if(!Array.isArray(a))return [];return a.slice(0,40).filter(x=>x&&typeof x==="object").map(x=>{const it={};if(x.it&&typeof x.it==="object")Object.keys(x.it).slice(0,80).forEach(k=>{it[str(k,100)]=Math.max(0,Math.floor(+x.it[k])||0)});
-  return {a:Math.max(0,Math.round((+x.a||0)*100)/100),m:x.m==="cash"?"cash":"card",at:+x.at||0,it,who:str(x.who,40)}})}
+  return {a:Math.max(0,Math.round((+x.a||0)*100)/100),m:x.m==="cash"?"cash":"card",at:+x.at||0,it,who:str(x.who,40),tab:str(x.tab,20)}})}
 const lv=x=>x.v?0:x.q*x.p;   // line value (voided lines are free)
 const ALG=/allerg|gluten|coeliac|celiac|dairy|lactose|\bnuts?\b|peanut|shellfish|prawn|\begg|sesame|vegan|soya|\bfish\b|mustard|celery|anaphyl/i;
 const isAlg=t=>!!t&&ALG.test(t);
@@ -1890,7 +1905,7 @@ function renderOrder(){
   if(ord.tab==="menu"&&!ord.review){
     cats.style.display="";
     const drinks=BAR_CATS.has(ord.cat),cnt=d=>c.filter(x=>BAR_CATS.has(ITEMS[x.n].cat)===d).reduce((a,x)=>a+x.q,0);
-    cats.innerHTML=`<div class="sidetog"><button data-side="food" class="${drinks?"":"on"}">🍝 Food${cnt(false)?` <b>${cnt(false)}</b>`:""}</button><button data-side="drinks" class="${drinks?"on":""}">🍸 Drinks${cnt(true)?` <b>${cnt(true)}</b>`:""}</button></div>
+    cats.innerHTML=tabChips(drinks)+`<div class="sidetog"><button data-side="food" class="${drinks?"":"on"}">🍝 Food${cnt(false)?` <b>${cnt(false)}</b>`:""}</button><button data-side="drinks" class="${drinks?"on":""}">🍸 Drinks${cnt(true)?` <b>${cnt(true)}</b>`:""}</button></div>
       <div class="catrow">${CATS.filter(k=>BAR_CATS.has(k)===drinks).map(k=>{const n=c.filter(x=>ITEMS[x.n].cat===k).reduce((a,x)=>a+x.q,0);
       return `<button data-c="${esc(k)}" class="${k===ord.cat?"on":""}">${esc(k)}${n?" · "+n:""}</button>`}).join("")}</div>`;
     const list=MENU.find(m=>m[0]===ord.cat)[1];
@@ -1906,7 +1921,7 @@ function renderOrder(){
     if(ord.covers==null)ord.covers=b?Math.max(1,partyOf(b)):2;
     const firstOrder=!act.length&&!ord.pickup;
     body.innerHTML=(ord.pickup&&c.length?`<div class="guests" style="gap:8px"><input id="pName" placeholder="Name (optional)" maxlength="40" value="${esc(ord.pname||"")}" style="flex:1.2"><input id="pPhone" type="tel" inputmode="tel" placeholder="Phone (optional)" maxlength="30" value="${esc(ord.pphone||"")}" style="flex:1"></div>`:"")+(firstOrder&&c.length?`<div class="guests"><b>Guests at table</b><div class="step"><button data-g="-1">−</button><span>${ord.covers}</span><button class="add" data-g="1">+</button></div></div>`:"")+(c.length?c.map((x,i)=>`<div class="cl" data-i="${i}"><div class="r1"><b>${esc(x.n)}</b><span class="pr">${money(ITEMS[x.n].p*x.q)}</span>
-      <div class="step"><button data-a="dec">−</button><span>${x.q}</span><button class="add" data-a="inc">+</button></div></div>
+      <div class="step">${x.g?`<span class="gtag">👤 ${esc(x.g)}</span>`:""}<button data-a="dec">−</button><span>${x.q}</span><button class="add" data-a="inc">+</button></div></div>
       ${outSet.has(x.n)?`<div class="note" style="margin:4px 0">⛔ Out of stock — remove this</div>`:""}
       <input class="ln${isAlg(x.note)?" alg":""}" placeholder="Note for kitchen (e.g. no onions)" maxlength="120" value="${esc(x.note)}">
       <div class="qn alg">${ALG_CHIPS.map(t=>`<button data-q="${t}">⚠ ${t}</button>`).join("")}</div>
@@ -1924,11 +1939,11 @@ function renderOrder(){
       const sub=t.items.reduce((a,x)=>a+lv(x),0);if(!t.hold)total+=sub;
       return `<div class="st-card"${t.hold?' style="border-color:#3f5f86;background:#eef3f9"':""}><div class="h"><span>${t.qr?"📱 ":""}Order ${t.no||""} · ${timeOf(t.createdAt)}${t.byName?" · "+esc(t.byName):""}<span class="stpill ${stOf(t)==="bar"?"sp-bar":"sp-kit"}">${stOf(t)==="bar"?"Bar":"Kitchen"}</span></span><span class="pill ${t.hold?"hold":t.status}">${t.hold?"QR · check":t.status}</span></div>
         ${t.items.map((x,xi)=>x.v?`<div class="ln void"><span><s>${x.q}× ${esc(x.n)}</s><i>VOID · ${esc(x.vr)}${x.vb?" · "+esc(x.vb):""}</i></span><span><s>${money(x.q*x.p)}</s></span></div>`
-          :`<div class="ln"><span>${x.q}× ${esc(x.n)}${x.note?`<i${isAlg(x.note)?' class="alg"':""}>${esc(x.note)}</i>`:""}</span><span>${money(x.q*x.p)}${t.hold?"":`<button class="vd" data-void="${t.id}|${xi}" title="Void">✕</button>`}</span></div>`).join("")}
+          :`<div class="ln"><span>${x.q}× ${esc(x.n)}${ord.pickup||t.hold?"":`<button class="gtag rt${x.g?"":" g0"}" data-retab="${t.id}|${xi}">👤 ${esc(x.g||"Table")}</button>`}${x.note?`<i${isAlg(x.note)?' class="alg"':""}>${esc(x.note)}</i>`:""}</span><span>${money(x.q*x.p)}${t.hold?"":`<button class="vd" data-void="${t.id}|${xi}" title="Void">✕</button>`}</span></div>`).join("")}
         ${t.note?`<div class="ln"><i>Note: ${esc(t.note)}</i></div>`:""}
-        ${t.hold?`<div class="qrbtns"><button class="btn no2" data-f="qrno" data-id="${t.id}">✕ Reject</button><button class="btn ok2" data-f="qrok" data-id="${t.id}">✓ Approve &amp; send</button></div>`:""}</div>`}).join("")+receiptHtml(billOf(all))
+        ${t.hold?`<div class="qrbtns"><button class="btn no2" data-f="qrno" data-id="${t.id}">✕ Reject</button><button class="btn ok2" data-f="qrok" data-id="${t.id}">✓ Approve &amp; send</button></div>`:""}</div>`}).join("")+tabsHtml(all)+receiptHtml(billOf(all))
       :`<div class="empty">No orders sent for this table yet.</div>`}</div>`;
-    const BB=billOf(all),part=BB.paidSoFar>0;
+    const BB=billOf(all),part=BB.paidSoFar>0||(!ord.pickup&&tabNames(all).some(n=>all.some(t=>t.items.some(x=>x.g===n))));
     foot.innerHTML=all.length?`<button class="btn sec" data-f="tomenu">+ Add</button><div class="payrow"><button class="btn card" data-f="close" data-pay="card">💳 ${part?"Rest card · "+money(BB.left):"Paid card"}</button><button class="btn cash" data-f="close" data-pay="cash">💵 ${part?"Rest cash · "+money(BB.left):"Paid cash"}</button></div>`
       :`<button class="btn pri" data-f="tomenu">Open menu</button>`;
   }
@@ -1992,6 +2007,10 @@ $("discNone").onclick=()=>setDisc({type:"none",value:0,reason:"",note:""});
 
 $("oBody").addEventListener("click",e=>{
   if(e.target.closest('[data-f="disc"]')){openDisc();return}
+  const tc=e.target.closest("[data-tab]");if(tc&&ord){tabChip(tc.dataset.tab);return}
+  const rt=e.target.closest("[data-retab]");if(rt&&ord){retab(rt.dataset.retab);return}
+  const tp=e.target.closest("[data-tpay]");if(tp&&ord){payTab(tp.dataset.tname,tp.dataset.tpay);return}
+  const tpr=e.target.closest("[data-tprint]");if(tpr&&ord){printTab(tpr.dataset.tprint);return}
   const ldl=e.target.closest("[data-ld]");if(ldl){openItemDisc(ldl.dataset.ld);return}
   const vd=e.target.closest("[data-void]");if(vd){const [tid,xi]=vd.dataset.void.split("|");startVoid(tid,+xi);return}
   const tf=e.target.closest('[data-f="repeat"],[data-f="move"],[data-f="split"]');if(tf){({repeat:repeatDrinks,move:openMove,split:openSplit})[tf.dataset.f]();return}
@@ -2005,12 +2024,13 @@ $("oBody").addEventListener("click",e=>{
   const q=e.target.closest("[data-q]");
   if(q){const row=q.closest(".cl"),inp=row.querySelector(".ln"),t=q.dataset.q;if((inp.value||"").includes(t))return;inp.value=(inp.value?inp.value+", "+t:t).slice(0,120);c[+row.dataset.i].note=inp.value;inp.classList.toggle("alg",isAlg(inp.value));return}
   const mi=e.target.closest(".mi"),cl=e.target.closest(".cl[data-i]");const a=e.target.closest("[data-a]");
-  if(mi){const n=mi.dataset.n;let line=c.find(x=>x.n===n&&!x.note);
-    if(a&&a.dataset.a==="dec"){const l=[...c].reverse().find(x=>x.n===n);if(l){l.q--;if(l.q<=0)c.splice(c.indexOf(l),1)}}
-    else{if(outSet.has(n)){toast(n+" is out of stock");return}if(line)line.q++;else c.push({n,q:1,note:""})}
+  if(mi){const n=mi.dataset.n,gg=ord.pickup?"":tabFor(n);let line=c.find(x=>x.n===n&&!x.note&&(x.g||"")===gg);
+    if(a&&a.dataset.a==="dec"){const l=[...c].reverse().find(x=>x.n===n&&(x.g||"")===gg)||[...c].reverse().find(x=>x.n===n);if(l){l.q--;if(l.q<=0)c.splice(c.indexOf(l),1)}}
+    else{if(outSet.has(n)){toast(n+" is out of stock");return}if(line)line.q++;else c.push(Object.assign({n,q:1,note:""},gg?{g:gg}:{}))}
     renderOrder();return}
   if(cl&&a){const x=c[+cl.dataset.i];if(a.dataset.a==="inc")x.q++;else{x.q--;if(x.q<=0)c.splice(+cl.dataset.i,1)}renderOrder()}
 });
+$("oCats").addEventListener("click",e=>{const tc=e.target.closest("[data-tab]");if(tc&&ord){e.stopPropagation();tabChip(tc.dataset.tab)}},true);
 $("oBody").addEventListener("input",e=>{if(!ord)return;
   if(e.target.id==="oNote"){ord.note=e.target.value;return}
   if(e.target.id==="pName"){ord.pname=e.target.value;return}if(e.target.id==="pPhone"){ord.pphone=e.target.value;return}
@@ -2032,7 +2052,7 @@ $("oFoot").addEventListener("click",async e=>{
     const first=!ordTickets().length&&!ord.pickup;let coversLeft=first?(ord.covers||0):0;
     const parts=[["kitchen",c.filter(x=>ITEMS[x.n].station!=="bar")],["bar",c.filter(x=>ITEMS[x.n].station==="bar")]].filter(p=>p[1].length);
     const made=parts.map(([st,list])=>{const t={id:"t"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)+st[0],date:dateKey,tables:ids,station:st,
-      label:ord.pickup?"Pickup #"+ord.pno:gname(g),items:list.map(x=>({n:x.n,q:x.q,p:ITEMS[x.n].p,note:(x.note||"").trim()})),
+      label:ord.pickup?"Pickup #"+ord.pno:gname(g),items:list.map(x=>Object.assign({n:x.n,q:x.q,p:ITEMS[x.n].p,note:(x.note||"").trim()},x.g?{g:x.g}:{})),
       note:[st==="kitchen"?bkAlg:"",(ord.note||"").trim()].filter(Boolean).join(" · ").slice(0,200),status:"new",createdAt:Date.now(),updatedAt:Date.now(),closed:false,no,covers:coversLeft,by:waiter?waiter.id:"",byName:waiter?waiter.name:"",
       pickup:!!ord.pickup,pno:ord.pickup?ord.pno:0,pname:ord.pickup?(ord.pname||"").trim():"",pphone:ord.pickup?(ord.pphone||"").trim():""};coversLeft=0;return t});
     bt.disabled=true;
@@ -2080,7 +2100,7 @@ function renderStation(st){
       <div class="th">${t.pickup?`<span class="tt" style="color:#3f5f86">🥡 #${t.pno}</span><span class="tag">PICKUP${t.pname?" · "+esc(t.pname):""}</span>`:`<span class="tt">${esc(t.label)}</span><span class="tag">#${t.no||""}</span>`}
         <span class="tm">${t.status==="served"?"Served "+timeOf(t.updatedAt):`${timeOf(t.createdAt)} · <b>⏱ ${mins<1?"now":mins+" min"}</b>`}</span></div>
       ${ot?"":`<div class="prog">${KSTEPS.map(([k,l],i)=>`<div class="pg${i<=si?" done":""}${i===si?" cur":""}"><i></i><span>${st==="bar"&&k==="preparing"?"Making":l}</span></div>`).join("")}</div>`}
-      <ul>${t.items.map(x=>x.v?`<li class="void"><b>${x.q}</b><span><s>${esc(x.n)}</s><i>VOID — don't make</i></span></li>`:`<li><b>${x.q}</b><span>${esc(x.n)}${x.note?`<i${isAlg(x.note)?' class="alg"':""}>${isAlg(x.note)?"⚠ ":""}${esc(x.note)}</i>`:""}</span></li>`).join("")}</ul>
+      <ul>${t.items.map(x=>x.v?`<li class="void"><b>${x.q}</b><span><s>${esc(x.n)}</s><i>VOID — don't make</i></span></li>`:`<li><b>${x.q}</b><span>${esc(x.n)}${x.g?`<em class="kg">· ${esc(x.g)}</em>`:""}${x.note?`<i${isAlg(x.note)?' class="alg"':""}>${isAlg(x.note)?"⚠ ":""}${esc(x.note)}</i>`:""}</span></li>`).join("")}</ul>
       ${t.note?`<div class="tn${isAlg(t.note)?" alg":""}">⚠ ${esc(t.note)}</div>`:""}
       ${ot?`<div class="ta">${t.status==="served"?`<button class="bk" data-k="back">Undo</button>`:`<button class="go srv ready" data-k="ready">✓ ${st==="bar"?"Drinks ready":"Ready"}</button>`}</div>`
         :`<div class="ta">${si>0?`<button class="bk" data-k="back">Undo</button>`:""}${nb?`<button class="go ${nb[1]}" data-k="next">${nb[0]} →</button>`:""}</div>`}
@@ -2892,6 +2912,55 @@ async function doMove(from,to){
   toast(`Moved to ${lab}`);ticketsChanged();renderAlerts();
 }
 
+// ---- name tabs: one table, separate bills (e.g. shared food, everyone pays their own drinks) ----
+function tabNames(all){const set=[];(all||[]).forEach(t=>t.items.forEach(x=>{if(x.g&&!set.includes(x.g))set.push(x.g)}));
+  if(ord&&ord.guests)ord.guests.forEach(n=>{if(!set.includes(n))set.push(n)});cart().forEach(x=>{if(x.g&&!set.includes(x.g))set.push(x.g)});return set}
+function tabFor(n){const d=BAR_CATS.has(ITEMS[n].cat);return (d?ord.gDrink:ord.gFood)||""}
+function tabChips(drinks){
+  if(ord.pickup)return "";const names=tabNames(ordTickets()),cur=(drinks?ord.gDrink:ord.gFood)||"";
+  return `<div class="tabchips"><span class="tcl">${drinks?"Drinks for":"Food for"}</span><button data-tab="" class="${cur?"":"on"}">🍽 Table</button>${names.map(n=>`<button data-tab="${esc(n)}" class="${cur===n?"on":""}">👤 ${esc(n)}</button>`).join("")}<button data-tab="+" class="add">+ Guest</button></div>`}
+function tabChip(v){
+  const drinks=BAR_CATS.has(ord.cat);
+  if(v==="+"){const names=tabNames(ordTickets());let n=prompt("Guest name (or seat number)",`Seat ${names.length+1}`);n=str(n||"",20).trim();if(!n)return;
+    if(n.toLowerCase()==="table")n="Table guest";ord.guests=(ord.guests||[]);if(!ord.guests.includes(n)&&!names.includes(n))ord.guests.push(n);v=n}
+  if(drinks)ord.gDrink=v;else ord.gFood=v;renderOrder()}
+// the bill for one tab ("" = shared table): same discounts as the whole bill, shared out fairly
+function tabBill(all,name){
+  const B=billOf(all),live=B.live;if(!live.length)return Object.assign(billOf([]),{live:[]});
+  const copies=live.map((t,i)=>Object.assign({},t,{items:t.items.filter(x=>(x.g||"")===name),pays:[]}));
+  let disc=B.disc;if(disc&&disc.type==="amt"){const base=B.sub-B.itemDisc;disc=Object.assign({},disc,{type:"pct",value:base>0?B.orderDiscAmt/base*100:0})}
+  copies[0].disc=disc;copies[0].idisc=B.idisc;
+  const TB=billOf(copies);
+  TB.live=copies.filter(t=>t.items.length);return TB}
+const tabPaid=(B,n)=>B.pays.find(p=>p.tab===n);
+function tabsHtml(all){
+  if(ord.pickup)return "";const names=tabNames(all).filter(n=>all.some(t=>!t.hold&&t.items.some(x=>!x.v&&x.g===n)));if(!names.length)return "";
+  const B=billOf(all),rows=names.map(n=>{const TB=tabBill(all,n),pd=tabPaid(B,n);
+    return `<div class="tabrow${pd?" paid":""}"><span><b>👤 ${esc(n)}</b><small>${TB.lines.map(l=>l.q+"× "+esc(l.n)).join(", ")}</small></span><b class="amt">${money(TB.total)}</b>
+      ${pd?`<em>Paid ${pd.m} ✓</em>`:`<div class="tbtns">${canThermal()?`<button data-tprint="${esc(n)}">🧾</button>`:""}<button class="card" data-tpay="card" data-tname="${esc(n)}">💳</button><button class="cash" data-tpay="cash" data-tname="${esc(n)}">💵</button></div>`}</div>`}).join("");
+  const TT=tabBill(all,""),tablePaid=Math.round(B.pays.filter(p=>!p.tab).reduce((a,p)=>a+p.a,0)*100)/100;
+  return `<div class="tabsbox"><div class="gl-title"><span>Separate bills</span><em>${names.filter(n=>tabPaid(B,n)).length}/${names.length} paid</em></div>${rows}
+    <div class="tabrow shared"><span><b>🍽 Table (shared)</b><small>${TT.lines.length?TT.lines.map(l=>l.q+"× "+esc(l.n)).join(", "):"Nothing shared"}</small></span><b class="amt">${money(TT.total)}</b>${canThermal()&&TT.lines.length?`<div class="tbtns"><button data-tprint="">🧾</button></div>`:""}</div>
+    <div class="tabnote">${TT.total?`Table bill: pay with the buttons below, or ➗ Split bill to share it evenly.${tablePaid?` ${money(tablePaid)} paid so far.`:""}`:"When every guest has paid, the table clears."}</div></div>`}
+function printTab(n){const all=ordTickets(),TB=tabBill(all,n);if(!TB.lines.length)return;
+  printJob(rcpPrinter(),"bill","Bill "+gname(curGroup())+" · "+(n||"Table"),billLines(TB,n||"Table"),"full",...qrPair());toast("Printing "+(n||"table")+"'s bill")}
+function payTab(n,m){
+  const all=ordTickets(),B=billOf(all),TB=tabBill(all,n);if(tabPaid(B,n)){toast(n+" has already paid");return}
+  const amt=Math.min(TB.total,B.left);if(amt<=0)return;
+  ask(`${n} paid ${money(amt)} by ${m}?`,TB.lines.map(l=>l.q+"× "+l.n).join(", "),async()=>{
+    const it={};TB.lines.forEach(l=>{it[l.k]=l.q});
+    if(settings.autoRc!==false&&canThermal()){const L=billLines(TB,n);L.splice(L.length-3,0,PL.lr("PAID ("+m+")",money(amt),1),PL.rule());
+      printJob(rcpPrinter(),"receipt","Receipt "+gname(curGroup())+" · "+n,L,"full",...qrPair())}
+    await recordPay(amt,m,it,n)})}
+async function retab(key){
+  if(readOnly){toast("View only");return}
+  const [tid,xi]=key.split("|"),t=tickets.find(x=>x.id===tid);if(!t)return;const it=t.items[+xi];if(!it)return;
+  const B=billOf(ordTickets());if(it.g&&tabPaid(B,it.g)){toast(it.g+" has already paid");return}
+  const opts=[""].concat(tabNames(ordTickets()).filter(n=>!tabPaid(B,n)));const nx=opts[(opts.indexOf(it.g||"")+1)%opts.length];
+  if(opts.length<2){toast("Add a guest first (+ Guest on the menu)");return}
+  const items=t.items.map(y=>Object.assign({},y));if(nx)items[+xi].g=nx;else delete items[+xi].g;
+  await patchTicket(t,{items});toast(`${it.n} → ${nx||"Table"}`);ticketsChanged()}
+
 // ---- split bill & part payments ----
 let spl={n:2,sel:{}};
 function openSplit(){
@@ -2932,13 +3001,13 @@ function renderSplit(){
    ${B.pays.length?`<div class="gl-title" style="margin-top:18px"><span>Paid so far</span></div>`+B.pays.map((p,i)=>`<div class="spit"><span>${p.m==="cash"?"💵 Cash":"💳 Card"} · ${timeOf(p.at)}${p.who?" · "+esc(p.who):""}<small>${Object.keys(p.it||{}).length?Object.entries(p.it).map(([k,q])=>q+"× "+esc(k.split("|")[0])).join(", "):"Even share"}</small></span><b>${money(p.a)}</b><button class="vd" data-sundo="${i}" title="Remove">✕</button></div>`).join(""):""}`;
   $("xFoot").innerHTML=`<button class="btn pri" data-xdone style="max-width:none">Done</button>`;
 }
-async function recordPay(amt,m,it){
+async function recordPay(amt,m,it,tab){
   if(readOnly){toast("View only");return}
   const B=billOf(ordTickets());if(!B.anchor)return;amt=Math.round(Math.min(amt,B.left)*100)/100;if(amt<=0)return;
-  await patchTicket(B.anchor,{pays:B.pays.concat([{a:amt,m,at:Date.now(),it:it||{},who:waiter?waiter.name:""}])});
+  await patchTicket(B.anchor,{pays:B.pays.concat([Object.assign({a:amt,m,at:Date.now(),it:it||{},who:waiter?waiter.name:""},tab?{tab}:{})])});
   const B2=billOf(ordTickets());
   if(B2.left<=0.004){closeX();toast("Bill fully paid");await finishBill(m);return}
-  toast(`${money(amt)} paid by ${m} · ${money(B2.left)} left`);ticketsChanged();renderSplit();
+  toast(`${tab?tab+": ":""}${money(amt)} paid by ${m} · ${money(B2.left)} left`);ticketsChanged();renderSplit();if(tab)renderOrder();
 }
 async function finishBill(pay){
   if(!ord)return;const g=curGroup(),all=ordTickets(),act=all.filter(t=>!t.hold),held=all.filter(t=>t.hold);
@@ -2951,7 +3020,10 @@ async function finishBill(pay){
   for(const t of held)await patchTicket(t,{hold:false,closed:true,rejected:true});
   const how=mode==="split"?"split payment":pay;
   if(settings.autoRc!==false&&canThermal()&&B.live.length){
-    const L=billLines(B);L.splice(L.length-3,0,PL.lr("PAID ("+(mode==="split"?"split":pay)+")",money(B.total),1),PL.rule());
+    const named=tabNames(all).length;let L;
+    if(named&&!isP){const TB=tabBill(all,"");L=TB.live.some(t=>t.items.some(x=>!x.v))?billLines(TB,"Table"):null;if(L)L.splice(L.length-3,0,PL.lr("PAID",money(TB.total),1),PL.rule())}
+    else{L=billLines(B);L.splice(L.length-3,0,PL.lr("PAID ("+(mode==="split"?"split":pay)+")",money(B.total),1),PL.rule())}
+    if(L)
     printJob(rcpPrinter(),"receipt","Receipt "+(isP?"Pickup "+pno:gname(g)),L,"full",...qrPair());
   }
   if(isP){for(const id in flashes)if(flashes[id].pno===pno)delete flashes[id];renderAlerts();toast(`Pickup #${pno} paid · ${how}`);closeOrder();ticketsChanged();return}
@@ -3062,8 +3134,8 @@ async function printJob(to,kind,title,lines,logo,social,review){
     toast(`🧾 Sent to the ${prName(to)} printer`)}catch(e){toast("Couldn't send to printer — try again")}
 }
 const PL={t:(t,a,b,s)=>({t:String(t),a:a||"l",b:b?1:0,s:s||1}),lr:(l,r,b)=>({l:String(l),r:String(r),b:b?1:0}),rule:c=>({rule:c||"-"}),gap:()=>({t:""})};
-function billLines(B){
-  const head=ord.pickup?`Pickup #${ord.pno}`:gnameLong(curGroup());
+function billLines(B,tab){
+  const head=(ord.pickup?`Pickup #${ord.pno}`:gnameLong(curGroup()))+(tab?" · "+tab:"");
   const L=[PL.lr(head,new Date().toLocaleString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})),PL.rule()];
   B.lines.forEach(l=>{L.push(PL.lr(`${l.q} x ${l.n}`,money(l.q*l.p)));if(l.d)L.push(PL.lr(`  > ${idiscLabel(l.d)}`,"-"+money(l.dAmt)))});
   L.push(PL.rule(),PL.lr("Subtotal",money(B.sub)));
@@ -3309,7 +3381,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261109174927";
+const APP_BUILD="20261109180225";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
