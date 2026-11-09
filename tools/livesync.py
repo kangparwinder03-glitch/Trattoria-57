@@ -42,21 +42,16 @@ async def main():
         await W.click("#oClose")
         d = await waitfor(K, f"document.querySelectorAll('#kitchen .tk').length>{before}", 40)
         log("KITCHEN received the new order after", d, "s")
-        # waiter keeps the order open on "Orders & bill" while the kitchen works through the statuses
-        await W.mouse.click(x, y); await W.wait_for_timeout(600)
+        # one-tap kitchen: press Ready once; the waiter's screen should flash orange and the order show SERVED
+        pressed = await K.evaluate("""()=>{const c=[...document.querySelectorAll('#kitchen .tk')];const t=c[c.length-1];if(!t)return false;const b=t.querySelector('button[data-k=ready]');if(!b)return 'no ready button: '+t.innerText.slice(0,60);b.click();return b.innerText}""")
+        t0 = time.time(); log("kitchen pressed:", pressed)
+        fl = await waitfor(W, "document.getElementById('bigFlash').className.includes('on')", 20)
+        log("WAITER orange flash after", fl, "s:", (await W.inner_text("#bigFlash")).replace("\n"," | "))
+        await W.click("#bigFlash"); await W.wait_for_timeout(300)
+        await W.mouse.click(x, y); await W.wait_for_timeout(800)
         try: await W.click("#ordOv .otabs [data-t=sent]", timeout=3000)
         except Exception as e: log("could not open sent tab", e)
-        rd = lambda: W.evaluate("(()=>{const c=[...document.querySelectorAll('#oBody .st-card')].pop();return c?c.querySelector('.h').innerText.replace(/\\s+/g,' '):'(none)'})()")
-        log("waiter sees:", await rd())
-        for step in range(3):
-            pressed = await K.evaluate("""(NAME)=>{const c=[...document.querySelectorAll('#kitchen .tk')].filter(t=>t.innerText.toUpperCase().includes(('TABLE '+NAME).toUpperCase()));const t=c[c.length-1];if(!t)return false;const b=t.querySelector('button[data-k=next]');if(!b)return false;const tx=b.innerText;b.click();return tx}""", TNAME)
-            before = await rd(); t0 = time.time(); now = before
-            while time.time() - t0 < 30:
-                now = await rd()
-                if now != before: break
-                await asyncio.sleep(0.25)
-            log(f"kitchen pressed {pressed!r} -> waiter order screen changed after {round(time.time()-t0,1) if now!=before else None}s: {now}")
-            await K.wait_for_timeout(800)
-        log("kitchen 'To do' count:", await K.inner_text("#kitchen .n-todo"), "served count:", await K.inner_text("#kitchen .n-served"))
+        log("waiter order screen:", await W.evaluate("(()=>{const c=[...document.querySelectorAll('#oBody .st-card')].pop();return c?c.querySelector('.h').innerText.replace(/\\s+/g,' '):'(none)'})()"))
+        log("page errors seen above? (none printed = OK)")
         await b.close()
 asyncio.run(main())
