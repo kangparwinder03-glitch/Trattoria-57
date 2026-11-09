@@ -714,6 +714,12 @@ body.training{padding-top:30px}
 .btpick{border:1px solid var(--parch2);background:#fffaf0;border-radius:12px;padding:14px 8px;font-weight:800;font-size:15px;color:var(--ink)}
 .btpick small{display:block;font-size:11px;color:var(--wine);font-weight:700}.btpick.busy{border-color:var(--wine);background:#fbeee8}
 .btpick.isbar{background:#f3ead6}.btpick.walk{width:100%;background:var(--olive-dk);color:#fff;border-color:var(--olive-dk)}
+.ostrip.prof{background:#eef3f9;border-color:#c9d6e6;color:#2f4a6a}.ostrip.prof i{display:block;font-style:normal;font-size:12px;margin-top:2px}
+.gprow{display:flex;align-items:center;gap:10px;padding:10px 4px;border-top:1px dashed var(--parch2);width:100%;background:none;border-left:0;border-right:0;border-bottom:0;text-align:left;color:var(--ink);font:inherit}
+.gprow>span:first-child{flex:1;min-width:0}.gprow small{display:block;color:#6d6448;font-size:12px}.gprow em{font-style:normal;color:var(--olive-dk);font-weight:700;font-size:13px}
+.gprow .chev{color:#a39a80;font-size:20px}.gprow i.alg{font-style:normal;color:var(--wine)}.smsb{padding:8px 12px!important;text-decoration:none}
+.gform .fld{margin-bottom:10px}.gform input{width:100%}
+@media (orientation:landscape) and (max-height:640px){.ostrip{margin:6px 12px 0;padding:6px 10px;font-size:13px}.ostrip button{padding:5px 10px!important}}
 </style>
 </head>
 <body>
@@ -801,7 +807,7 @@ body.training{padding-top:30px}
   <section id="report"><div class="rwrap" id="repBody"></div></section>
 
   <section id="staff">
-    <div class="sbar"><h2>STAFF</h2><span class="clock" id="sClock"></span><button id="sHours">Hours</button><button id="sManage">Manage staff</button></div>
+    <div class="sbar"><h2>STAFF</h2><span class="clock" id="sClock"></span><button id="sHours">Hours</button><button id="sGuests">👥 Guests</button><button id="sManage">Manage staff</button></div>
     <div id="sGrid"></div>
   </section>
 
@@ -923,9 +929,10 @@ body.training{padding-top:30px}
         <div class="fld"><label for="nbSize">Guests</label><select id="nbSize"></select></div></div>
       <div class="row2"><div class="fld"><label for="nbName">Name</label><input id="nbName" maxlength="60" placeholder="Lead guest"></div>
         <div class="fld"><label for="nbPhone">Phone</label><input id="nbPhone" type="tel" inputmode="tel" maxlength="30"></div></div>
-      <div id="nbReg"></div>
+      <div id="nbReg"></div><div id="nbProf"></div>
       <div class="row2"><div class="fld"><label for="nbEmail">Email (optional)</label><input id="nbEmail" type="email" inputmode="email" maxlength="80"></div>
-        <div class="fld"><label for="nbNotes">Notes</label><input id="nbNotes" maxlength="200" placeholder="Birthday, high chair…"></div></div>
+        <div class="fld"><label for="nbNotes">Notes</label><input id="nbNotes" maxlength="200" placeholder="Allergies, high chair…"></div></div>
+      <div class="row2"><div class="fld"><label for="nbBday">Birthday (optional)</label><input id="nbBday" maxlength="5" inputmode="numeric" placeholder="dd/mm"></div><div class="fld"></div></div>
       <div class="gl-title"><span>Free tables that day</span><em id="nbFreeN"></em></div>
       <div class="tpick" id="nbTables"></div>
       <p class="trial" id="nbHint" style="margin-top:8px"></p>
@@ -1900,7 +1907,7 @@ function renderOrder(){
   const lead=b&&b.guests[0]&&b.guests[0].name;
   $("oSub").textContent=(b?`${lead||"Booked"}${b.time?" · "+b.time:""} · ${partyOf(b)} guests`:"Walk-in")+(waiter?" · 👤 "+waiter.name:"");}
   {const waiting=!ord.pickup&&b&&!b.walkin&&!ordTickets().length;const lead=b&&b.guests[0]&&b.guests[0].name;
-   const bal=!ord.pickup&&b&&isAlg(b.notes)?`<div class="ostrip alg"><b>⚠ Booking note: ${esc(b.notes)}</b></div>`:"";
+   const bal=(!ord.pickup&&b&&isAlg(b.notes)?`<div class="ostrip alg"><b>⚠ Booking note: ${esc(b.notes)}</b></div>`:"")+(!ord.pickup&&b?profStrip(b):"");
    $("oStrip").innerHTML=bal+(waiting?`<div class="ostrip"><b>⏳ Waiting for ${esc(lead||"guests")}${b.time?" · "+esc(b.time):""}</b><button class="ns" data-end="noshow">🚫 No-show</button><button class="cx" data-end="cancelled">Cancel booking</button></div>`:"");}
   document.querySelector('#ordOv .otabs [data-t="booking"]').style.display=ord.pickup?"none":"";
   document.querySelectorAll("#ordOv .otabs button").forEach(x=>x.classList.toggle("on",x.dataset.t===ord.tab));
@@ -2052,7 +2059,7 @@ $("oFoot").addEventListener("click",async e=>{
     const oos=c.find(x=>outSet.has(x.n));if(oos){toast(oos.n+" is out of stock — remove it");return}
     if(!waiter&&staffList().length){toast("Who's serving? Pick your name");pickWaiter(()=>{const b2=$("oFoot").querySelector('[data-f="send"]');if(b2)b2.click()});return}
     const g=curGroup(),ids=g.slice().sort((a,b)=>a-b);
-    const bkN=!ord.pickup&&state.bookings[leadOf(g)];const bkAlg=bkN&&isAlg(bkN.notes)&&!(ord.note||"").includes(bkN.notes)?"Booking: "+bkN.notes:"";
+    const bkN=!ord.pickup&&state.bookings[leadOf(g)];const bkAlg=[bkN&&isAlg(bkN.notes)&&!(ord.note||"").includes(bkN.notes)?"Booking: "+bkN.notes:"",(()=>{const P=bkN&&bkProf(bkN);return P&&P.allergy&&!(bkN.notes||"").includes(P.allergy)&&!(ord.note||"").includes(P.allergy)?"On file: "+P.allergy:""})()].filter(Boolean).join(" · ");
     const no=tickets.reduce((m,t)=>Math.max(m,t.no||0),0)+1;
     const first=!ordTickets().length&&!ord.pickup;let coversLeft=first?(ord.covers||0):0;
     const parts=[["kitchen",c.filter(x=>ITEMS[x.n].station!=="bar")],["bar",c.filter(x=>ITEMS[x.n].station==="bar")]].filter(p=>p[1].length);
@@ -2353,7 +2360,7 @@ $("hrsCopy").onclick=()=>{
   (navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>toast("Hours copied")).catch(()=>{
     const ta=document.createElement("textarea");ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand("copy");toast("Hours copied")}catch(_){toast("Couldn't copy")}ta.remove()});
 };
-function startStaffStores(){staffStore.start();shiftStore.start();mgrStore.start();stockStore.start();if(typeof callStore!=="undefined")callStore.start()}
+function startStaffStores(){staffStore.start();shiftStore.start();mgrStore.start();stockStore.start();if(typeof callStore!=="undefined")callStore.start();if(typeof guestStore!=="undefined")guestStore.start()}
 
 // ---------- tiny PDF writer (A4, standard fonts, no libraries) ----------
 function makePdf(){
@@ -2792,6 +2799,8 @@ $("nbSave").onclick=async()=>{
   if(st.bookings[L]){toast("Someone just booked that table — pick another");nbRefresh();return}
   st.bookings[L]={time:$("nbTime").value,notes:$("nbNotes").value.trim(),guests:[{name,phone:$("nbPhone").value.trim()}],email:em,status:"pending",size:+$("nbSize").value||2,walkin:false,sentOwner:0,sentCustomer:0};
   try{await saveDay(k,st)}catch(e){toast("Couldn't save — try again");return}
+  {const ph=$("nbPhone").value.trim(),nt=$("nbNotes").value.trim(),bd=parseBday($("nbBday").value);
+   if(normPh(ph))upsertGuest(ph,Object.assign({name},em?{email:em}:{},bd?{bday:bd}:{},isAlg(nt)?{allergy:nt}:{}))}
   $("nbOv").classList.remove("show");
   toast(`Booked ${name} · ${dayLabel(k)} ${$("nbTime").value} · ${gname(g)}`);
   if(k!==dateKey)setDate(k);
@@ -2916,6 +2925,69 @@ async function doMove(from,to){
   if(ord&&!ord.pickup){ord.lead=Lt;sheetGroup=to}
   toast(`Moved to ${lab}`);ticketsChanged();renderAlerts();
 }
+
+// ---- guest profiles: one per phone number (visits, spend, favourites, birthday, allergies, notes) ----
+const guestStore=useColl("guests",()=>{if(xKind==="guests")renderGuests()});guestStore.start();
+function prof(phone){const k=normPh(phone);return k?guestStore.docs[k]||null:null}
+function bkProf(b){const lead=(b.guests&&b.guests[0])||{};return prof(lead.phone)}
+function parseBday(v){const m=String(v||"").trim().match(/^(\d{1,2})\s*[\/.\- ]\s*(\d{1,2})$/);if(!m)return "";const d=+m[1],mo=+m[2];if(d<1||d>31||mo<1||mo>12)return "";return String(mo).padStart(2,"0")+"-"+String(d).padStart(2,"0")}
+const bdayTxt=b=>b?b.slice(3)+"/"+b.slice(0,2):"";
+function daysToBday(b){if(!b)return 999;const t=new Date();t.setHours(0,0,0,0);let d=new Date(t.getFullYear(),+b.slice(0,2)-1,+b.slice(3));if(d<t)d=new Date(t.getFullYear()+1,+b.slice(0,2)-1,+b.slice(3));return Math.round((d-t)/864e5)}
+const bdayWhen=n=>n===0?"today 🎉":n===1?"tomorrow":n<7?"in "+n+" days":"in "+n+" days";
+async function upsertGuest(phone,patch){const k=normPh(phone);if(!k||readOnly)return;
+  const cur=guestStore.docs[k]||{phone,created:Date.now(),visits:0,spend:0,items:{}};
+  const nx=Object.assign({},cur,patch,{phone:cur.phone||phone,updated:Date.now()});try{await guestStore.put(k,nx)}catch(e){}}
+function recordVisit(bk,B,label){const lead=(bk.guests&&bk.guests[0])||{};if(!normPh(lead.phone))return;
+  const P=prof(lead.phone)||{},items=Object.assign({},P.items||{});B.lines.forEach(l=>{items[l.n]=(items[l.n]||0)+l.q});
+  const top=Object.entries(items).sort((a,b)=>b[1]-a[1]).slice(0,30);
+  upsertGuest(lead.phone,Object.assign({name:lead.name||P.name||"",visits:(P.visits||0)+1,spend:Math.round(((P.spend||0)+B.total)*100)/100,items:Object.fromEntries(top),last:dateKey,lastTable:label},
+    bk.email&&!P.email?{email:bk.email}:{},isAlg(bk.notes)&&!P.allergy?{allergy:bk.notes}:{}))}
+function favs(P,n){return Object.entries(P.items||{}).sort((a,b)=>b[1]-a[1]).slice(0,n||3).map(x=>x[0])}
+function profStrip(b){const P=bkProf(b);if(!P)return "";const d=daysToBday(P.bday),f=favs(P,3);
+  const bits=[P.visits?`${P.visits>=3?"⭐ Regular":"↩ Been before"} · ${P.visits} visit${P.visits===1?"":"s"}${P.last?" · last "+shortDate(P.last):""}`:"👤 Known guest",
+    f.length?"Usually: "+f.join(", "):"",d<=7?"🎂 Birthday "+bdayWhen(d):""].filter(Boolean);
+  return (P.allergy&&!(b.notes||"").includes(P.allergy)?`<div class="ostrip alg"><b>⚠ Allergy on file: ${esc(P.allergy)}</b></div>`:"")+
+    `<div class="ostrip prof"><span>${bits.map(esc).join(" · ")}${P.notes?`<i>📝 ${esc(P.notes)}</i>`:""}</span></div>`}
+// Guests sheet (Staff → Guests): birthdays coming up, search, edit
+let gq="",gEdit=null;
+function openGuests(){gq="";gEdit=null;openX("guests","Guests","Profiles build up automatically from bookings and paid bills",e=>{
+  const ed=e.target.closest("[data-gedit]");if(ed){gEdit=ed.dataset.gedit;renderGuests();return}
+  if(e.target.closest("[data-gnew]")){gEdit="new";renderGuests();return}
+  if(e.target.closest("[data-gback]")){gEdit=null;renderGuests();return}
+  if(e.target.closest("[data-gsent]")){const k=e.target.closest("[data-gsent]").dataset.gsent;const P=guestStore.docs[k];if(P)upsertGuest(P.phone,{bdaySent:new Date().getFullYear()});return}
+  if(e.target.closest("[data-gsave]")){saveGuestForm();return}
+  if(e.target.closest("[data-gdel]")){const k=gEdit;ask("Delete this guest profile?","Their visit history on old bookings stays.",async()=>{await guestStore.del(k);gEdit=null;renderGuests()})}
+});renderGuests()}
+function bdayMsg(P){const first=(P.name||"").split(" ")[0]||"there";return `Happy birthday ${first}! 🎂 From all of us at Trattoria 57. Pop in this week and the dessert's on us. Book: 01282 816554`}
+function renderGuests(){
+  if(xKind!=="guests")return;const all=Object.entries(guestStore.docs);
+  if(gEdit){const k=gEdit,P=k==="new"?{}:guestStore.docs[k]||{};
+    $("xBody").innerHTML=`<div class="gform"><div class="fld"><label>Name</label><input id="gfName" maxlength="60" value="${esc(P.name||"")}"></div>
+      <div class="fld"><label>Phone</label><input id="gfPhone" type="tel" maxlength="30" value="${esc(P.phone||"")}"${k==="new"?"":" readonly"}></div>
+      <div class="fld"><label>Birthday (dd/mm)</label><input id="gfBday" maxlength="5" inputmode="numeric" value="${esc(bdayTxt(P.bday))}"></div>
+      <div class="fld"><label>Allergies (warned every visit)</label><input id="gfAlg" maxlength="120" value="${esc(P.allergy||"")}" placeholder="e.g. Nut allergy"></div>
+      <div class="fld"><label>Notes &amp; preferences</label><input id="gfNotes" maxlength="200" value="${esc(P.notes||"")}" placeholder="Likes window table, Peroni drinker…"></div>
+      ${P.visits?`<p class="trial">${P.visits} visits · spent ${money(P.spend||0)} · average ${money((P.spend||0)/P.visits)}${P.lastTable?" · last at "+esc(P.lastTable):""}<br>Favourites: ${esc(favs(P,5).join(", ")||"—")}</p>`:""}</div>`;
+    $("xFoot").innerHTML=`<button class="btn sec" data-gback>‹ Back</button>${k==="new"?"":`<button class="btn dng" data-gdel>Delete</button>`}<button class="btn pri" data-gsave>Save</button>`;return}
+  const yr=new Date().getFullYear();
+  const bd=all.filter(([k,P])=>P.bday&&daysToBday(P.bday)<=14).sort((a,b)=>daysToBday(a[1].bday)-daysToBday(b[1].bday));
+  const q=gq.toLowerCase().trim(),qd=q.replace(/\D/g,"");
+  const list=all.filter(([k,P])=>!q||(P.name||"").toLowerCase().includes(q)||(qd.length>=3&&k.includes(qd))).sort((a,b)=>(b[1].visits||0)-(a[1].visits||0)||(a[1].name||"").localeCompare(b[1].name||"")).slice(0,80);
+  $("xBody").innerHTML=`<div class="gl-title"><span>🎂 Birthdays · next 2 weeks</span><em>${bd.length}</em></div>
+    ${bd.length?bd.map(([k,P])=>{const n=daysToBday(P.bday),sent=P.bdaySent===yr;
+      return `<div class="gprow"><span><b>${esc(P.name||P.phone)}</b><small>${esc(bdayTxt(P.bday))} · ${bdayWhen(n)}${P.visits?" · "+P.visits+" visits":""}</small></span>${sent?`<em>Texted ✓</em>`:`<a class="btn sec smsb" data-gsent="${k}" href="sms:${encodeURIComponent(P.phone)}?body=${encodeURIComponent(bdayMsg(P))}">💬 Text</a>`}</div>`}).join(""):`<p class="trial">No birthdays in the next two weeks. Add them on bookings or here.</p>`}
+    <div class="gl-title" style="margin-top:14px"><span>All guests</span><em>${all.length}</em></div>
+    <input id="gSearch" placeholder="Search name or phone" value="${esc(gq)}" style="width:100%;margin-bottom:8px">
+    ${list.map(([k,P])=>`<button class="gprow gbtn" data-gedit="${k}"><span><b>${esc(P.name||"(no name)")}${P.allergy?' <i class="alg">⚠</i>':""}${P.bday?" 🎂":""}</b><small>${esc(P.phone||"")}${P.visits?` · ${P.visits} visit${P.visits===1?"":"s"} · ${money(P.spend||0)}`:""}${P.last?" · last "+esc(shortDate(P.last)):""}</small></span><span class="chev">›</span></button>`).join("")||`<p class="trial">No guests yet.</p>`}`;
+  $("xFoot").innerHTML=`<button class="btn sec" data-gnew>+ Add guest</button><button class="btn pri" data-xdone>Done</button>`;
+  const si=$("gSearch");if(si&&document.activeElement!==si&&gq){si.focus();si.setSelectionRange(gq.length,gq.length)}}
+async function saveGuestForm(){
+  const ph=$("gfPhone").value.trim();if(!normPh(ph)){toast("Add a phone number");return}
+  const bdRaw=$("gfBday").value.trim(),bd=parseBday(bdRaw);if(bdRaw&&!bd){toast("Birthday as dd/mm, e.g. 14/03");return}
+  await upsertGuest(ph,{name:$("gfName").value.trim(),bday:bd,allergy:$("gfAlg").value.trim(),notes:$("gfNotes").value.trim()});
+  toast("Guest saved");gEdit=null;renderGuests()}
+$("xBody").addEventListener("input",e=>{if(xKind==="guests"&&e.target.id==="gSearch"){gq=e.target.value;renderGuests();const si=$("gSearch");si.focus();si.setSelectionRange(gq.length,gq.length)}});
+$("sGuests").onclick=openGuests;
 
 // ---- bar staff take drinks orders from the bar screen ----
 function barTake(){
@@ -3045,6 +3117,7 @@ async function finishBill(pay){
   }
   if(isP){for(const id in flashes)if(flashes[id].pno===pno)delete flashes[id];renderAlerts();toast(`Pickup #${pno} paid · ${how}`);closeOrder();ticketsChanged();return}
   const L=leadOf(g),bk=state.bookings[L];
+  if(bk)recordVisit(bk,B,gname(g));
   if(bk){state.done=(state.done||[]).concat([Object.assign({},bk,{label:gname(g),paidAt:now})]).slice(-300);delete state.bookings[L];save()}
   gIdx=null;toast(`Paid · ${how} · table is free again`);closeOrder();ticketsChanged();
 }
@@ -3089,7 +3162,12 @@ async function showReg(elId,phone,email){
     ${r.notes?`<small${isAlg(r.notes)?' class="alg"':""}>Notes last time: ${esc(r.notes)}</small>`:""}
     ${fill?`<button data-regfill>Use their details</button>`:""}</div>`;
 }
-$("nbPhone").addEventListener("input",e=>showReg("nbReg",e.target.value,$("nbEmail").value));
+// profile card on the booking form (works even for first-time profiles added by hand)
+async function showProf(phone){const el=$("nbProf");if(!el)return;const P=prof(phone);if(!P){el.innerHTML="";return}
+  if(P.bday&&!$("nbBday").value)$("nbBday").value=bdayTxt(P.bday);
+  el.innerHTML=(P.allergy?`<div class="regc bad"><b>⚠ Allergy on file: ${esc(P.allergy)}</b><span>Added to the booking notes so the kitchen sees it</span></div>`:"")+(P.notes?`<div class="regc"><small>📝 ${esc(P.notes)}</small></div>`:"");
+  if(P.allergy&&!($("nbNotes").value||"").includes(P.allergy))$("nbNotes").value=[P.allergy,$("nbNotes").value.trim()].filter(Boolean).join(" · ").slice(0,200)}
+$("nbPhone").addEventListener("input",e=>{showReg("nbReg",e.target.value,$("nbEmail").value);showProf(e.target.value)});
 $("nbEmail").addEventListener("change",e=>showReg("nbReg",$("nbPhone").value,e.target.value));
 $("nbReg").addEventListener("click",e=>{if(!e.target.closest("[data-regfill]"))return;const r=regLast.nbReg;if(!r)return;
   if(r.name&&!$("nbName").value.trim())$("nbName").value=r.name;if(r.email&&!$("nbEmail").value.trim())$("nbEmail").value=r.email;
@@ -3371,7 +3449,7 @@ function makeSupaDb(sb){
 if(TRAIN){document.body.classList.add("training");$("trainBar").hidden=false;$("trainOff").onclick=()=>ask("Back to live on this device?","Real orders and bookings will show again.",()=>setTraining(false))}
 
 // ---------- training mode & going live ----------
-const NS_COLLS=["tickets","plan23","printjobs","calls","shifts","stock"];   // kept separate in training
+const NS_COLLS=["tickets","plan23","printjobs","calls","shifts","stock","guests"];   // kept separate in training
 function nsDb(d){const m=n=>NS_COLLS.includes(n)?"train_"+n:n;
   return {collection:n=>d.collection(m(n)),doc:p=>{const i=p.indexOf("/");return d.doc(m(p.slice(0,i))+p.slice(i))},supa:d.supa,base:d}}
 function setTraining(on){try{on?localStorage.setItem("t57-train","1"):localStorage.removeItem("t57-train")}catch(e){}location.reload()}
@@ -3398,7 +3476,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261109181048";
+const APP_BUILD="20261109181715";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
