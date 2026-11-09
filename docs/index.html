@@ -720,6 +720,8 @@ body.training{padding-top:30px}
 .gprow .chev{color:#a39a80;font-size:20px}.gprow i.alg{font-style:normal;color:var(--wine)}.smsb{padding:8px 12px!important;text-decoration:none}
 .gform .fld{margin-bottom:10px}.gform input{width:100%}
 @media (orientation:landscape) and (max-height:640px){.ostrip{margin:6px 12px 0;padding:6px 10px;font-size:13px}.ostrip button{padding:5px 10px!important}}
+.otools .deltool{color:var(--wine)!important;border-color:#e6c3bb!important}
+.delt{border:0;background:none;font-size:15px;padding:0 4px;margin-left:6px;cursor:pointer;opacity:.75}
 </style>
 </head>
 <body>
@@ -1946,10 +1948,10 @@ function renderOrder(){
     const all=act.slice().sort((a,b)=>a.createdAt-b.createdAt);let total=0;
     const heldN=all.filter(t=>t.hold).length;
     const lastBar=all.filter(t=>stOf(t)==="bar"&&!t.hold&&!t.rejected).pop();
-    const tools=all.length?`<div class="otools">${lastBar?`<button data-f="repeat">🔁 Repeat drinks</button>`:""}${ord.pickup?"":`<button data-f="move">↔ Move table</button>`}${all.some(t=>!t.hold)?`<button data-f="split">➗ Split bill</button>`:""}</div>`:"";
+    const tools=all.length?`<div class="otools">${lastBar?`<button data-f="repeat">🔁 Repeat drinks</button>`:""}${ord.pickup?"":`<button data-f="move">↔ Move table</button>`}${all.some(t=>!t.hold)?`<button data-f="split">➗ Split bill</button>`:""}${all.some(t=>!t.hold)?`<button data-f="delall" class="deltool">🗑 Delete order</button>`:""}</div>`:"";
     body.innerHTML=`<div class="sent">${tools}${heldN>1?`<button class="btn ok2" data-f="qrall" style="width:100%;margin-bottom:10px;padding:13px">✓ Approve all ${heldN} QR orders</button>`:""}${all.length?all.map(t=>{
       const sub=t.items.reduce((a,x)=>a+lv(x),0);if(!t.hold)total+=sub;
-      return `<div class="st-card"${t.hold?' style="border-color:#3f5f86;background:#eef3f9"':""}><div class="h"><span>${t.qr?"📱 ":""}Order ${t.no||""} · ${timeOf(t.createdAt)}${t.byName?" · "+esc(t.byName):""}<span class="stpill ${stOf(t)==="bar"?"sp-bar":"sp-kit"}">${stOf(t)==="bar"?"Bar":"Kitchen"}</span></span><span class="pill ${t.hold?"hold":t.status}">${t.hold?"QR · check":t.status}</span></div>
+      return `<div class="st-card"${t.hold?' style="border-color:#3f5f86;background:#eef3f9"':""}><div class="h"><span>${t.qr?"📱 ":""}Order ${t.no||""} · ${timeOf(t.createdAt)}${t.byName?" · "+esc(t.byName):""}<span class="stpill ${stOf(t)==="bar"?"sp-bar":"sp-kit"}">${stOf(t)==="bar"?"Bar":"Kitchen"}</span>${t.hold||t.items.every(x=>x.v)?"":`<button class="delt" data-delt="${t.id}" title="Delete this order">🗑</button>`}</span><span class="pill ${t.hold?"hold":t.status}">${t.hold?"QR · check":t.status}</span></div>
         ${t.items.map((x,xi)=>x.v?`<div class="ln void"><span><s>${x.q}× ${esc(x.n)}</s><i>VOID · ${esc(x.vr)}${x.vb?" · "+esc(x.vb):""}</i></span><span><s>${money(x.q*x.p)}</s></span></div>`
           :`<div class="ln"><span>${x.q}× ${esc(x.n)}${ord.pickup||t.hold?"":`<button class="gtag rt${x.g?"":" g0"}" data-retab="${t.id}|${xi}">👤 ${esc(x.g||"Table")}</button>`}${x.note?`<i${isAlg(x.note)?' class="alg"':""}>${esc(x.note)}</i>`:""}</span><span>${money(x.q*x.p)}${t.hold?"":`<button class="vd" data-void="${t.id}|${xi}" title="Void">✕</button>`}</span></div>`).join("")}
         ${t.note?`<div class="ln"><i>Note: ${esc(t.note)}</i></div>`:""}
@@ -2025,6 +2027,7 @@ $("oBody").addEventListener("click",e=>{
   const tpr=e.target.closest("[data-tprint]");if(tpr&&ord){printTab(tpr.dataset.tprint);return}
   const ldl=e.target.closest("[data-ld]");if(ldl){openItemDisc(ldl.dataset.ld);return}
   const vd=e.target.closest("[data-void]");if(vd){const [tid,xi]=vd.dataset.void.split("|");startVoid(tid,+xi);return}
+  const dl=e.target.closest('[data-f="delall"],[data-delt]');if(dl){deleteOrders(dl.dataset.delt?[dl.dataset.delt]:null);return}
   const tf=e.target.closest('[data-f="repeat"],[data-f="move"],[data-f="split"]');if(tf){({repeat:repeatDrinks,move:openMove,split:openSplit})[tf.dataset.f]();return}
   if(e.target.closest('[data-f="tprint"]')){const B=billOf(ordTickets());printJob(rcpPrinter(),"bill","Bill "+(ord.pickup?"Pickup "+ord.pno:gname(curGroup())),billLines(B),"full",...qrPair());return}
   if(e.target.closest('[data-f="rpdf"]')){const B=billOf(ordTickets());offerPdf(receiptPdf(B),`Trattoria57_Receipt_${ord.pickup?"Pickup"+ord.pno:gname(curGroup()).replace(/[^A-Za-z0-9+]/g,"")}_${dateKey}.pdf`);return}
@@ -2893,6 +2896,30 @@ function startVoid(tid,xi){
     $("xFoot").innerHTML=`<button class="btn sec" data-xdone>Cancel</button>`},"Voids need a manager");
 }
 
+// ---- delete a whole order (or one ticket) — manager only; kept on the day report under Voids ----
+const DEL_REASONS=["Wrong table","Customer left","Duplicate order","Test order","Mistake"];
+function deleteOrders(ids){
+  if(readOnly){toast("View only");return}
+  const all=ordTickets().filter(t=>!t.hold&&!t.rejected),list=ids?all.filter(t=>ids.includes(t.id)):all;
+  if(!list.length)return;
+  const B=billOf(ordTickets());if(B.paidSoFar>0&&!ids){toast("Part of this bill is already paid — void items instead");return}
+  const val=list.reduce((a,t)=>a+t.items.reduce((s,x)=>s+lv(x),0),0),n=list.length;
+  mgrCheck(()=>{
+    openX("del",ids?`Delete order ${list[0].no||""}`:`Delete the whole order`,`${ids?list[0].label:gname(curGroup())} · ${n} order${n===1?"":"s"} · ${money(val)}`,async e=>{
+      const b=e.target.closest("[data-dr]");if(!b)return;closeX();const why=b.dataset.dr,by=waiter?waiter.name:"Manager";
+      for(const t of list){
+        const wasLive=t.status!=="served";
+        const items=t.items.map(x=>x.v?x:Object.assign({},x,{v:true,vr:"Deleted · "+why,vb:by}));
+        await patchTicket(t,Object.assign({items,status:"served"},ids?{}:{closed:true}));
+        if(wasLive&&canThermal())printJob(stOf(t),"cancel","CANCELLED "+t.label,[{t:"*** CANCELLED ***",a:"c",b:1,s:2},{t:t.label+" · order "+(t.no||""),a:"c"},{rule:"-"},
+          ...t.items.filter(x=>!x.v).map(x=>({t:x.q+" x "+x.n,b:1})),{rule:"-"},{t:"Reason: "+why},{t:"By: "+by}],"small")}
+      if(!ids){const g=curGroup();toast(`Order deleted · ${why}`);closeOrder&&closeOrder()}else toast(`Order ${list[0].no||""} deleted · ${why}`);
+      ticketsChanged()});
+    $("xBody").innerHTML=`<div class="gl-title"><span>Why?</span></div><div class="dchips">${DEL_REASONS.map(r=>`<button data-dr="${r}">${r}</button>`).join("")}</div>
+      <p class="trial">Everything comes off the bill${ids?"":" and the table is freed"}. If the ${n===1&&stOf(list[0])==="bar"?"bar":"kitchen"} hasn't finished it, they get a CANCELLED slip. It's listed under Voids on the day report.</p>`;
+    $("xFoot").innerHTML=`<button class="btn sec" data-xdone>Cancel</button>`},"Deleting orders needs a manager");
+}
+
 // ---- repeat round ----
 function repeatDrinks(){
   const last=ordTickets().filter(t=>stOf(t)==="bar"&&!t.hold&&!t.rejected).sort((a,b)=>a.createdAt-b.createdAt).pop();if(!last)return;
@@ -3476,7 +3503,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261109191836";
+const APP_BUILD="20261109204443";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
