@@ -1,0 +1,21 @@
+name: DB check (read-only)
+on:
+  push:
+    paths: ["tools/dbcheck.txt"]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read recent data
+        env:
+          U: https://uzrkewizkqdnqpovwune.supabase.co/rest/v1/t57_docs
+          K: sb_publishable_Hix2EgA_xpjxMYFvmarVIQ_Hj0qx3YM
+        run: |
+          H=(-H "apikey: $K" -H "Authorization: Bearer $K")
+          echo "== rows per collection"; curl -s "${H[@]}" "$U?select=coll" | jq -r 'group_by(.coll)|map("\(.[0].coll): \(length)")|.[]'
+          for c in tickets train_tickets; do
+            echo "== latest $c"
+            curl -s "${H[@]}" "$U?select=id,updated_at,data&coll=eq.$c&order=updated_at.desc&limit=12" | jq -r '.[]|"\(.updated_at[0:19]) \(.data.date) \(.data.station) status=\(.data.status) label=\(.data.label) items=\([.data.items[]?.n]|join(",")) printed=\(.data.printed // 0) closed=\(.data.closed)"'
+          done
+          echo "== settings"; curl -s "${H[@]}" "$U?select=id,data&coll=eq.settings" | jq -c '.[]'
+          echo "== realtime publication check (insert+read latency)"; date -u
