@@ -1993,7 +1993,7 @@ $("oBody").addEventListener("click",e=>{
   const ldl=e.target.closest("[data-ld]");if(ldl){openItemDisc(ldl.dataset.ld);return}
   const vd=e.target.closest("[data-void]");if(vd){const [tid,xi]=vd.dataset.void.split("|");startVoid(tid,+xi);return}
   const tf=e.target.closest('[data-f="repeat"],[data-f="move"],[data-f="split"]');if(tf){({repeat:repeatDrinks,move:openMove,split:openSplit})[tf.dataset.f]();return}
-  if(e.target.closest('[data-f="tprint"]')){const B=billOf(ordTickets());printJob(rcpPrinter(),"bill","Bill "+(ord.pickup?"Pickup "+ord.pno:gname(curGroup())),billLines(B),"full",socialLinks(),settings.review);return}
+  if(e.target.closest('[data-f="tprint"]')){const B=billOf(ordTickets());printJob(rcpPrinter(),"bill","Bill "+(ord.pickup?"Pickup "+ord.pno:gname(curGroup())),billLines(B),"full",...qrPair());return}
   if(e.target.closest('[data-f="rpdf"]')){const B=billOf(ordTickets());offerPdf(receiptPdf(B),`Trattoria57_Receipt_${ord.pickup?"Pickup"+ord.pno:gname(curGroup()).replace(/[^A-Za-z0-9+]/g,"")}_${dateKey}.pdf`);return}
   const qa=e.target.closest('[data-f="qrall"]');if(qa&&ord){if(readOnly){toast("View only");return}
     (async()=>{const list=ordTickets().filter(t=>t.hold);for(const t of list)await patchTicket(t,{hold:false,createdAt:Date.now()});toast(`Approved ${list.length} → kitchen/bar`);ticketsChanged()})();return}
@@ -2949,7 +2949,7 @@ async function finishBill(pay){
   const how=mode==="split"?"split payment":pay;
   if(settings.autoRc!==false&&canThermal()&&B.live.length){
     const L=billLines(B);L.splice(L.length-3,0,PL.lr("PAID ("+(mode==="split"?"split":pay)+")",money(B.total),1),PL.rule());
-    printJob(rcpPrinter(),"receipt","Receipt "+(isP?"Pickup "+pno:gname(g)),L,"full",socialLinks(),settings.review);
+    printJob(rcpPrinter(),"receipt","Receipt "+(isP?"Pickup "+pno:gname(g)),L,"full",...qrPair());
   }
   if(isP){for(const id in flashes)if(flashes[id].pno===pno)delete flashes[id];renderAlerts();toast(`Pickup #${pno} paid · ${how}`);closeOrder();ticketsChanged();return}
   const L=leadOf(g),bk=state.bookings[L];
@@ -3042,12 +3042,20 @@ guestIndex();
 // ---------- thermal printing (website version): jobs picked up by the kitchen/bar printer tablets ----------
 const canThermal=()=>!!(db&&db.supa);
 function socialLinks(){const a=[];if(settings.ig){const h=(settings.ig.match(/instagram\.com\/([^/?#]+)/)||[])[1];a.push({n:"Instagram",h:h?"@"+h:"",u:settings.ig})}if(settings.fb)a.push({n:"Facebook",h:"Trattoria 57",u:settings.fb});return a}
+// 2 QR codes per receipt: one review site + one social page, rotating so every receipt shows a different pair
+// (Google+Instagram, TripAdvisor+Facebook, Google+Facebook, TripAdvisor+Instagram, …)
+function qrPair(){
+  const R=reviewLinks(),S=socialLinks();let k=0;
+  try{k=+localStorage.getItem("t57-qrrot")||0;localStorage.setItem("t57-qrrot",String(k+1))}catch(e){k=Date.now()%4}
+  const r=R.length?R[k%R.length]:null,soc=S.length?S[(k+Math.floor(k/2))%S.length]:null;
+  return [soc?[soc]:[],r?r.u:""];
+}
 function reviewLinks(){const a=[];if(settings.review)a.push({n:"Google",u:settings.review});if(settings.ta)a.push({n:"TripAdvisor",u:settings.ta});return a}
 async function printJob(to,kind,title,lines,logo,social,review){
   if(!canThermal()){toast("Thermal printing works on the website version (GitHub link)");return}
   const id=uid(),target=TRAIN&&db.base?db.base:db;   // training still prints, clearly marked
   if(TRAIN){lines=[PL.t("** TRAINING - NOT REAL **","c",1),PL.rule()].concat(lines);title="TRAINING "+title}
-  try{await target.collection("printjobs").doc(id).set({to,kind,title,lines,logo:logo||"full",social:social||[],review:review||"",reviews:review?reviewLinks():[],date:dateKey,createdAt:Date.now(),by:waiter?waiter.name:""});
+  try{await target.collection("printjobs").doc(id).set({to,kind,title,lines,logo:logo||"full",social:social||[],review:review||"",reviews:review?reviewLinks().filter(x=>x.u===review):[],date:dateKey,createdAt:Date.now(),by:waiter?waiter.name:""});
     toast(`🧾 Sent to the ${prName(to)} printer`)}catch(e){toast("Couldn't send to printer — try again")}
 }
 const PL={t:(t,a,b,s)=>({t:String(t),a:a||"l",b:b?1:0,s:s||1}),lr:(l,r,b)=>({l:String(l),r:String(r),b:b?1:0}),rule:c=>({rule:c||"-"}),gap:()=>({t:""})};
@@ -3298,7 +3306,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261109171644";
+const APP_BUILD="20261109171753";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
