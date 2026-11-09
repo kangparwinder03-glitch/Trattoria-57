@@ -636,9 +636,19 @@ body.training{padding-top:30px}
 
 .tk .ta .go.ready{flex:1;font-size:20px;padding:16px 10px;border-radius:14px}
 .sndbtn.ot.on{background:var(--olive-dk);color:#fff;border-color:var(--olive-dk)}
+
+.bigflash{position:fixed;inset:0;z-index:9500;display:none;pointer-events:none}
+.bigflash.on{display:flex;align-items:flex-start;justify-content:center;pointer-events:auto;cursor:pointer;
+  animation:bfFill .42s ease-in-out 0s 6 alternate,bfEdge 1.1s ease-in-out 2.6s infinite;box-shadow:inset 0 0 0 16px #e8912d}
+.bigflash .bfl{margin-top:22vh;background:#e8912d;color:#fff;border-radius:22px;padding:22px 34px;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.35);display:flex;flex-direction:column;gap:6px}
+.bigflash .bfl b{font-size:38px;letter-spacing:1px}.bigflash .bfl span{font-size:17px;font-weight:700;opacity:.95}
+@keyframes bfFill{from{background:rgba(232,145,45,.92)}to{background:rgba(232,145,45,0)}}
+@keyframes bfEdge{0%,100%{box-shadow:inset 0 0 0 16px #e8912d}50%{box-shadow:inset 0 0 0 6px rgba(232,145,45,.35)}}
+.sndbtn.ld.on{background:#e8912d;color:#fff;border-color:#e8912d}
 </style>
 </head>
 <body>
+<div id="bigFlash" class="bigflash" role="alert"><div class="bfl"><b>🍝 NEW ORDER</b><span>Tap anywhere to stop</span></div></div>
 <div id="trainBar" class="trainbar" hidden>🎓 TRAINING MODE — practice only, nothing here is real · <button id="trainOff">Back to live</button></div>
 <div id="app">
   <header>
@@ -696,7 +706,7 @@ body.training{padding-top:30px}
   <section id="kitchen" class="station" data-st="kitchen">
     <div class="kwrap">
       <div class="khead">
-        <span class="sttitle">KITCHEN</span><button class="sndbtn" data-snd>🔔 Sound on</button><button class="sndbtn ot" data-onetap="kitchen"></button><button class="sndbtn" data-stock="kitchen">⛔ Out of stock<span class="n-out"></span></button><div class="kseg"><button data-kf="todo" class="on">To do <span class="n-todo">0</span></button><button data-kf="served">Served <span class="n-served">0</span></button></div>
+        <span class="sttitle">KITCHEN</span><button class="sndbtn" data-snd>🔔 Sound on</button><button class="sndbtn ld" data-loud="kitchen"></button><button class="sndbtn ot" data-onetap="kitchen"></button><button class="sndbtn" data-stock="kitchen">⛔ Out of stock<span class="n-out"></span></button><div class="kseg"><button data-kf="todo" class="on">To do <span class="n-todo">0</span></button><button data-kf="served">Served <span class="n-served">0</span></button></div>
       </div>
       <div class="ksum"></div>
       <div class="klist"></div>
@@ -706,7 +716,7 @@ body.training{padding-top:30px}
   <section id="bar" class="station" data-st="bar">
     <div class="kwrap">
       <div class="khead">
-        <span class="sttitle">BAR</span><button class="sndbtn" data-snd>🔔 Sound on</button><button class="sndbtn ot" data-onetap="bar"></button><button class="sndbtn" data-stock="bar">⛔ Out of stock<span class="n-out"></span></button><div class="kseg"><button data-kf="todo" class="on">To do <span class="n-todo">0</span></button><button data-kf="served">Served <span class="n-served">0</span></button></div>
+        <span class="sttitle">BAR</span><button class="sndbtn" data-snd>🔔 Sound on</button><button class="sndbtn ld" data-loud="bar"></button><button class="sndbtn ot" data-onetap="bar"></button><button class="sndbtn" data-stock="bar">⛔ Out of stock<span class="n-out"></span></button><div class="kseg"><button data-kf="todo" class="on">To do <span class="n-todo">0</span></button><button data-kf="served">Served <span class="n-served">0</span></button></div>
       </div>
       <div class="ksum"></div>
       <div class="klist"></div>
@@ -1651,7 +1661,9 @@ function makeWav(notes,vol){
   return URL.createObjectURL(new Blob([buf],{type:"audio/wav"}));
 }
 const SFX={prep:new Audio(makeWav([[660,0,.5],[990,.14,.6]],.8)),srv:new Audio(makeWav([[880,0,.45],[1175,.2,.55],[1568,.4,.8]],.95)),
-           neworder:new Audio(makeWav([[784,0,.3],[784,.32,.5]],.9))};
+           neworder:new Audio(makeWav([[784,0,.3],[784,.32,.5]],.9)),
+           // loud kitchen/bar alarm: bright rising beeps, twice, driven hard so it cuts through kitchen noise
+           alarm:new Audio(makeWav([[988,0,.16],[1319,.18,.16],[1760,.36,.28],[988,.75,.16],[1319,.93,.16],[1760,1.11,.4]],1.9))};
 Object.values(SFX).forEach(a=>{a.preload="auto";a.setAttribute("playsinline","")});
 let audioReady=false;window.__t57snd=0;
 function unlockAudio(){
@@ -1666,6 +1678,18 @@ function updSnd(){
     b.classList.toggle("off",!soundOn);b.classList.toggle("need",soundOn&&!audioReady);
     b.textContent=!soundOn?"🔕 Muted":audioReady?"🔔 Sound on":"🔈 Tap to enable sound"});
 }
+// ---- loud mode for the kitchen & bar: alarm + full-screen flash, repeats until someone taps ----
+const loudOn={};["kitchen","bar"].forEach(st=>{try{loudOn[st]=localStorage.getItem("t57-loud-"+st)!=="0"}catch(e){loudOn[st]=true}});
+let nagT=null;
+function newOrderAlert(st){
+  if(!loudOn[st]){chime("neworder");return}
+  chime("alarm");if(navigator.vibrate)try{navigator.vibrate([400,120,400,120,400])}catch(e){}
+  const ov=$("bigFlash");ov.querySelector("b").textContent=st==="bar"?"🍸 NEW DRINKS ORDER":"🍝 NEW ORDER";
+  ov.className="bigflash";void ov.offsetWidth;ov.className="bigflash on";
+  clearInterval(nagT);nagT=setInterval(()=>{if(view!==st){stopNag();return}chime("alarm");if(navigator.vibrate)try{navigator.vibrate([400,120,400])}catch(e){}},20000);
+}
+$("bigFlash").addEventListener("click",()=>stopNag());
+function stopNag(){clearInterval(nagT);nagT=null;const ov=$("bigFlash");if(ov)ov.className="bigflash"}
 function chime(kind){
   if(!soundOn)return;
   const a=SFX[kind];if(!a)return;
@@ -1720,7 +1744,7 @@ function checkStatusChanges(){
     else delete flashes[t.id];
   }
   stInit=true;
-  if(newSt.has(view))chime("neworder");else if(fire==="qr"){if(view!=="kitchen"&&view!=="bar"&&view!=="guest")chime("neworder")}else if(fire&&view!=="guest")chime(fire);
+  if(newSt.has(view))newOrderAlert(view);else if(fire==="qr"){if(view!=="kitchen"&&view!=="bar"&&view!=="guest")chime("neworder")}else if(fire&&view!=="guest")chime(fire);
   renderAlerts();
 }
 setInterval(()=>{const before=Object.keys(flashes).length;flashFor([]);if(Object.keys(flashes).length!==before){renderAlerts();if(!dragging)render()}},2000);
@@ -1972,6 +1996,7 @@ function renderStation(st){
   {const no=[...outSet].filter(n=>ITEMS[n]&&ITEMS[n].station===st).length;q(".n-out").textContent=no?" · "+no:""}
   root.querySelectorAll(".kseg button").forEach(b=>b.classList.toggle("on",b.dataset.kf===kFilter[st]));
   const cnt=x=>todo.filter(t=>t.status===x).length;
+  {const lb=q("[data-loud]");if(lb){lb.textContent=loudOn[st]?"📢 Loud":"🔉 Quiet";lb.classList.toggle("on",loudOn[st])}}
   const ot=oneTap[st];{const b=q("[data-onetap]");if(b){b.textContent=ot?"⚡ One tap":"☰ 3 steps";b.classList.toggle("on",ot)}}
   q(".ksum").innerHTML=ot?(kFilter[st]==="todo"&&todo.length?`<span class="ks new">${todo.length} waiting</span>`:""):kFilter[st]==="todo"&&todo.length?`<span class="ks new">${cnt("new")} new</span><span class="ks received">${cnt("received")} received</span><span class="ks preparing">${cnt("preparing")} ${st==="bar"?"making":"preparing"}</span>`:"";
   const list=kFilter[st]==="todo"?todo:served,BTN=st==="bar"?B_BTN:K_BTN;
@@ -1997,6 +2022,8 @@ document.querySelectorAll(".station").forEach(root=>{
   const st=root.dataset.st;
   root.querySelector(".kseg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;kFilter[st]=b.dataset.kf;renderStation(st);root.scrollTop=0});
   root.addEventListener("click",e=>{
+    const ldb=e.target.closest("[data-loud]");
+    if(ldb){loudOn[st]=!loudOn[st];try{localStorage.setItem("t57-loud-"+st,loudOn[st]?"1":"0")}catch(_){}renderStation(st);toast(loudOn[st]?"📢 Loud: alarm + screen flash for new orders":"🔉 Quiet: soft chime for new orders");if(loudOn[st])newOrderAlert(st);return}
     const otb=e.target.closest("[data-onetap]");
     if(otb){oneTap[st]=!oneTap[st];try{localStorage.setItem("t57-onetap-"+st,oneTap[st]?"1":"0")}catch(_){}renderStation(st);toast(oneTap[st]?"⚡ One tap: just press Ready when an order is done":"☰ 3 steps: Received → Preparing → Served");return}
     const bt=e.target.closest("button[data-k]");if(!bt)return;
@@ -3190,7 +3217,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261109163239";
+const APP_BUILD="20261109163521";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
