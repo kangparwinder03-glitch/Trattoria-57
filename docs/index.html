@@ -633,6 +633,9 @@ body.training{padding-top:30px}
 #floor.moving .tbl .ttop,#floor.moving .tbl{animation-play-state:paused!important}
 #floor.moving .tbl,#floor.moving .chair{transition:none!important}
 .updbtn{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:10000;border:0;border-radius:22px;background:var(--olive-dk);color:#fff;font-weight:800;font-size:15px;padding:12px 18px;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+
+.tk .ta .go.ready{flex:1;font-size:20px;padding:16px 10px;border-radius:14px}
+.sndbtn.ot.on{background:var(--olive-dk);color:#fff;border-color:var(--olive-dk)}
 </style>
 </head>
 <body>
@@ -693,7 +696,7 @@ body.training{padding-top:30px}
   <section id="kitchen" class="station" data-st="kitchen">
     <div class="kwrap">
       <div class="khead">
-        <span class="sttitle">KITCHEN</span><button class="sndbtn" data-snd>🔔 Sound on</button><button class="sndbtn" data-stock="kitchen">⛔ Out of stock<span class="n-out"></span></button><div class="kseg"><button data-kf="todo" class="on">To do <span class="n-todo">0</span></button><button data-kf="served">Served <span class="n-served">0</span></button></div>
+        <span class="sttitle">KITCHEN</span><button class="sndbtn" data-snd>🔔 Sound on</button><button class="sndbtn ot" data-onetap="kitchen"></button><button class="sndbtn" data-stock="kitchen">⛔ Out of stock<span class="n-out"></span></button><div class="kseg"><button data-kf="todo" class="on">To do <span class="n-todo">0</span></button><button data-kf="served">Served <span class="n-served">0</span></button></div>
       </div>
       <div class="ksum"></div>
       <div class="klist"></div>
@@ -703,7 +706,7 @@ body.training{padding-top:30px}
   <section id="bar" class="station" data-st="bar">
     <div class="kwrap">
       <div class="khead">
-        <span class="sttitle">BAR</span><button class="sndbtn" data-snd>🔔 Sound on</button><button class="sndbtn" data-stock="bar">⛔ Out of stock<span class="n-out"></span></button><div class="kseg"><button data-kf="todo" class="on">To do <span class="n-todo">0</span></button><button data-kf="served">Served <span class="n-served">0</span></button></div>
+        <span class="sttitle">BAR</span><button class="sndbtn" data-snd>🔔 Sound on</button><button class="sndbtn ot" data-onetap="bar"></button><button class="sndbtn" data-stock="bar">⛔ Out of stock<span class="n-out"></span></button><div class="kseg"><button data-kf="todo" class="on">To do <span class="n-todo">0</span></button><button data-kf="served">Served <span class="n-served">0</span></button></div>
       </div>
       <div class="ksum"></div>
       <div class="klist"></div>
@@ -1955,6 +1958,8 @@ $("shOrder").onclick=()=>{const L=leadOf(groupFor(sheetGroup[0]));closeSheet();o
 // ---- kitchen board ----
 const kFilter={kitchen:"todo",bar:"todo"};
 const KSTEPS=[["new","Sent"],["received","Received"],["preparing","Preparing"],["served","Served"]];
+// one-tap mode: the kitchen/bar taps a single "Ready" per order (per device, on by default)
+const oneTap={};["kitchen","bar"].forEach(st=>{try{oneTap[st]=localStorage.getItem("t57-onetap-"+st)!=="0"}catch(e){oneTap[st]=true}});
 const K_BTN={new:["Received","rcv"],received:["Start preparing","prp"],preparing:["Served","srv"]};
 const B_BTN={new:["Received","rcv"],received:["Making","prp"],preparing:["Served","srv"]};
 const stOf=t=>t.station==="bar"?"bar":"kitchen";
@@ -1967,7 +1972,8 @@ function renderStation(st){
   {const no=[...outSet].filter(n=>ITEMS[n]&&ITEMS[n].station===st).length;q(".n-out").textContent=no?" · "+no:""}
   root.querySelectorAll(".kseg button").forEach(b=>b.classList.toggle("on",b.dataset.kf===kFilter[st]));
   const cnt=x=>todo.filter(t=>t.status===x).length;
-  q(".ksum").innerHTML=kFilter[st]==="todo"&&todo.length?`<span class="ks new">${cnt("new")} new</span><span class="ks received">${cnt("received")} received</span><span class="ks preparing">${cnt("preparing")} ${st==="bar"?"making":"preparing"}</span>`:"";
+  const ot=oneTap[st];{const b=q("[data-onetap]");if(b){b.textContent=ot?"⚡ One tap":"☰ 3 steps";b.classList.toggle("on",ot)}}
+  q(".ksum").innerHTML=ot?(kFilter[st]==="todo"&&todo.length?`<span class="ks new">${todo.length} waiting</span>`:""):kFilter[st]==="todo"&&todo.length?`<span class="ks new">${cnt("new")} new</span><span class="ks received">${cnt("received")} received</span><span class="ks preparing">${cnt("preparing")} ${st==="bar"?"making":"preparing"}</span>`:"";
   const list=kFilter[st]==="todo"?todo:served,BTN=st==="bar"?B_BTN:K_BTN;
   q(".klist").innerHTML=list.length?list.map(t=>{
     const si=FLOW.indexOf(t.status),mins=Math.round((Date.now()-t.createdAt)/60000);
@@ -1978,10 +1984,11 @@ function renderStation(st){
     return `<article class="tk ${t.status}${late}${t.pickup?" pick":""}${alg?" alg":""}" data-id="${t.id}">${alg?`<div class="algb">⚠ ALLERGY — read the notes</div>`:""}
       <div class="th">${t.pickup?`<span class="tt" style="color:#3f5f86">🥡 #${t.pno}</span><span class="tag">PICKUP${t.pname?" · "+esc(t.pname):""}</span>`:`<span class="tt">${esc(t.label)}</span><span class="tag">#${t.no||""}</span>`}
         <span class="tm">${t.status==="served"?"Served "+timeOf(t.updatedAt):`${timeOf(t.createdAt)} · <b>⏱ ${mins<1?"now":mins+" min"}</b>`}</span></div>
-      <div class="prog">${KSTEPS.map(([k,l],i)=>`<div class="pg${i<=si?" done":""}${i===si?" cur":""}"><i></i><span>${st==="bar"&&k==="preparing"?"Making":l}</span></div>`).join("")}</div>
+      ${ot?"":`<div class="prog">${KSTEPS.map(([k,l],i)=>`<div class="pg${i<=si?" done":""}${i===si?" cur":""}"><i></i><span>${st==="bar"&&k==="preparing"?"Making":l}</span></div>`).join("")}</div>`}
       <ul>${t.items.map(x=>x.v?`<li class="void"><b>${x.q}</b><span><s>${esc(x.n)}</s><i>VOID — don't make</i></span></li>`:`<li><b>${x.q}</b><span>${esc(x.n)}${x.note?`<i${isAlg(x.note)?' class="alg"':""}>${isAlg(x.note)?"⚠ ":""}${esc(x.note)}</i>`:""}</span></li>`).join("")}</ul>
       ${t.note?`<div class="tn${isAlg(t.note)?" alg":""}">⚠ ${esc(t.note)}</div>`:""}
-      <div class="ta">${si>0?`<button class="bk" data-k="back">Undo</button>`:""}${nb?`<button class="go ${nb[1]}" data-k="next">${nb[0]} →</button>`:""}</div>
+      ${ot?`<div class="ta">${t.status==="served"?`<button class="bk" data-k="back">Undo</button>`:`<button class="go srv ready" data-k="ready">✓ ${st==="bar"?"Drinks ready":"Ready"}</button>`}</div>`
+        :`<div class="ta">${si>0?`<button class="bk" data-k="back">Undo</button>`:""}${nb?`<button class="go ${nb[1]}" data-k="next">${nb[0]} →</button>`:""}</div>`}
     </article>`}).join("")
     :`<div class="kempty">${kFilter[st]==="todo"?(st==="bar"?"No drinks waiting.":"All caught up — no orders waiting."):"Nothing served yet today."}</div>`;
 }
@@ -1990,9 +1997,12 @@ document.querySelectorAll(".station").forEach(root=>{
   const st=root.dataset.st;
   root.querySelector(".kseg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;kFilter[st]=b.dataset.kf;renderStation(st);root.scrollTop=0});
   root.addEventListener("click",e=>{
+    const otb=e.target.closest("[data-onetap]");
+    if(otb){oneTap[st]=!oneTap[st];try{localStorage.setItem("t57-onetap-"+st,oneTap[st]?"1":"0")}catch(_){}renderStation(st);toast(oneTap[st]?"⚡ One tap: just press Ready when an order is done":"☰ 3 steps: Received → Preparing → Served");return}
     const bt=e.target.closest("button[data-k]");if(!bt)return;
     if(readOnly){toast("View only");return}
     const t=tickets.find(x=>x.id===bt.closest(".tk").dataset.id);if(!t)return;
+    if(bt.dataset.k==="ready"){const now=Date.now();patchTicket(t,{status:"served",tRec:t.tRec||now,tPrep:t.tPrep||now,tSrv:now});return}
     const i=FLOW.indexOf(t.status),ni=bt.dataset.k==="next"?i+1:i-1;
     if(ni<0||ni>=FLOW.length)return;const tf={received:"tRec",preparing:"tPrep",served:"tSrv"}[FLOW[ni]];const upd={status:FLOW[ni]};if(tf&&bt.dataset.k==="next")upd[tf]=Date.now();patchTicket(t,upd);
   });
@@ -3180,7 +3190,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261109162706";
+const APP_BUILD="20261109163239";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
