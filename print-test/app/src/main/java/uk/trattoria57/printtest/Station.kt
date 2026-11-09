@@ -72,7 +72,10 @@ object Format {
         for (i in 0 until items.length()) {
             val x = items.getJSONObject(i); if (x.optBoolean("v")) continue
             val q = x.optInt("q", 1); val amt = q * x.optDouble("p", 0.0); total += amt
-            bold(true).size(1, 2).lr("$q x ${x.optString("n")}", money(amt)).size(1, 1).bold(false)
+            val name = "$q x ${x.optString("n")}"; val price = money(amt)
+            bold(true).size(1, 2)
+            if (name.length + price.length + 1 > cols) line(name).lr("", price) else lr(name, price)
+            size(1, 1).bold(false)
             val guest = x.optString("g")
             if (guest.isNotBlank()) line("   for: $guest")
             val note = x.optString("note")
