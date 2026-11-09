@@ -1365,11 +1365,11 @@ $("shMail").onclick=()=>{const L=leadOf(groupFor(sheetGroup[0]));closeSheet();op
 
 // ---------- emails (trial: compose only, sent from the user's own mail app) ----------
 const R={name:"Trattoria 57",tag:"Italian Kitchen & Bar",addr:"55/57 Gisburn Road, Barnoldswick, Lancashire, BB18 5HB",tel:"01282 816554"};
-let settings={ownerEmail:"",auto:true,pickupPct:10,review:"",autoRc:true,ig:"",fb:"https://www.facebook.com/share/1BcKcA1rHr/"};
+let settings={ownerEmail:"",auto:true,pickupPct:10,review:"",autoRc:true,ig:"https://www.instagram.com/trattoria_57/",fb:"https://www.facebook.com/share/1BcKcA1rHr/"};
 const cleanLink=u=>{u=str(u,300).trim();if(!u)return "";return /^https?:\/\//.test(u)?u:"https://"+u};
 const cleanUrl=u=>{u=str(u,200).trim();if(!u)return "";if(/^@?[A-Za-z0-9._]{2,30}$/.test(u))return "https://www.instagram.com/"+u.replace(/^@/,"")+"/";return /^https?:\/\//.test(u)?u:"https://"+u};
 const pickPct=v=>v===undefined||v===null||v===""?10:Math.max(0,Math.min(50,+v||0));
-try{const v=JSON.parse(localStorage.getItem("t57-3d-settings")||"null");if(v)settings={ownerEmail:str(v.ownerEmail,80),auto:v.auto!==false,pickupPct:pickPct(v.pickupPct),review:cleanLink(v.review),autoRc:v.autoRc!==false,ig:cleanUrl(v.ig),fb:v.fb===undefined?settings.fb:cleanUrl(v.fb)}}catch(e){}
+try{const v=JSON.parse(localStorage.getItem("t57-3d-settings")||"null");if(v)settings={ownerEmail:str(v.ownerEmail,80),auto:v.auto!==false,pickupPct:pickPct(v.pickupPct),review:cleanLink(v.review),autoRc:v.autoRc!==false,ig:cleanUrl(v.ig)||settings.ig,fb:v.fb===undefined?settings.fb:cleanUrl(v.fb)}}catch(e){}
 function longDate(k){return new Date(k+"T12:00:00").toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}
 function shortDate(k){return new Date(k+"T12:00:00").toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"})}
 let mailLead=null;
@@ -1436,7 +1436,7 @@ $("setSave").onclick=async()=>{
 function subscribeSettings(){
   if(!db)return;
   db.doc("settings/main").onSnapshot(sn=>{if(!sn.exists||sn.metadata.hasPendingWrites)return;const d=sn.data()||{};
-    settings={ownerEmail:str(d.ownerEmail,80),auto:d.auto!==false,pickupPct:pickPct(d.pickupPct),review:cleanLink(d.review),autoRc:d.autoRc!==false,ig:cleanUrl(d.ig),fb:d.fb===undefined?settings.fb:cleanUrl(d.fb)};try{localStorage.setItem("t57-3d-settings",JSON.stringify(settings))}catch(e){}},()=>{});
+    settings={ownerEmail:str(d.ownerEmail,80),auto:d.auto!==false,pickupPct:pickPct(d.pickupPct),review:cleanLink(d.review),autoRc:d.autoRc!==false,ig:cleanUrl(d.ig)||settings.ig,fb:d.fb===undefined?settings.fb:cleanUrl(d.fb)};try{localStorage.setItem("t57-3d-settings",JSON.stringify(settings))}catch(e){}},()=>{});
 }
 
 // Drinks — from the Trattoria 57 drinks list. These categories go to the BAR.
