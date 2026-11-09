@@ -692,6 +692,8 @@ body.training{padding-top:30px}
   .stage-snd{display:flex;flex-direction:column;align-items:stretch;gap:6px;width:150px;bottom:10px}
   .stage-snd button{width:100%;text-align:left;margin:0!important}
 }
+@media(max-width:560px){.vsw{gap:0}.vsw a{padding:8px 2px!important;font-size:12px!important}}
+.vsw a.vact{cursor:pointer;color:var(--ac)}.vsw a.vact:active{background:var(--ac);color:#fff}
 </style>
 </head>
 <body>
@@ -700,7 +702,7 @@ body.training{padding-top:30px}
 <div id="app">
   <header>
     <div class="brand"><h1>Trattoria <em>57</em></h1><span>Floor · Kitchen · Staff</span></div>
-    <nav class="vsw"><a href="#floor" id="vFloor" class="on">Floor</a><a href="#kitchen" id="vKitchen">Kitchen<span class="bdg" id="kBadge">0</span></a><a href="#bar" id="vBar">Bar<span class="bdg" id="bBadge">0</span></a><a href="#staff" id="vStaff">Staff</a><a href="#report" id="vReport">Report</a></nav>
+    <nav class="vsw"><a href="#floor" id="vFloor" class="on">Floor</a><a href="#kitchen" id="vKitchen">Kitchen<span class="bdg" id="kBadge">0</span></a><a href="#bar" id="vBar">Bar<span class="bdg" id="bBadge">0</span></a><a id="pickBtn" class="vact" style="--ac:#3f5f86" role="button" tabindex="0">Pickup</a><a id="bkBtn" class="vact" style="--ac:var(--wine)" role="button" tabindex="0">Bookings</a><a href="#staff" id="vStaff">Staff</a><a href="#report" id="vReport">Report</a></nav>
     <div class="datenav">
       <button id="prevDay" aria-label="Previous day">‹</button>
       <label><span id="dateLabel">Today</span><input type="date" id="dateInput"></label>
@@ -731,7 +733,7 @@ body.training{padding-top:30px}
       <div id="labels" class="p3" style="position:absolute;inset:0;pointer-events:none"></div>
     </div>
 
-    <div class="alertbar" id="alertBar"></div><div class="stage-snd"><button class="sndbtn" data-snd>🔔 Sound on</button> <button class="sndbtn ld" id="loudFloor"></button> <button class="sndbtn" id="listBtn" style="color:var(--ink)">📋 Open tables · <span id="listN">0</span></button> <button class="sndbtn" id="pickBtn" style="color:#fff;background:#3f5f86;border-color:#3f5f86">🥡 Pickup</button> <button class="sndbtn" id="bkBtn" style="color:#fff;background:var(--wine);border-color:var(--wine)">📅 Bookings</button> <button class="sndbtn" id="waiterBtn" style="color:var(--ink)">👤 Log in</button></div>
+    <div class="alertbar" id="alertBar"></div><div class="stage-snd"><button class="sndbtn" data-snd>🔔 Sound on</button> <button class="sndbtn ld" id="loudFloor"></button> <button class="sndbtn" id="listBtn" style="color:var(--ink)">📋 Open tables · <span id="listN">0</span></button> <button class="sndbtn" id="waiterBtn" style="color:var(--ink)">👤 Log in</button></div>
     <div class="datebanner" id="dateBanner"></div>
     <div class="areabar" id="areaBar"><div class="aseg"><button data-area="all">All</button><button data-area="bar">Bar</button><button data-area="din">Restaurant</button></div><button class="mbtn" id="modeBtn">▦ Tiles</button></div>
     <div id="tilesView"></div>
@@ -2719,6 +2721,7 @@ async function openBookings(){
   $("bkBody").innerHTML=html||`<div class="empty">No upcoming bookings yet.<br>Tap <b>+ New booking</b> to book any day.</div>`;
 }
 $("bkBtn").onclick=openBookings;
+["pickBtn","bkBtn"].forEach(id=>$(id).addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();$(id).click()}}));
 $("bkClose").onclick=()=>$("bkOv").classList.remove("show");
 $("bkBody").addEventListener("click",e=>{const r2=e.target.closest(".bkrow");if(!r2)return;const k=r2.dataset.d,L=+r2.dataset.l;
   $("bkOv").classList.remove("show");
@@ -3306,7 +3309,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261109171753";
+const APP_BUILD="20261109174927";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
