@@ -759,6 +759,21 @@ body.training{padding-top:30px}
 .pq button.on{background:var(--olive-dk);border-color:var(--olive-dk);color:#fff}.pq button.alg{color:var(--wine);border-color:#e6c3bb}.pq button.alg.on{background:var(--wine);border-color:var(--wine);color:#fff}
 .pq.cook button{border-color:#d9b04a}.pq.cook button.on{background:#8a5a12;border-color:#8a5a12}
 .pqrow{display:flex;gap:8px}.pqrow input{flex:1;min-width:0}.pdone{flex:none;border:0;background:var(--olive-dk);color:#fff;border-radius:10px;padding:8px 14px;font-weight:800}
+
+/* ---- upright tablet (Galaxy Tab A11 held portrait): waiter-friendly layout ---- */
+@media (orientation:portrait) and (min-width:561px){
+  header{flex-wrap:wrap!important;row-gap:8px;padding:8px 12px}
+  .vsw{order:5;width:100%}.vsw a{flex:1;text-align:center;padding:10px 4px;font-size:15px}
+  .brand span{display:none}
+  footer{padding:5px 10px calc(5px + env(safe-area-inset-bottom));gap:6px}
+  .stat{padding:4px 10px;display:flex;align-items:baseline;gap:6px;min-width:0}.stat b{font-size:18px}.stat span{font-size:9px;white-space:nowrap}
+  /* the order / bill screen fills the whole tablet: more dishes on screen, nothing to miss */
+  #ordOv{align-items:stretch!important}
+  #ordOv .sheet{max-width:none!important;width:100%;max-height:none!important;height:100vh;height:100dvh;border-radius:0!important;animation:upFull .2s cubic-bezier(.2,.8,.3,1)}
+  #ordOv .mi{padding:13px 18px}#ordOv .mi .nm b{font-size:16px}#ordOv .mi .step button{width:40px;height:40px;font-size:20px}
+  #oFoot .btn{padding:15px 12px;font-size:15px}
+}
+@keyframes upFull{from{transform:translateY(24px);opacity:.6}}
 </style>
 </head>
 <body>
@@ -3718,7 +3733,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261110113812";
+const APP_BUILD="20261110115056";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
