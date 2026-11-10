@@ -750,6 +750,13 @@ body.training{padding-top:30px}
 .mep{display:flex;align-items:center;gap:2px;font-weight:800}.mep input{width:84px!important;text-align:right}.mep.chg input{border-color:#d9b04a!important;background:#fff6e6}
 .meh{max-width:none!important;width:auto!important;padding:8px 10px!important;font-size:13px!important;flex:none}
 .meadd{margin-top:12px;padding:10px 12px;border:1px dashed var(--olive);border-radius:12px;background:#f7f9f0}.meaddrow{display:flex;gap:8px;margin:6px 0}.meaddrow>input{flex:1}.meadd>input{width:100%}
+.mipop{margin:-2px 10px 8px;padding:10px 12px;background:#fffaf0;border:1px solid var(--parch2);border-top:3px solid var(--olive);border-radius:0 0 12px 12px;animation:popin .15s ease-out}
+@keyframes popin{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.pq{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;align-items:center}.pq span{font-size:12px;font-weight:800;color:#6d6448;margin-right:2px}
+.pq button{border:1px solid var(--parch2);background:#fff;border-radius:16px;padding:7px 12px;font-size:13px;font-weight:700;color:#4d4733}
+.pq button.on{background:var(--olive-dk);border-color:var(--olive-dk);color:#fff}.pq button.alg{color:var(--wine);border-color:#e6c3bb}.pq button.alg.on{background:var(--wine);border-color:var(--wine);color:#fff}
+.pq.cook button{border-color:#d9b04a}.pq.cook button.on{background:#8a5a12;border-color:#8a5a12}
+.pqrow{display:flex;gap:8px}.pqrow input{flex:1;min-width:0}.pdone{flex:none;border:0;background:var(--olive-dk);color:#fff;border-radius:10px;padding:8px 14px;font-weight:800}
 </style>
 </head>
 <body>
@@ -1731,6 +1738,27 @@ const ALG=/allerg|gluten|coeliac|celiac|dairy|lactose|\bnuts?\b|peanut|shellfish
 const isAlg=t=>!!t&&ALG.test(t);
 const ALG_CHIPS=["Nut allergy","Gluten free","Dairy free","Shellfish allergy","Egg allergy","Vegan"];
 const DRINK_CHIPS=["No ice","Ice & lemon","Ice & lime","Slice of orange","Straw","Slimline tonic","Diet mixer","Large glass","Jug","Bottle & glass"];
+// quick options that drop down under a dish/drink the moment it's added
+const DONENESS=["Blue","Rare","Medium rare","Medium","Medium well","Well done"];
+function optsFor(n){const it=ITEMS[n];if(!it)return {opts:[],cook:false,alg:false};const c=it.cat;
+  if(c==="Hot Drinks")return {opts:["Oat milk","Soya milk","Decaf","Extra shot","Sugar on side","Extra hot"],alg:false};
+  if(BAR_CATS.has(c))return {opts:DRINK_CHIPS,alg:false};
+  if(/steak|fracosta|filetto di bue|sirloin|rib ?eye|t-bone|rump/i.test(n+" "+(it.d||"")))return {opts:["Peppercorn sauce","Diane sauce","Sauce on side","No sauce","Chips instead","Salad instead"],cook:true,alg:true};
+  if(c==="Pizza"||c==="Garlic Pizzas")return {opts:["No onion","No chilli","No mushrooms","No olives","Extra cheese","Extra chilli","Well done","Halal","Gluten free base"],alg:true};
+  if(c==="Pasta"||c==="Risotto")return {opts:["No onion","No garlic","No chilli","No mushrooms","Extra cheese","Gluten free pasta","Starter size"],alg:true};
+  if(c==="Meat"||c==="Poultry"||c==="Fish")return {opts:["Sauce on side","No sauce","Chips instead","Salad instead","Well done","Halal","No onion"],alg:true};
+  if(c==="Children")return {opts:["No sauce","Plain","No cheese","Chips on side"],alg:true};
+  return {opts:["No onion","No chilli","Sauce on side","Halal","Extra hot"],alg:true}}
+function popHtml(n){const P=ord.pop,L=P.cur,have=new Set(L&&L.pc||[]),o=optsFor(n);
+  const chip=(t,cls)=>`<button data-pq="${esc(t)}" class="${cls||""}${have.has(t)?" on":""}">${cls==="alg"?"⚠ ":""}${esc(t)}</button>`;
+  return `<div class="mipop">${o.cook?`<div class="pq cook"><span>How cooked?</span>${DONENESS.map(t=>chip(t,"ck")).join("")}</div>`:""}
+    <div class="pq">${o.opts.map(t=>chip(t)).join("")}</div>${o.alg?`<div class="pq">${ALG_CHIPS.map(t=>chip(t,"alg")).join("")}</div>`:""}
+    <div class="pqrow"><input data-pn placeholder="Anything else for this one?" maxlength="80" value="${esc(L&&L.px||"")}"><button class="pdone" data-pdone>${L&&L.note?"✓ Done":"No changes"}</button></div></div>`}
+function popLine(){const P=ord.pop,c=cart();if(P.cur&&c.includes(P.cur))return P.cur;
+  const plain=P.plain;if(!plain||!c.includes(plain))return null;
+  let L;if(plain.q>1){plain.q--;L=Object.assign({n:plain.n,q:1,note:""},plain.g?{g:plain.g}:{});c.splice(c.indexOf(plain)+1,0,L)}else L=plain;
+  L.pc=L.pc||[];L.px=L.px||"";P.cur=L;return L}
+const popNote=L=>[...L.pc,L.px.trim()].filter(Boolean).join(", ").slice(0,120);
 const PREP_CHIPS=["No onion","No chilli","Extra hot","Well done","Medium","Rare","Starter size","Halal","Sauce on side"];
 const DISC_REASONS=["Pickup","Friends & family","Promotion","Voucher","Staff meal","Complaint","Other"];
 function cleanIdisc(x){const o={};if(x&&typeof x==="object")Object.keys(x).slice(0,60).forEach(k=>{const d=x[k];if(!d||typeof d!=="object")return;const t=d.t==="amt"?"amt":"pct";const v=Math.max(0,Math.min(t==="pct"?100:9999,+d.v||0));if(v>0)o[str(k,100)]={t,v,r:str(d.r,30),by:str(d.by,40)}});return o}
@@ -1963,8 +1991,8 @@ document.querySelector("#ordOv .otabs").addEventListener("click",e=>{
 $("oCats").addEventListener("click",e=>{const bt=e.target.closest("button");if(!bt)return;
   if(bt.dataset.side){const d=bt.dataset.side==="drinks";if(BAR_CATS.has(ord.cat)===d)return;
     ord[BAR_CATS.has(ord.cat)?"lastDrink":"lastFood"]=ord.cat;
-    ord.cat=(d?ord.lastDrink:ord.lastFood)||CATS.find(k=>BAR_CATS.has(k)===d);renderOrder();$("oBody").scrollTop=0;return}
-  ord.cat=bt.dataset.c;renderOrder();$("oBody").scrollTop=0});
+    ord.pop=null;ord.cat=(d?ord.lastDrink:ord.lastFood)||CATS.find(k=>BAR_CATS.has(k)===d);renderOrder();$("oBody").scrollTop=0;return}
+  ord.pop=null;ord.cat=bt.dataset.c;renderOrder();$("oBody").scrollTop=0});
 function renderOrder(){
   if(!ord)return;
   const g=curGroup(),ids=g.slice().sort((a,b)=>a-b),b=ord.pickup?null:state.bookings[leadOf(g)];
@@ -1991,7 +2019,7 @@ function renderOrder(){
     body.innerHTML=list.map(([n,p,d])=>{const q=c.filter(x=>x.n===n).reduce((a,x)=>a+x.q,0);
       const out=outSet.has(n);
       return `<div class="mi${q?" has":""}${out?" out":""}" data-n="${esc(n)}"><div class="nm"><b>${esc(n)}</b>${d?`<small>${esc(d)}</small>`:""}</div><div class="pr">${priceOf(n)<p?`<s>${money(p)}</s> <b class="hhp">${money(priceOf(n))}</b>`:money(p)}</div>
-      <div class="step">${q?`<button data-a="dec">−</button><span>${q}</span>`:""}${out?`<span class="oos">OUT</span>`:`<button class="add" data-a="inc">+</button>`}</div></div>`}).join("")+
+      <div class="step">${q?`<button data-a="dec">−</button><span>${q}</span>`:""}${out?`<span class="oos">OUT</span>`:`<button class="add" data-a="inc">+</button>`}</div></div>${ord.pop&&ord.pop.n===n?popHtml(n):""}`}).join("")+
       `<div class="empty" style="padding:18px">Allergies? Add a note on the next screen. Halal &amp; gluten free options available.</div>`;
     foot.innerHTML=count?`<button class="btn sec" data-f="clear">Clear</button><button class="btn pri" data-f="review">Review order · ${count} · ${money(sum)}</button>`
       :`<button class="btn pri" disabled style="opacity:.45">Tap dishes to add them</button>`;
@@ -2104,24 +2132,31 @@ $("oBody").addEventListener("click",e=>{
     (async()=>{const list=ordTickets().filter(t=>t.hold);for(const t of list)await patchTicket(t,{hold:false,createdAt:Date.now()});toast(`Approved ${list.length} → kitchen/bar`);ticketsChanged()})();return}
   const qb=e.target.closest('[data-f="qrok"],[data-f="qrno"]');if(qb){qrDecision(qb);return}
   if(!ord)return;const c=cart();
+  const pq=e.target.closest("[data-pq]");if(pq&&ord.pop){const L=popLine();if(!L)return;const t=pq.dataset.pq,i=L.pc.indexOf(t);
+    if(i>=0)L.pc.splice(i,1);else{if(DONENESS.includes(t))L.pc=L.pc.filter(x=>!DONENESS.includes(x));L.pc.push(t)}L.note=popNote(L);renderOrder();return}
+  if(e.target.closest("[data-pdone]")){ord.pop=null;renderOrder();return}
   const gb=e.target.closest("[data-g]");if(gb){ord.covers=Math.max(1,Math.min(40,(ord.covers||2)+(+gb.dataset.g)));renderOrder();return}
   const q=e.target.closest("[data-q]");
   if(q){const row=q.closest(".cl"),inp=row.querySelector(".ln"),t=q.dataset.q;if((inp.value||"").includes(t))return;inp.value=(inp.value?inp.value+", "+t:t).slice(0,120);c[+row.dataset.i].note=inp.value;inp.classList.toggle("alg",isAlg(inp.value));return}
   const mi=e.target.closest(".mi"),cl=e.target.closest(".cl[data-i]");const a=e.target.closest("[data-a]");
   if(mi){const n=mi.dataset.n,gg=ord.pickup?"":tabFor(n);let line=c.find(x=>x.n===n&&!x.note&&(x.g||"")===gg);
     if(a&&a.dataset.a==="dec"){const l=[...c].reverse().find(x=>x.n===n&&(x.g||"")===gg)||[...c].reverse().find(x=>x.n===n);if(l){l.q--;if(l.q<=0)c.splice(c.indexOf(l),1)}}
-    else{if(outSet.has(n)){toast(n+" is out of stock");return}if(line)line.q++;else c.push(Object.assign({n,q:1,note:""},gg?{g:gg}:{}))}
-    renderOrder();return}
+    else{if(outSet.has(n)){toast(n+" is out of stock");return}if(line)line.q++;else{line=Object.assign({n,q:1,note:""},gg?{g:gg}:{});c.push(line)}
+      ord.pop=optsFor(n).opts.length?{n,plain:line,cur:null}:null}
+    if(a&&a.dataset.a==="dec")ord.pop=null;
+    renderOrder();if(ord.pop)requestAnimationFrame(()=>{const m=$("oBody").querySelector(".mipop");if(m)try{m.scrollIntoView({block:"nearest",behavior:"smooth"})}catch(e){}});return}
   if(cl&&a){const x=c[+cl.dataset.i];if(a.dataset.a==="inc")x.q++;else{x.q--;if(x.q<=0)c.splice(+cl.dataset.i,1)}renderOrder()}
 });
 $("oCats").addEventListener("click",e=>{const tc=e.target.closest("[data-tab]");if(tc&&ord){e.stopPropagation();tabChip(tc.dataset.tab)}},true);
 $("oBody").addEventListener("input",e=>{if(!ord)return;
+  if(e.target.matches("[data-pn]")&&ord.pop){const L=popLine();if(!L)return;L.px=e.target.value;L.note=popNote(L);const b=e.target.parentElement.querySelector("[data-pdone]");if(b)b.textContent=L.note?"✓ Done":"No changes";
+    return}
   if(e.target.id==="oNote"){ord.note=e.target.value;return}
   if(e.target.id==="pName"){ord.pname=e.target.value;return}if(e.target.id==="pPhone"){ord.pphone=e.target.value;return}
   if(e.target.classList.contains("ln")){const row=e.target.closest(".cl");cart()[+row.dataset.i].note=e.target.value}});
 $("oFoot").addEventListener("click",async e=>{
   const bt=e.target.closest("button");if(!bt||!ord)return;const f=bt.dataset.f;
-  if(f==="review"){ord.review=true;renderOrder();$("oBody").scrollTop=0}
+  if(f==="review"){ord.pop=null;ord.review=true;renderOrder();$("oBody").scrollTop=0}
   else if(f==="back"){ord.review=false;renderOrder()}
   else if(f==="tomenu"){ord.tab="menu";ord.review=false;renderOrder()}
   else if(f==="clear"){carts[ord.lead]=[];renderOrder()}
@@ -3660,7 +3695,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261110081736";
+const APP_BUILD="20261110105241";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
