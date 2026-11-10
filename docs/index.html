@@ -813,7 +813,7 @@ body.training{padding-top:30px}
       <div id="labels" class="p3" style="position:absolute;inset:0;pointer-events:none"></div>
     </div>
 
-    <div class="alertbar" id="alertBar"></div><div class="stage-snd"><button class="sndbtn" data-snd>🔔 Sound on</button> <button class="sndbtn ld" id="loudFloor"></button> <button class="sndbtn" id="listBtn" style="color:var(--ink)">📋 Open tables · <span id="listN">0</span></button> <button class="sndbtn" id="waiterBtn" style="color:var(--ink)">👤 Log in</button></div>
+    <div class="alertbar" id="alertBar"></div><div class="stage-snd"><button class="sndbtn" data-snd>🔔 Sound on</button><button class="sndbtn vib" data-vib>📳 Buzz on</button> <button class="sndbtn ld" id="loudFloor"></button> <button class="sndbtn" id="listBtn" style="color:var(--ink)">📋 Open tables · <span id="listN">0</span></button> <button class="sndbtn" id="waiterBtn" style="color:var(--ink)">👤 Log in</button></div>
     <div class="datebanner" id="dateBanner"></div>
     <div class="areabar" id="areaBar"><div class="aseg"><button data-area="all">All</button><button data-area="bar">Bar</button><button data-area="din">Restaurant</button></div><button class="mbtn" id="modeBtn">▦ Tiles</button></div>
     <div id="tilesView"></div>
@@ -836,7 +836,7 @@ body.training{padding-top:30px}
   <section id="kitchen" class="station" data-st="kitchen">
     <div class="kwrap">
       <div class="khead">
-        <span class="sttitle">KITCHEN</span><button class="sndbtn" data-snd>🔔 Sound on</button><button class="sndbtn ld" data-loud="kitchen"></button><button class="sndbtn ot" data-onetap="kitchen"></button><button class="sndbtn" data-stock="kitchen">⛔ Out of stock<span class="n-out"></span></button><div class="kseg"><button data-kf="todo" class="on">To do <span class="n-todo">0</span></button><button data-kf="served">Served <span class="n-served">0</span></button></div>
+        <span class="sttitle">KITCHEN</span><button class="sndbtn" data-snd>🔔 Sound on</button><button class="sndbtn vib" data-vib>📳 Buzz on</button><button class="sndbtn ld" data-loud="kitchen"></button><button class="sndbtn ot" data-onetap="kitchen"></button><button class="sndbtn" data-stock="kitchen">⛔ Out of stock<span class="n-out"></span></button><div class="kseg"><button data-kf="todo" class="on">To do <span class="n-todo">0</span></button><button data-kf="served">Served <span class="n-served">0</span></button></div>
       </div>
       <div class="ksum"></div>
       <div class="klist"></div>
@@ -846,7 +846,7 @@ body.training{padding-top:30px}
   <section id="bar" class="station" data-st="bar">
     <div class="kwrap">
       <div class="khead">
-        <span class="sttitle">BAR</span><button class="sndbtn takeord" id="barTake">➕ Take drinks order</button><button class="sndbtn" id="barWho" style="color:var(--ink)">👤 Who's on the bar?</button><button class="sndbtn" data-snd>🔔 Sound on</button><button class="sndbtn ld" data-loud="bar"></button><button class="sndbtn ot" data-onetap="bar"></button><button class="sndbtn" data-stock="bar">⛔ Out of stock<span class="n-out"></span></button><div class="kseg"><button data-kf="todo" class="on">To do <span class="n-todo">0</span></button><button data-kf="served">Served <span class="n-served">0</span></button></div>
+        <span class="sttitle">BAR</span><button class="sndbtn takeord" id="barTake">➕ Take drinks order</button><button class="sndbtn" id="barWho" style="color:var(--ink)">👤 Who's on the bar?</button><button class="sndbtn" data-snd>🔔 Sound on</button><button class="sndbtn vib" data-vib>📳 Buzz on</button><button class="sndbtn ld" data-loud="bar"></button><button class="sndbtn ot" data-onetap="bar"></button><button class="sndbtn" data-stock="bar">⛔ Out of stock<span class="n-out"></span></button><div class="kseg"><button data-kf="todo" class="on">To do <span class="n-todo">0</span></button><button data-kf="served">Served <span class="n-served">0</span></button></div>
       </div>
       <div class="ksum"></div>
       <div class="klist"></div>
@@ -1892,10 +1892,10 @@ const loudOn={};["kitchen","bar","floor"].forEach(st=>{try{loudOn[st]=localStora
 let nagT=null;
 function newOrderAlert(st){
   if(!loudOn[st]){chime("neworder");return}
-  chime("alarm");if(navigator.vibrate)try{navigator.vibrate([400,120,400,120,400])}catch(e){}
+  chime("alarm");
   const ov=$("bigFlash");ov.querySelector("b").textContent=st==="bar"?"🍸 NEW DRINKS ORDER":"🍝 NEW ORDER";
   ov.className="bigflash";void ov.offsetWidth;ov.className="bigflash on";
-  clearInterval(nagT);nagT=setInterval(()=>{if(view!==st){stopNag();return}chime("alarm");if(navigator.vibrate)try{navigator.vibrate([400,120,400])}catch(e){}},20000);
+  clearInterval(nagT);nagT=setInterval(()=>{if(view!==st){stopNag();return}chime("alarm")},20000);
 }
 $("bigFlash").addEventListener("click",()=>stopNag());
 function updLoudFloor(){const b=$("loudFloor");if(b){b.textContent=loudOn.floor?"📢 Flash on":"🔉 Flash off";b.classList.toggle("on",loudOn.floor)}}
@@ -1904,18 +1904,27 @@ $("loudFloor").onclick=()=>{loudOn.floor=!loudOn.floor;try{localStorage.setItem(
 setTimeout(updLoudFloor,0);
 let wfT=null;
 function waiterAlert(kind,text){
-  chime(kind==="srv"?"alarm":"neworder");if(navigator.vibrate)try{navigator.vibrate([300,100,300])}catch(e){}
+  chime(kind==="srv"?"alarm":"neworder");
   if(!loudOn.floor)return;
   const ov=$("bigFlash");ov.querySelector("b").textContent=text;ov.querySelector("span").textContent="Tap to close";
   ov.className="bigflash";void ov.offsetWidth;ov.className="bigflash on"+(kind==="srv"?" green":"");
   clearTimeout(wfT);wfT=setTimeout(()=>{if(!nagT)ov.className="bigflash"},12000);
 }
 function stopNag(){clearInterval(nagT);nagT=null;const ov=$("bigFlash");if(ov)ov.className="bigflash"}
+// ---- vibration (phones/tablets with a motor; others just ignore it). Works even when the sound is muted ----
+let vibOn=true;try{vibOn=localStorage.getItem("t57-vib")!=="0"}catch(e){}
+const canVib=!!navigator.vibrate;
+function buzz(p){if(!vibOn||!canVib)return;try{navigator.vibrate(p)}catch(e){}}
+const BUZZ={neworder:[220,90,220],alarm:[450,120,450,120,450],srv:[250,100,250,100,250],prep:[160],qr:[220,90,220],call:[450,120,450]};
+function updVib(){document.querySelectorAll("[data-vib]").forEach(b=>{b.style.display=canVib?"":"none";b.classList.toggle("off",!vibOn);b.textContent=vibOn?"📳 Buzz on":"📴 Buzz off"})}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-vib]");if(!b)return;vibOn=!vibOn;try{localStorage.setItem("t57-vib",vibOn?"1":"0")}catch(_){}
+  updVib();if(vibOn){buzz([300,120,300]);toast("Buzz on — this tablet vibrates on new orders and food ready (if it has a vibration motor)")}else toast("Buzz off on this tablet")});
+setTimeout(updVib,0);
 function chime(kind){
+  buzz(BUZZ[kind]||[200]);
   if(!soundOn)return;
   const a=SFX[kind];if(!a)return;
   try{a.currentTime=0;const p=a.play();window.__t57snd++;if(p&&p.catch)p.catch(err=>{window.__t57err=err&&err.name;if(err&&err.name==="NotAllowedError"){audioReady=false;updSnd()}})}catch(e){}
-  if(navigator.vibrate)try{navigator.vibrate(kind==="srv"?[120,80,120]:80)}catch(e){}
 }
 const FL_RANK={prep:1,srv:2,qr:3,call:4};
 function flashFor(g){
@@ -3733,7 +3742,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261110115056";
+const APP_BUILD="20261110213242";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
