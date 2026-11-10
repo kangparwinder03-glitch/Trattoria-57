@@ -1226,17 +1226,19 @@ const LK=TRAIN?"t57-tr-":"t57-";
 let area="all";try{area=localStorage.getItem("t57-area")||"all";if(!AREAS[area])area="all"}catch(e){}
 function fit(){
   const r=stage.getBoundingClientRect();
-  const nr=r.height>r.width*1.1;if(nr!==rot){rot=nr;floor.classList.toggle("rot",rot);if(typeof render==="function"&&state)try{render()}catch(e){}}
   // short landscape (Galaxy Tab A11 etc.): buttons sit in a column on the left, so the plan can use the full height
-  const wideShort=!rot&&matchMedia("(orientation:landscape) and (max-height:640px)").matches;
-  const sideL=wideShort?((document.querySelector(".stage-snd")||{}).offsetWidth||150)+24:8,sideR=wideShort?64:8;
-  const A=AREAS[area],top=wideShort?44:58,bot=wideShort?10:58,availW=r.width-sideL-sideR,availH=Math.max(120,r.height-top-bot);
-  const dw=rot?A.h:A.w,dh=rot?A.w:A.h;
-  kFit=view3d?Math.min(availW/(dw*1.12),availH/(dh*0.8)):Math.min(availW/dw,availH/dh);
+  const wideShort=r.width>r.height&&matchMedia("(orientation:landscape) and (max-height:640px)").matches;
+  const sideL=wideShort?((document.querySelector(".stage-snd")||{}).offsetWidth||150)+24:8,sideR=66;   // keep clear of the zoom/3D buttons on the right
+  const A=AREAS[area],top=wideShort?44:58,bot=wideShort?10:58,availW=Math.max(120,r.width-sideL-sideR),availH=Math.max(120,r.height-top-bot);
+  const kOf=ro=>{const dw=ro?A.h:A.w,dh=ro?A.w:A.h;return view3d?Math.min(availW/(dw*1.12),availH/(dh*0.8)):Math.min(availW/dw,availH/dh)};
+  // turn the plan sideways only when that makes it clearly bigger (upright tablets / phones)
+  const nr=!wideShort&&kOf(true)>kOf(false)*1.08;
+  if(nr!==rot){rot=nr;floor.classList.toggle("rot",rot);if(typeof render==="function"&&state)try{render()}catch(e){}}
+  kFit=kOf(rot);
   zoom=1;panX=FW/2-(A.x+A.w/2);panY=FH/2-(A.y+A.h/2);
-  // nudge so the area sits between the top tabs and bottom buttons
-  const shift=(top-bot)/2/kFit;if(rot)panX+=shift;else panY+=shift;
-  if(wideShort)panX+=(sideL-sideR)/2/kFit;
+  // centre the area in the space left between the top tabs / bottom buttons and the side buttons
+  const vs=(top-bot)/2/kFit,hs=(sideL-sideR)/2/kFit;
+  if(rot){panX+=vs;panY-=hs}else{panY+=vs;panX+=hs}
 }
 function applyCam(){
   const k=kEff();
@@ -3709,7 +3711,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261110113020";
+const APP_BUILD="20261110113650";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
