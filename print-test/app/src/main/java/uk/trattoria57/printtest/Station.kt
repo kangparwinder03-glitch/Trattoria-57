@@ -61,6 +61,7 @@ object Format {
         } else size(2, 2).line(t.optString("label").uppercase(Locale.UK)).size(1, 1)
         bold(false)
         val time = SimpleDateFormat("HH:mm", Locale.UK).format(Date(t.optLong("createdAt", System.currentTimeMillis())))
+        if (t.optLong("firedAt", 0L) > 0L) line("*** MAINS - FIRED ***")
         val covers = t.optInt("covers")
         line("Order #${t.optInt("no")} · $time" + if (covers > 0) " · $covers covers" else "")
         val by = t.optString("byName")

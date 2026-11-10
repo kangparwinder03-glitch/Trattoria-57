@@ -86,7 +86,7 @@ class PrintService : Service() {
         if (st != "till") {
             val tickets = listOf("tickets", "train_tickets").flatMap { coll ->
                 Cloud.list(coll, listOf("date" to today, "station" to st)).map { Triple(coll, it.first, it.second) } }
-                .filter { (_, id, d) -> id !in done && !d.optBoolean("hold") && !d.optBoolean("rejected") && d.optLong("printed", 0L) == 0L && d.optLong("createdAt") >= since }
+                .filter { (_, id, d) -> id !in done && !d.optBoolean("hold") && !d.optBoolean("wait") && !d.optBoolean("rejected") && d.optLong("printed", 0L) == 0L && d.optLong("createdAt") >= since }
                 .sortedBy { it.third.optLong("createdAt") }
             for ((coll, id, d) in tickets) {
                 if (!running || prefs.getString("station", "kitchen") != st) return
