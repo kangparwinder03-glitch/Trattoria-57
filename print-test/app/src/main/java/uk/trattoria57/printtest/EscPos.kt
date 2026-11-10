@@ -56,12 +56,22 @@ class EscPos(val cols: Int) {
     }
 
     /** A QR code drawn by the printer itself (sharp and scannable), centred. */
+    /**
+     * QR code. Every code prints the same width on paper: short links (Google, Instagram, Facebook) use the
+     * size asked for; longer links (TripAdvisor) need more squares, so their squares are made smaller to match.
+     */
     fun qr(data: String, size: Int = 5): EscPos {
         val b = data.toByteArray(Charsets.UTF_8); val len = b.size + 3
+        val capM = intArrayOf(14, 26, 42, 62, 84, 106, 122, 152, 180, 213, 251, 287, 331, 362, 412)
+        val capL = intArrayOf(17, 32, 53, 78, 106, 134, 154, 192, 230, 271, 321, 367, 425, 458, 520)
+        val long = b.size > 42                                   // longer than a version-3 code at level M
+        val ver = (if (long) capL else capM).indexOfFirst { b.size <= it }.let { if (it < 0) 15 else it + 1 }
+        val modules = 17 + 4 * ver
+        val dot = if (modules <= 29) size else maxOf(3, Math.round(size * 29.0 / modules).toInt())
         align(1)
         raw(0x1D, 0x28, 0x6B, 4, 0, 0x31, 0x41, 0x32, 0x00)          // model 2
-        raw(0x1D, 0x28, 0x6B, 3, 0, 0x31, 0x43, size)                // dot size
-        raw(0x1D, 0x28, 0x6B, 3, 0, 0x31, 0x45, 0x31)                // error correction M
+        raw(0x1D, 0x28, 0x6B, 3, 0, 0x31, 0x43, dot)                 // dot size
+        raw(0x1D, 0x28, 0x6B, 3, 0, 0x31, 0x45, if (long) 0x30 else 0x31)  // error correction L for long links, M otherwise
         raw(0x1D, 0x28, 0x6B, len and 0xFF, len shr 8, 0x31, 0x50, 0x30); out.write(b)
         raw(0x1D, 0x28, 0x6B, 3, 0, 0x31, 0x51, 0x30)                // print it
         return raw(0x0A)
