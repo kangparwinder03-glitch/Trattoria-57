@@ -10,7 +10,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>Trattoria 57 — Floor, Kitchen &amp; Staff</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <style>
 :root{
   --wine:#A6452B; --wine2:#7F3220; --wine-hi:#BF5634;
@@ -104,7 +104,7 @@ header{display:flex;align-items:center;gap:12px;padding:10px 14px;flex-wrap:wrap
 
 /* Tables */
 .tbl{position:absolute;transform-style:preserve-3d;cursor:grab;transition:none}
-.tbl.lift{cursor:grabbing;z-index:20}
+.tbl.lift{cursor:grabbing;z-index:20;will-change:translate}.glabel.lift{will-change:translate}
 .tbl.lift .lifter{transform:translateZ(26px)}
 .lifter{position:absolute;inset:0;transform-style:preserve-3d;transition:transform .15s}
 .shadow{position:absolute;inset:-4px -2px;border-radius:12px;background:rgba(0,0,0,.45);filter:blur(7px);transform:translateZ(.5px)}
@@ -171,11 +171,11 @@ footer{display:flex;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bo
 .stat.w b{color:var(--wine)}.stat.g b{color:var(--pine)}
 
 /* Sheet */
-.overlay{position:fixed;inset:0;background:rgba(46,43,31,.5);display:none;align-items:flex-end;justify-content:center;z-index:50;
-  backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+.overlay{position:fixed;inset:0;background:rgba(46,43,31,.58);display:none;align-items:flex-end;justify-content:center;z-index:50}
+.overlay.show{animation:ovIn .16s ease-out}@keyframes ovIn{from{background:rgba(46,43,31,0)}}
 .overlay.show{display:flex}
 .sheet{width:100%;max-width:560px;max-height:88vh;display:flex;flex-direction:column;background:var(--cream);color:var(--ink);
-  border-radius:22px 22px 0 0;box-shadow:0 -10px 40px rgba(0,0,0,.5);animation:up .28s cubic-bezier(.3,.8,.3,1)}
+  border-radius:22px 22px 0 0;box-shadow:0 -10px 40px rgba(0,0,0,.5);animation:up .2s cubic-bezier(.2,.8,.3,1);will-change:transform}
 @media(min-width:700px){.overlay{align-items:center}.sheet{border-radius:22px}}
 @media(min-width:900px){#ordOv .sheet{max-width:760px}}
 @keyframes up{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
@@ -637,6 +637,8 @@ body.training{padding-top:30px}
 .alertbar .ctl{flex:none}
 
 #floor.moving{will-change:transform}
+#floor.flat,#floor.flat *{transform-style:flat!important}
+#floor.flat .wl i:not(:last-child),#floor.flat .counter i:not(:last-child){display:none}
 #floor.moving .tbl .ttop,#floor.moving .tbl{animation-play-state:paused!important}
 #floor.moving .tbl,#floor.moving .chair{transition:none!important}
 .updbtn{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:10000;border:0;border-radius:22px;background:var(--olive-dk);color:#fff;font-weight:800;font-size:15px;padding:12px 18px;box-shadow:0 8px 24px rgba(0,0,0,.3)}
@@ -1239,6 +1241,7 @@ function fit(){
 function applyCam(){
   const k=kEff();
   stage.style.perspective=(view3d?2400*k:100000)+"px";
+  floor.classList.toggle("flat",!view3d);
   floor.style.transform=`rotateX(${theta()*180/Math.PI}deg) scale(${k}) rotateZ(${rot?90:0}deg) translate(${panX}px,${panY}px)`;
 }
 function unproject(cx,cy){
@@ -1341,7 +1344,7 @@ function render(){
     lHtml+=`<div class="glabel${b?" booked":""}${rot?" rot":""}${area!=="all"&&a.zone!==area?" dim":""}" data-g="${g.join(",")}" style="left:${lx}px;top:${ly}px;width:${bw}px;height:${bh}px">
       ${top?`<div class="n">${esc(top)}</div>`:""}<div class="m${b||os?"":" big"}">${esc(main)}</div>${sub?`<div class="s">${sub}</div>`:""}${(()=>{const tm=os&&tableTimer(activeFor(g));return tm?`<div class="tmr${tm.late?" late":""}">${tm.txt}</div>`:""})()}${os?`<div class="ord ${os.st}${fl?" flash":""}">${fl==="srv"?"🔔 Ready":fl==="qr"?"📱 QR order":fl==="call"?"🙋 Waiter":ST_LABEL[os.st]}</div>`:b?`<div class="st${b.status==="confirmed"?" c":""}">${b.status==="confirmed"?"✓ Confirmed":"Pending"}</div>`:""}</div>`;
   }
-  tablesEl.innerHTML=tHtml;labelsEl.innerHTML=lHtml;
+  if(tablesEl._h!==tHtml){tablesEl.innerHTML=tHtml;tablesEl._h=tHtml}if(labelsEl._h!==lHtml){labelsEl.innerHTML=lHtml;labelsEl._h=lHtml}
   $("sPending").textContent=pend;$("sBooked").textContent=nb;$("sGuests").textContent=guests;
   $("sFree").textContent=TOTAL_SEATS-usedSeats;$("sTables").textContent=freeTables;
   if(mode==="tiles")try{renderTiles()}catch(e){}
@@ -1404,27 +1407,35 @@ function startDrag(e,id,el){
   e.preventDefault();
   el.setPointerCapture(e.pointerId);
   const f=unproject(e.clientX,e.clientY),t=state.tables[id];
-  dragging={pid:e.pointerId,id,el,ox:f.x-t.x,oy:f.y-t.y,sx:e.clientX,sy:e.clientY,moved:false,x:t.x,y:t.y,target:null,label:null};
+  dragging={pid:e.pointerId,id,el,ox:f.x-t.x,oy:f.y-t.y,sx:e.clientX,sy:e.clientY,moved:false,x:t.x,y:t.y,bx:t.x,by:t.y,target:null,label:null,tgtAt:0};
 }
+// dragging: the finger can fire several moves per screen frame — only do the work once per frame
+let dragEv=null,dragRaf=0;
 function moveDrag(e){
   const d=dragging;
   if(!d.moved&&Math.hypot(e.clientX-d.sx,e.clientY-d.sy)<7)return;
+  dragEv={clientX:e.clientX,clientY:e.clientY};if(!dragRaf)dragRaf=requestAnimationFrame(()=>{dragRaf=0;if(dragging&&dragEv)dragFrame(dragEv)})}
+function dragFrame(e){
+  const d=dragging;
   if(!d.moved){d.moved=true;d.el.classList.add("lift");d.el.style.pointerEvents="none";
     labelsEl.querySelectorAll(".glabel").forEach(l=>{if(l.dataset.g.split(",").includes(String(d.id)))l.style.display="none"});
     groupFor(d.id).forEach(i=>{const el=tablesEl.querySelector(`.tbl[data-id="${i}"]`);el&&el.classList.remove("jl","jr")});
     const lab=document.createElement("div");lab.className="glabel lift"+(d.el.classList.contains("booked")?" booked":"");
     const tt=T[d.id];lab.style.width=(rot?tt.h:tt.w)+"px";lab.style.height=(rot?tt.w:tt.h)+"px";if(rot)lab.classList.add("rot");d.lw=tt.w;d.lh=tt.h;
     lab.innerHTML=`<div class="m big">${esc(tname(d.id))}</div><div class="s">${tt.seats} seats</div>`;
+    d.lbx=rot?d.bx+d.lw/2-d.lh/2:d.bx;d.lby=rot?d.by+d.lh/2-d.lw/2:d.by;lab.style.left=d.lbx+"px";lab.style.top=d.lby+"px";
     labelsEl.appendChild(lab);d.label=lab;
   }
   const f=unproject(e.clientX,e.clientY);
   d.x=Math.max(0,Math.min(FW-T[d.id].w,f.x-d.ox));d.y=Math.max(0,Math.min(FH-T[d.id].h,f.y-d.oy));
-  d.el.style.left=d.x+"px";d.el.style.top=d.y+"px";
-  const lx=rot?d.x+d.lw/2-d.lh/2:d.x,ly=rot?d.y+d.lh/2-d.lw/2:d.y;d.label.style.left=lx+"px";d.label.style.top=ly+"px";
+  // glide on its own layer (no re-layout of the floor): move by translate, not left/top
+  const tr=`${d.x-d.bx}px ${d.y-d.by}px`;d.el.style.translate=tr;d.label.style.translate=tr;
+  // which table is under the finger + the joined layout: ~12× a second is plenty
+  const now=performance.now();if(now-d.tgtAt<80&&!e.final)return;d.tgtAt=now;
   // pick the table the finger is visibly over (raised tops sit above their floor spot in 3D)
   let tgt=null;const under=document.elementFromPoint(e.clientX,e.clientY),te0=under&&under.closest(".tbl");
   if(te0&&+te0.dataset.id!==d.id)tgt=+te0.dataset.id;else tgt=targetAt(f.x,f.y,d.id);
-  tablesEl.querySelectorAll(".target").forEach(x=>x.classList.remove("target"));
+  if(tgt!==d.lastTgt){tablesEl.querySelectorAll(".target").forEach(x=>x.classList.remove("target"));d.lastTgt=tgt}
   let dest;
   if(tgt&&(!T[d.id].join||!T[tgt].join)){d.target=null;d.nojoin=tgt}else d.nojoin=null;
   if(tgt&&T[d.id].join&&T[tgt].join){d.target=tgt;groupFor(tgt).forEach(i=>{const te=tablesEl.querySelector(`.tbl[data-id="${i}"]`);te&&te.classList.add("target")});
@@ -1433,7 +1444,9 @@ function moveDrag(e){
   if(dest){ghost.style.display="block";ghost.style.left=dest.x+"px";ghost.style.top=dest.y+"px";ghost.style.width=T[d.id].w+"px";ghost.style.height=T[d.id].h+"px";ghost.style.borderRadius=T[d.id].ch==="round"?"50%":"10px"}else ghost.style.display="none";
 }
 function endDrag(e){
-  const d=dragging;dragging=null;ghost.style.display="none";
+  if(dragRaf){cancelAnimationFrame(dragRaf);dragRaf=0}
+  if(dragging&&dragging.moved&&dragEv){dragFrame(Object.assign({},dragEv,{clientX:e.clientX,clientY:e.clientY,final:true}))}dragEv=null;
+  const d=dragging;dragging=null;ghost.style.display="none";tablesEl._h=labelsEl._h=null;   // a drag moves elements directly — always redraw after
   if(!d.moved){tableTap(d.id);return}
   if(readOnly){render();toast("View only — you can't move tables");return}
   const wasGrouped=groupFor(d.id).length>1;
@@ -3695,7 +3708,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261110105241";
+const APP_BUILD="20261110112423";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
