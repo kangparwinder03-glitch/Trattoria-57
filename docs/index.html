@@ -2121,7 +2121,7 @@ function newPickupNo(){const used=new Set(tickets.filter(t=>t.pickup).map(t=>t.p
   if(!pool.length)for(let i=100;i<=999;i++)if(!used.has(i))pool.push(i);return pool[Math.floor(Math.random()*pool.length)]}
 function openPickup(pno,tab){
   const p=pno||newPickupNo();const ex=tickets.find(t=>t.pickup&&t.pno===p);
-  ord={pickup:true,pno:p,lead:"P"+p,tab:tab||"menu",cat:CATS[0],review:false,pname:ex?ex.pname:"",pphone:ex?ex.pphone:"",walk:!!(ex&&ex.walk)};
+  ord={pickup:true,pno:p,lead:"P"+p,tab:tab||"menu",cat:CATS.find(k=>!BAR_CATS.has(k))||CATS[0],review:false,pname:ex?ex.pname:"",pphone:ex?ex.pphone:"",walk:!!(ex&&ex.walk)};
   sheetGroup=null;$("ordOv").classList.add("show");renderOrder();
 }
 function cart(){return carts[ord.lead]||(carts[ord.lead]=[])}
@@ -3874,7 +3874,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261110231450";
+const APP_BUILD="20261110232016";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
