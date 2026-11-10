@@ -803,6 +803,11 @@ body.training{padding-top:30px}
 .bigtext .pg{font-size:13px}.bigtext .pg i{height:8px}
 [data-big].on{background:var(--olive-dk)!important;color:#fff!important;border-color:var(--olive-dk)!important}
 .obx{order:6;width:100%;background:#fff3d6;border:1px solid #e0b850;color:#6a4a00;border-radius:10px;padding:6px 10px;font-size:13px;font-weight:700;text-align:center}
+.prnl{display:flex;gap:8px;align-items:center;border:1px solid var(--parch2);background:#fffaf0;border-radius:12px;padding:5px 10px;font-size:12px;font-weight:700;color:#5d5640}
+.prnl .pd{text-transform:capitalize;display:inline-flex;align-items:center;gap:4px}.prnl .pd i{width:9px;height:9px;border-radius:50%;background:#9a9a9a;display:inline-block}
+.prnl .green i{background:#3c9a4a;box-shadow:0 0 0 3px rgba(60,154,74,.18)}.prnl .amber i{background:#e0a020;box-shadow:0 0 0 3px rgba(224,160,32,.2)}
+.prnl .red i{background:#c0392b;box-shadow:0 0 0 3px rgba(192,57,43,.2);animation:prnb 1s steps(2) infinite}.prnl .red{color:#a62a1c}
+@keyframes prnb{50%{opacity:.3}}
 </style>
 </head>
 <body>
@@ -1877,6 +1882,20 @@ function subscribeTickets(){
     tickets=withOutbox(sn.docs.map(d=>cleanTicket(d.id,d.data())).filter(Boolean));ticketsChanged();
   },()=>{});
 }
+// ---- printer lights: each printer tablet reports in every ~15s; green = printing, amber = last print failed, red = app off / no signal ----
+let printers={};
+function updPrinters(){let el=$("prnLights");const st=Object.keys(printers);
+  if(!st.length){if(el)el.remove();return}
+  if(!el){el=document.createElement("button");el.id="prnLights";el.className="prnl";$("status").after(el);el.onclick=()=>{
+    toast(["kitchen","bar","till"].filter(k=>printers[k]).map(k=>{const p=printers[k],[c,t]=prnState(p);return `${prName(k)}: ${t}`}).join(" · "),5000)}}
+  el.innerHTML="🖨 "+["kitchen","bar","till"].filter(k=>printers[k]).map(k=>{const [c,t]=prnState(printers[k]);return `<span class="pd ${c}" title="${prName(k)}: ${esc(t)}"><i></i>${prName(k)}</span>`}).join("")}
+function prnState(p){const age=Date.now()-(+p.at||0);
+  if(p.off)return ["red","printing switched off"];if(age>60000)return ["red","not heard from for "+Math.round(age/60000)+" min — check the printer tablet"];
+  if(p.ok===false)return ["amber",p.msg||"last print failed — check paper / power"];return ["green","printing OK"]}
+function subscribePrinters(){const base=db&&db.base?db.base:db;if(!base)return;
+  base.collection("printers").onSnapshot(sn=>{printers={};sn.docs.forEach(d=>{printers[d.id]=d.data()||{}});updPrinters()},()=>{})}
+setInterval(updPrinters,15000);
+
 // ---- offline safety: if the Wi-Fi drops, orders and changes wait on this tablet and send themselves when it's back ----
 let outbox=[];try{outbox=JSON.parse(localStorage.getItem(LK+"outbox")||"[]")||[]}catch(e){outbox=[]}
 const saveOutbox=()=>{try{localStorage.setItem(LK+"outbox",JSON.stringify(outbox))}catch(e){}updOutbox()};
@@ -3740,7 +3759,7 @@ function subscribe(){
 }
 
 // ---------- toast ----------
-function toast(m){const t=$("toast");t.textContent=m;t.classList.add("show");clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove("show"),2200)}
+function toast(m,ms){const t=$("toast");t.textContent=m;t.classList.add("show");clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove("show"),ms||2200)}
 
 // ---------- boot ----------
 setDate(todayKey());
@@ -3820,7 +3839,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261110230209";
+const APP_BUILD="20261110230309";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
@@ -3833,7 +3852,7 @@ if(!window.claude&&location.protocol.startsWith("http")&&APP_BUILD!=="dev"){
   setTimeout(chk,4000);setInterval(chk,60000);
   document.addEventListener("visibilitychange",()=>{if(!document.hidden)chk()});
 }
-function startDb(d){db=TRAIN?nsDb(d):d;subscribeLive();subscribe();subscribeSettings();subscribeTickets();startStaffStores();gIdx=null}
+function startDb(d){db=TRAIN?nsDb(d):d;subscribeLive();subscribePrinters();subscribe();subscribeSettings();subscribeTickets();startStaffStores();gIdx=null}
 if(window.claude&&typeof window.claude.use==="function"){
   window.claude.use("db").then(d=>{if(!d){setStatus("local","This device");return}startDb(d)}).catch(()=>setStatus("local","This device"));
 }else if(SUPA_URL&&location.protocol.startsWith("http")){

@@ -31,6 +31,7 @@ class PrintService : Service() {
 
     private var worker: Thread? = null
     private var wake: PowerManager.WakeLock? = null
+    private var lastBeat = 0L
     private val prefs by lazy { getSharedPreferences("t57", Context.MODE_PRIVATE) }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -47,6 +48,8 @@ class PrintService : Service() {
 
     override fun onDestroy() {
         running = false; worker?.interrupt()
+        val stn = prefs.getString("station", "kitchen") ?: "kitchen"
+        Thread { try { Cloud.merge("printers", stn, org.json.JSONObject().put("at", System.currentTimeMillis()).put("ok", false).put("msg", "Printing switched off").put("off", true)) } catch (_: Exception) {} }.start()
         try { wake?.release() } catch (_: Exception) {}
         Hub.say("Stopped — nothing will print until you tap Start.", false); Hub.net("", true)
         super.onDestroy()
@@ -68,6 +71,13 @@ class PrintService : Service() {
     private fun loop() {
         while (running) {
             try { poll(); Hub.net("Connected · checked ${SimpleDateFormat("HH:mm:ss", Locale.UK).format(Date())}", true) }
+            // heartbeat: the website shows a green / red light for this printer
+            if (System.currentTimeMillis() - lastBeat > 15000) try {
+                val st = prefs.getString("station", "kitchen") ?: "kitchen"
+                Cloud.merge("printers", st, org.json.JSONObject().put("at", System.currentTimeMillis()).put("ok", Bt.lastOk).put("msg", Bt.lastMsg).put("off", false)
+                    .put("paper", if (prefs.getInt("cols", 32) >= 48) "80mm" else "58mm").put("dev", Build.MODEL ?: ""))
+                lastBeat = System.currentTimeMillis()
+            } catch (_: Exception) {}
             catch (e: Exception) { Hub.net("⚠ Can't reach orders (${e.message ?: "no internet"}) — retrying", false) }
             try { Thread.sleep(3000) } catch (_: InterruptedException) { break }
         }

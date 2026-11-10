@@ -12,6 +12,9 @@ object Bt {
     private val spp: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
     private val lock = Any()
 
+    /** Last print result, reported to the website so staff see a red light if the printer stops. */
+    @Volatile var lastOk = true
+    @Volatile var lastMsg = "Ready"
     fun print(ctx: Context, bytes: ByteArray, what: String): Boolean = synchronized(lock) {
         val prefs = ctx.getSharedPreferences("t57", Context.MODE_PRIVATE)
         val addr = prefs.getString("printer", null) ?: run { Hub.say("Pick a printer first.", false); return false }
@@ -29,10 +32,11 @@ object Bt {
             while (i < bytes.size) { val n = minOf(512, bytes.size - i); os.write(bytes, i, n); os.flush(); i += n; Thread.sleep(25) }
             Thread.sleep(1000 + bytes.size / 20L)
             Hub.lastSlip = bytes
-            Hub.log("✓ $what")
+            Hub.log("✓ $what"); lastOk = true; lastMsg = "Printed $what"
             true
         } catch (e: Exception) {
             Hub.say("⚠ Printer not responding — is it on, charged and in paper? Will retry.", false)
+            lastOk = false; lastMsg = "Printer not responding"
             false
         } finally { try { sock?.close() } catch (ignored: Exception) {} }
     }
