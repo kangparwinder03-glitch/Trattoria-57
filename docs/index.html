@@ -1215,7 +1215,9 @@ function layoutFrom(groups){
       const m=g[k],t=T[m],at=T[a];
       const xs=placed.map(id=>pos[id].x),xe=placed.map(id=>pos[id].x+T[id].w);
       const cy=pos[a].y+at.h/2,y=Math.round(cy-t.h/2);
-      const cands=[{x:Math.max(...xe),y},{x:Math.min(...xs)-t.w,y}];
+      // side by side first; if there's no room (e.g. 14 & 15 in the corner), stack above / below instead
+      const ys=placed.map(id=>pos[id].y),ye=placed.map(id=>pos[id].y+T[id].h),cx=Math.round(pos[a].x+at.w/2-t.w/2);
+      const cands=[{x:Math.max(...xe),y},{x:Math.min(...xs)-t.w,y},{x:cx,y:Math.max(...ye)},{x:cx,y:Math.min(...ys)-t.h}];
       let got=null;
       for(const c of cands){
         const box=fp(m,c.x,c.y),core={x:c.x,y:c.y,w:t.w,h:t.h};
@@ -3872,7 +3874,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261110230954";
+const APP_BUILD="20261110231243";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
