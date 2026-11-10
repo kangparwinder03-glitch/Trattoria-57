@@ -793,6 +793,7 @@ body.training{padding-top:30px}
 #ordOv.barmode .pq button{font-size:16px;padding:10px 16px}
 #ordOv.barmode #oFoot .btn{font-size:19px!important;padding:18px 14px!important;font-weight:800}
 #ordOv.barmode .cl{font-size:18px}#ordOv.barmode .cl .step button{width:48px;height:48px;font-size:26px}
+.pq.choice{background:#eef3f9;border-radius:10px;padding:6px 8px}.pq.choice button{border-color:#9db3cf;font-size:15px;padding:9px 18px}.pq.choice button.on{background:#3f5f86;border-color:#3f5f86;color:#fff}
 </style>
 </head>
 <body>
@@ -1792,6 +1793,9 @@ const isAlg=t=>!!t&&ALG.test(t);
 const ALG_CHIPS=["Nut allergy","Gluten free","Dairy free","Shellfish allergy","Egg allergy","Vegan"];
 const DRINK_CHIPS=["No ice","Ice & lemon","Ice & lime","Slice of orange","Straw","Slimline tonic","Diet mixer","Large glass","Jug","Bottle & glass"];
 // quick options that drop down under a dish/drink the moment it's added
+// items where the customer has to pick one (shown first in the drop-down; the order can't be sent without it)
+const CHOICES={"Mineral Water":["Still","Sparkling"],"Salad":["Mixed","Green","Tomato"]};
+const needsChoice=x=>CHOICES[x.n]&&!CHOICES[x.n].some(c=>(x.pc||[]).includes(c)||new RegExp("\\b"+c+"\\b","i").test(x.note||""));
 const DONENESS=["Blue","Rare","Medium rare","Medium","Medium well","Well done"];
 function optsFor(n){const it=ITEMS[n];if(!it)return {opts:[],cook:false,alg:false};const c=it.cat;
   if(c==="Hot Drinks")return {opts:["Oat milk","Soya milk","Decaf","Extra shot","Sugar on side","Extra hot"],alg:false};
@@ -1804,7 +1808,8 @@ function optsFor(n){const it=ITEMS[n];if(!it)return {opts:[],cook:false,alg:fals
   return {opts:["No onion","No chilli","Sauce on side","Halal","Extra hot"],alg:true}}
 function popHtml(n){const P=ord.pop,L=P.cur,have=new Set(L&&L.pc||[]),o=optsFor(n);
   const chip=(t,cls)=>`<button data-pq="${esc(t)}" class="${cls||""}${have.has(t)?" on":""}">${cls==="alg"?"⚠ ":""}${esc(t)}</button>`;
-  return `<div class="mipop">${o.cook?`<div class="pq cook"><span>How cooked?</span>${DONENESS.map(t=>chip(t,"ck")).join("")}</div>`:""}
+  const ch=CHOICES[n];
+  return `<div class="mipop">${ch?`<div class="pq choice"><span>Which one?</span>${ch.map(t=>chip(t,"ch")).join("")}</div>`:""}${o.cook?`<div class="pq cook"><span>How cooked?</span>${DONENESS.map(t=>chip(t,"ck")).join("")}</div>`:""}
     <div class="pq">${o.opts.map(t=>chip(t)).join("")}</div>${o.alg?`<div class="pq">${ALG_CHIPS.map(t=>chip(t,"alg")).join("")}</div>`:""}
     <div class="pqrow"><input data-pn placeholder="Anything else for this one?" maxlength="80" value="${esc(L&&L.px||"")}"><button class="pdone" data-pdone>${L&&L.note?"✓ Done":"No changes"}</button></div></div>`}
 function popLine(){const P=ord.pop,c=cart();if(P.cur&&c.includes(P.cur))return P.cur;
@@ -2197,7 +2202,7 @@ $("oBody").addEventListener("click",e=>{
   const qb=e.target.closest('[data-f="qrok"],[data-f="qrno"]');if(qb){qrDecision(qb);return}
   if(!ord)return;const c=cart();
   const pq=e.target.closest("[data-pq]");if(pq&&ord.pop){const L=popLine();if(!L)return;const t=pq.dataset.pq,i=L.pc.indexOf(t);
-    if(i>=0)L.pc.splice(i,1);else{if(DONENESS.includes(t))L.pc=L.pc.filter(x=>!DONENESS.includes(x));L.pc.push(t)}L.note=popNote(L);renderOrder();return}
+    if(i>=0)L.pc.splice(i,1);else{const ex=[DONENESS,CHOICES[L.n]||[]].find(g=>g.includes(t));if(ex)L.pc=L.pc.filter(x=>!ex.includes(x));L.pc.push(t)}L.note=popNote(L);renderOrder();return}
   if(e.target.closest("[data-pdone]")){ord.pop=null;renderOrder();return}
   const gb=e.target.closest("[data-g]");if(gb){ord.covers=Math.max(1,Math.min(40,(ord.covers||2)+(+gb.dataset.g)));renderOrder();return}
   const q=e.target.closest("[data-q]");
@@ -2228,6 +2233,8 @@ $("oFoot").addEventListener("click",async e=>{
     if(readOnly){toast("View only — can't send orders");return}
     const c=cart();if(!c.length)return;
     const oos=c.find(x=>outSet.has(x.n));if(oos){toast(oos.n+" is out of stock — remove it");return}
+    const nc=c.find(needsChoice);if(nc){toast(`${nc.n}: ${CHOICES[nc.n].join(" or ")}? Tap it to choose`);ord.review=false;ord.pop=null;
+      ord.cat=ITEMS[nc.n].cat;ord.pop={n:nc.n,plain:nc,cur:nc.q===1?Object.assign(nc,{pc:nc.pc||[],px:nc.px||""}):null};renderOrder();return}
     if(!waiter&&staffList().length){toast("Who's serving? Pick your name");pickWaiter(()=>{const b2=$("oFoot").querySelector('[data-f="send"]');if(b2)b2.click()});return}
     const g=curGroup(),ids=g.slice().sort((a,b)=>a-b);
     const bkN=!ord.pickup&&state.bookings[leadOf(g)];const bkAlg=[bkN&&isAlg(bkN.notes)&&!(ord.note||"").includes(bkN.notes)?"Booking: "+bkN.notes:"",(()=>{const P=bkN&&bkProf(bkN);return P&&P.allergy&&!(bkN.notes||"").includes(P.allergy)&&!(ord.note||"").includes(P.allergy)?"On file: "+P.allergy:""})()].filter(Boolean).join(" · ");
@@ -3762,7 +3769,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261110214637";
+const APP_BUILD="20261110215458";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
