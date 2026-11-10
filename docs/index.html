@@ -1118,16 +1118,16 @@ const PLAN=[
  {name:"1",zone:"din",x:292,y:672,w:125,h:105,seats:2,ch:"tb",join:1},
  {name:"2",zone:"din",x:497,y:672,w:125,h:105,seats:2,ch:"tb",join:1},
  {name:"3",zone:"din",x:702,y:672,w:125,h:105,seats:2,ch:"tb",join:1},
- {name:"4",zone:"din",x:1320,y:666,w:150,h:150,seats:4,ch:"round",join:0},
- {name:"5",zone:"din",x:1545,y:666,w:150,h:150,seats:4,ch:"round",join:0},
- {name:"6",zone:"din",x:1770,y:666,w:150,h:150,seats:4,ch:"round",join:0},
+ {name:"4",zone:"din",x:1320,y:666,w:150,h:150,seats:4,ch:"round",join:1},
+ {name:"5",zone:"din",x:1545,y:666,w:150,h:150,seats:4,ch:"round",join:1},
+ {name:"6",zone:"din",x:1770,y:666,w:150,h:150,seats:4,ch:"round",join:1},
  {name:"7",zone:"din",x:352,y:1086,w:105,h:90,seats:2,ch:"tb",join:1},
  {name:"8",zone:"din",x:560,y:1086,w:105,h:90,seats:2,ch:"tb",join:1},
  {name:"9",zone:"din",x:768,y:1086,w:105,h:90,seats:2,ch:"tb",join:1},
  {name:"10",zone:"din",x:976,y:1086,w:105,h:90,seats:2,ch:"tb",join:1},
  {name:"11",zone:"din",x:1184,y:1086,w:105,h:90,seats:2,ch:"tb",join:1},
- {name:"12",zone:"din",x:1500,y:1010,w:160,h:160,seats:4,ch:"round",join:0},
- {name:"13",zone:"din",x:1760,y:1010,w:160,h:160,seats:4,ch:"round",join:0},
+ {name:"12",zone:"din",x:1500,y:1010,w:160,h:160,seats:4,ch:"round",join:1},
+ {name:"13",zone:"din",x:1760,y:1010,w:160,h:160,seats:4,ch:"round",join:1},
  {name:"14",zone:"din",x:80,y:1104,w:120,h:100,seats:4,ch:"lr",join:1},
  {name:"15",zone:"din",x:80,y:1276,w:120,h:100,seats:4,ch:"lr",join:1},
 ];
@@ -3874,7 +3874,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261110231243";
+const APP_BUILD="20261110231450";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
