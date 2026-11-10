@@ -25,7 +25,9 @@ class EscPos(val cols: Int) {
     fun text(s: String): EscPos { out.write(enc(s)); return this }
     fun line(s: String = ""): EscPos = text(s).raw(0x0A)
     fun feed(n: Int): EscPos = raw(0x1B, 0x64, n)
-    fun cut(): EscPos = raw(0x1D, 0x56, 0x42, 0x00)          // ignored by printers without a cutter
+    /** End of a ticket: cut on printers with a cutter; otherwise feed extra paper so it all clears the tear edge. */
+    fun cut(): EscPos = if (hasCutter) raw(0x1D, 0x56, 0x42, 0x00) else feed(3)
+    companion object { @Volatile var hasCutter = true }
     fun rule(ch: Char = '-'): EscPos = line(ch.toString().repeat(cols))
 
     /** Left text and right text on one line, e.g. "2 x Pizza ..... £25.80". */

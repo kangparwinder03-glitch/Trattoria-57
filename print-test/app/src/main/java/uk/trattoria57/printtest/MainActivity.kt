@@ -34,6 +34,7 @@ class MainActivity : Activity() {
     private lateinit var logoBox: CheckBox
     private lateinit var cGroup: RadioGroup
     private lateinit var copiesLabel: TextView
+    private lateinit var cutBox: CheckBox
     private var cols = 32
     private var station = "kitchen"
     private val prefs by lazy { getSharedPreferences("t57", Context.MODE_PRIVATE) }
@@ -83,6 +84,8 @@ class MainActivity : Activity() {
         cGroup = RadioGroup(this).apply { orientation = RadioGroup.HORIZONTAL }
         listOf(1, 2, 3).forEach { n -> cGroup.addView(RadioButton(this).apply { text = "$n   "; textSize = 18f; id = 100 + n }) }
         root.addView(cGroup)
+        cutBox = CheckBox(this).apply { text = "This printer has an auto-cutter"; textSize = 16f }
+        root.addView(cutBox)
         logoBox = CheckBox(this).apply { text = "Print the Trattoria 57 logo"; textSize = 16f; isChecked = prefs.getBoolean("logo", true)
             setOnCheckedChangeListener { _, on -> prefs.edit().putBoolean("logo", on).apply() } }
         root.addView(logoBox)
@@ -96,6 +99,10 @@ class MainActivity : Activity() {
             val tickets = station != "till"
             copiesLabel.visibility = if (tickets) android.view.View.VISIBLE else android.view.View.GONE
             cGroup.visibility = copiesLabel.visibility
+            cutBox.setOnCheckedChangeListener(null)
+            cutBox.isChecked = PrintService.cutterFor(prefs, station)
+            cutBox.setOnCheckedChangeListener { _, on -> prefs.edit().putBoolean("cutter_$station", on).apply()
+                Hub.log(if (on) "Auto-cut on for the ${PrintService.stationName(station)}" else "No cutter: extra paper fed so you can tear cleanly") }
             cGroup.setOnCheckedChangeListener(null)
             cGroup.check(100 + PrintService.copiesFor(prefs, station))
             cGroup.setOnCheckedChangeListener { _, id -> prefs.edit().putInt("copies_$station", id - 100).apply(); Hub.log("${PrintService.stationName(station)} tickets now print ${id - 100}x") }
@@ -128,6 +135,7 @@ class MainActivity : Activity() {
         root.addView(label("Test prints", 14f, true).apply { setPadding(0, pad, 0, pad / 3) })
         fun test(t: String, make: (Int, Logos) -> ByteArray) = root.addView(button(t, 15f) {
             if (picker.selectedItemPosition < 0) { Hub.say("Pick a printer first.", false); return@button }
+            EscPos.hasCutter = cutBox.isChecked
             val b = make(cols, if (logoBox.isChecked) Logo.forPaper(this, cols) else Logos.NONE); Thread { Bt.print(this, b, t) }.start() }, full)
         test("🖨  Test slip") { c, l -> Samples.test(c, l) }
         test("🍝  Sample kitchen ticket") { c, l -> Samples.kitchenTicket(c, l) }

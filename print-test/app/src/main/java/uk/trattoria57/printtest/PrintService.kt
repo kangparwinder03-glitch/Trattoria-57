@@ -24,6 +24,7 @@ class PrintService : Service() {
     companion object {
         @Volatile var running = false
         fun stationName(st: String) = when (st) { "bar" -> "BAR"; "till" -> "TILL"; else -> "KITCHEN" }
+        fun cutterFor(prefs: android.content.SharedPreferences, st: String) = prefs.getBoolean("cutter_$st", st == "kitchen")
         fun copiesFor(prefs: android.content.SharedPreferences, st: String) =
             prefs.getInt("copies_$st", if (st == "kitchen") 2 else 1).coerceIn(1, 3)
     }
@@ -92,6 +93,7 @@ class PrintService : Service() {
                 if (!running || prefs.getString("station", "kitchen") != st) return
                 val training = coll == "train_tickets"
                 val label = if (d.optBoolean("pickup")) "Pickup #${d.optInt("pno")}" else d.optString("label")
+                EscPos.hasCutter = cutterFor(prefs, st)
                 val copies = copiesFor(prefs, st)
                 val lg = logos(cols)
                 val bytes = (1..copies).map { Format.ticket(d, cols, lg, it, copies, training) }.reduce { a, b -> a + b }
@@ -106,6 +108,7 @@ class PrintService : Service() {
             .sortedBy { it.second.optLong("createdAt") }
         for ((id, d) in jobs) {
             if (!running) return
+            EscPos.hasCutter = cutterFor(prefs, st)
             if (!Bt.print(this, Format.job(d, cols, logos(cols)), d.optString("title", "Print"))) return
             Hub.say(ready, true)
             markDone(done, "printjobs", id, st)
