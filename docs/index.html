@@ -794,6 +794,14 @@ body.training{padding-top:30px}
 #ordOv.barmode #oFoot .btn{font-size:19px!important;padding:18px 14px!important;font-weight:800}
 #ordOv.barmode .cl{font-size:18px}#ordOv.barmode .cl .step button{width:48px;height:48px;font-size:26px}
 .pq.choice{background:#eef3f9;border-radius:10px;padding:6px 8px}.pq.choice button{border-color:#9db3cf;font-size:15px;padding:9px 18px}.pq.choice button.on{background:#3f5f86;border-color:#3f5f86;color:#fff}
+.bigtext .klist{grid-template-columns:repeat(auto-fill,minmax(380px,1fr))}
+.bigtext .tk{padding:18px}.bigtext .tk .tt{font-size:40px}.bigtext .tk .tag{font-size:15px}.bigtext .tk .tm{font-size:16px}.bigtext .tk .tm b{font-size:20px}
+.bigtext .tk ul li{font-size:26px!important;line-height:1.25;padding:8px 0!important}.bigtext .tk li b{width:46px!important;height:46px!important;font-size:26px!important;border-radius:12px}.bigtext .tk li span{padding-top:6px}.bigtext .tk .tn{font-size:20px!important}
+.bigtext .tk ul li i,.bigtext .tk ul li em,.bigtext .tk ul li small{font-size:19px!important}
+.bigtext .tk .knote,.bigtext .tk .tnote{font-size:20px!important}
+.bigtext .tk button{font-size:22px!important;padding:16px!important}
+.bigtext .pg{font-size:13px}.bigtext .pg i{height:8px}
+[data-big].on{background:var(--olive-dk)!important;color:#fff!important;border-color:var(--olive-dk)!important}
 </style>
 </head>
 <body>
@@ -856,7 +864,7 @@ body.training{padding-top:30px}
   <section id="kitchen" class="station" data-st="kitchen">
     <div class="kwrap">
       <div class="khead">
-        <span class="sttitle">KITCHEN</span><button class="sndbtn" data-snd>🔔 Sound on</button><button class="sndbtn vib" data-vib>📳 Buzz on</button><button class="sndbtn ld" data-loud="kitchen"></button><button class="sndbtn ot" data-onetap="kitchen"></button><button class="sndbtn" data-stock="kitchen">⛔ Out of stock<span class="n-out"></span></button><div class="kseg"><button data-kf="todo" class="on">To do <span class="n-todo">0</span></button><button data-kf="served">Served <span class="n-served">0</span></button></div>
+        <span class="sttitle">KITCHEN</span><button class="sndbtn" data-snd>🔔 Sound on</button><button class="sndbtn vib" data-vib>📳 Buzz on</button><button class="sndbtn ld" data-loud="kitchen"></button><button class="sndbtn" data-big="kitchen">🔠 Large text</button><button class="sndbtn ot" data-onetap="kitchen"></button><button class="sndbtn" data-stock="kitchen">⛔ Out of stock<span class="n-out"></span></button><div class="kseg"><button data-kf="todo" class="on">To do <span class="n-todo">0</span></button><button data-kf="served">Served <span class="n-served">0</span></button></div>
       </div>
       <div class="ksum"></div>
       <div class="klist"></div>
@@ -866,7 +874,7 @@ body.training{padding-top:30px}
   <section id="bar" class="station" data-st="bar">
     <div class="kwrap">
       <div class="khead">
-        <span class="sttitle">BAR</span><button class="sndbtn takeord" id="barTake">➕ Take drinks order</button><button class="sndbtn" id="barWho" style="color:var(--ink)">👤 Who's on the bar?</button><button class="sndbtn" data-snd>🔔 Sound on</button><button class="sndbtn vib" data-vib>📳 Buzz on</button><button class="sndbtn ld" data-loud="bar"></button><button class="sndbtn ot" data-onetap="bar"></button><button class="sndbtn" data-stock="bar">⛔ Out of stock<span class="n-out"></span></button><div class="kseg"><button data-kf="todo" class="on">To do <span class="n-todo">0</span></button><button data-kf="served">Served <span class="n-served">0</span></button></div>
+        <span class="sttitle">BAR</span><button class="sndbtn takeord" id="barTake">➕ Take drinks order</button><button class="sndbtn" id="barWho" style="color:var(--ink)">👤 Who's on the bar?</button><button class="sndbtn" data-snd>🔔 Sound on</button><button class="sndbtn vib" data-vib>📳 Buzz on</button><button class="sndbtn ld" data-loud="bar"></button><button class="sndbtn" data-big="bar">🔠 Large text</button><button class="sndbtn ot" data-onetap="bar"></button><button class="sndbtn" data-stock="bar">⛔ Out of stock<span class="n-out"></span></button><div class="kseg"><button data-kf="todo" class="on">To do <span class="n-todo">0</span></button><button data-kf="served">Served <span class="n-served">0</span></button></div>
       </div>
       <div class="ksum"></div>
       <div class="klist"></div>
@@ -1783,7 +1791,7 @@ function cleanTicket(id,d){
   const items=Array.isArray(d.items)?d.items.slice(0,80).map(x=>({n:str(x&&x.n,80),q:Math.max(1,Math.min(99,Math.floor(+(x&&x.q))||1)),p:Math.max(0,+(x&&x.p)||0),note:str(x&&x.note,120),v:!!(x&&x.v),vr:str(x&&x.vr,40),vb:str(x&&x.vb,40),g:str(x&&x.g,20)})):[];
   const tables=Array.isArray(d.tables)?d.tables.map(Number).filter(i=>i>=1&&i<=N):[];
   return {id,date:str(d.date,10),tables,label:str(d.label,30),items,note:str(d.note,200),
-    status:FLOW.includes(d.status)?d.status:"new",createdAt:+d.createdAt||0,updatedAt:+d.updatedAt||0,closed:!!d.closed,no:+d.no||0,station:d.station==="bar"?"bar":"kitchen",hold:!!d.hold,qr:!!d.qr,rejected:!!d.rejected,disc:cleanDisc(d.disc),discAmt:Math.max(0,+d.discAmt||0),wait:!!d.wait,pickup:!!d.pickup,pno:Math.max(0,Math.floor(+d.pno)||0),pname:str(d.pname,40),pphone:str(d.pphone,30),covers:Math.max(0,Math.min(99,Math.floor(+d.covers)||0)),paid:['card','cash','split'].includes(d.paid)?d.paid:'',by:str(d.by,40),byName:str(d.byName,40),pays:cleanPays(d.pays),idisc:cleanIdisc(d.idisc),discBy:cleanNumMap(d.discBy),paidAt:+d.paidAt||0,tRec:+d.tRec||0,tPrep:+d.tPrep||0,tSrv:+d.tSrv||0};
+    status:FLOW.includes(d.status)?d.status:"new",createdAt:+d.createdAt||0,updatedAt:+d.updatedAt||0,closed:!!d.closed,no:+d.no||0,station:d.station==="bar"?"bar":"kitchen",hold:!!d.hold,qr:!!d.qr,rejected:!!d.rejected,disc:cleanDisc(d.disc),discAmt:Math.max(0,+d.discAmt||0),wait:!!d.wait,pickup:!!d.pickup,walk:!!d.walk,pno:Math.max(0,Math.floor(+d.pno)||0),pname:str(d.pname,40),pphone:str(d.pphone,30),covers:Math.max(0,Math.min(99,Math.floor(+d.covers)||0)),paid:['card','cash','split'].includes(d.paid)?d.paid:'',by:str(d.by,40),byName:str(d.byName,40),pays:cleanPays(d.pays),idisc:cleanIdisc(d.idisc),discBy:cleanNumMap(d.discBy),paidAt:+d.paidAt||0,tRec:+d.tRec||0,tPrep:+d.tPrep||0,tSrv:+d.tSrv||0};
 }
 function cleanPays(a){if(!Array.isArray(a))return [];return a.slice(0,40).filter(x=>x&&typeof x==="object").map(x=>{const it={};if(x.it&&typeof x.it==="object")Object.keys(x.it).slice(0,80).forEach(k=>{it[str(k,100)]=Math.max(0,Math.floor(+x.it[k])||0)});
   return {a:Math.max(0,Math.round((+x.a||0)*100)/100),m:x.m==="cash"?"cash":"card",at:+x.at||0,it,who:str(x.who,40),tab:str(x.tab,20)}})}
@@ -1794,7 +1802,7 @@ const ALG_CHIPS=["Nut allergy","Gluten free","Dairy free","Shellfish allergy","E
 const DRINK_CHIPS=["No ice","Ice & lemon","Ice & lime","Slice of orange","Straw","Slimline tonic","Diet mixer","Large glass","Jug","Bottle & glass"];
 // quick options that drop down under a dish/drink the moment it's added
 // items where the customer has to pick one (shown first in the drop-down; the order can't be sent without it)
-const CHOICES={"Mineral Water":["Still","Sparkling"],"Salad":["Mixed","Green","Tomato"]};
+const CHOICES={"Mineral Water":["Still","Sparkling"],"Salad":["Mixed","Green","Tomato"],"Kids Pizza or Pasta":["Pizza","Pasta"],"Liqueur Coffee":["Irish","Baileys","Tia Maria","Amaretto"]};
 const needsChoice=x=>CHOICES[x.n]&&!CHOICES[x.n].some(c=>(x.pc||[]).includes(c)||new RegExp("\\b"+c+"\\b","i").test(x.note||""));
 const DONENESS=["Blue","Rare","Medium rare","Medium","Medium well","Well done"];
 function optsFor(n){const it=ITEMS[n];if(!it)return {opts:[],cook:false,alg:false};const c=it.cat;
@@ -1935,6 +1943,13 @@ function waiterAlert(kind,text){
   clearTimeout(wfT);wfT=setTimeout(()=>{if(!nagT)ov.className="bigflash"},12000);
 }
 function stopNag(){clearInterval(nagT);nagT=null;const ov=$("bigFlash");if(ov)ov.className="bigflash"}
+// ---- large text on the kitchen / bar screens (read from across the room); each tablet remembers ----
+function updBig(){["kitchen","bar"].forEach(st=>{let on=false;try{on=localStorage.getItem("t57-big-"+st)==="1"}catch(e){}
+  const sec=document.getElementById(st);if(sec)sec.classList.toggle("bigtext",on);
+  document.querySelectorAll(`[data-big="${st}"]`).forEach(b=>{b.classList.toggle("on",on);b.textContent=on?"🔠 Large text on":"🔠 Large text"})})}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-big]");if(!b)return;const st=b.dataset.big;let on=false;try{on=localStorage.getItem("t57-big-"+st)==="1"}catch(_){}
+  try{localStorage.setItem("t57-big-"+st,on?"0":"1")}catch(_){}updBig();toast(on?"Normal text":"Large text — easier to read from a distance")});
+setTimeout(updBig,0);
 // ---- vibration (phones/tablets with a motor; others just ignore it). Works even when the sound is muted ----
 let vibOn=true;try{vibOn=localStorage.getItem("t57-vib")!=="0"}catch(e){}
 const canVib=!!navigator.vibrate;
@@ -1992,6 +2007,7 @@ function checkStatusChanges(){
     if(t.hold&&!t.closed){flashes["qr-"+t.id]={kind:"qr",until:0,tables:t.tables,label:t.label};if(stInit&&before===undefined){fire="qr";fireText=`📱 New QR order — ${t.label}`}continue}
     delete flashes["qr-"+t.id];
     if(!stInit||before===key||t.closed)continue;
+    if(t.walk){delete flashes[t.id];continue}   // bar walk-ups are handled at the bar: no waiter alerts
     if(t.wait)continue;
     if((before===undefined||before==="newh"||before==="neww")&&t.status==="new"){newSt.add(stOf(t));continue}
     if(t.status==="served"&&!t.pickup)fireText=`🔔 ${t.label} — ${stOf(t)==="bar"?"drinks":"food"} ready`;
@@ -2043,7 +2059,7 @@ function newPickupNo(){const used=new Set(tickets.filter(t=>t.pickup).map(t=>t.p
   if(!pool.length)for(let i=100;i<=999;i++)if(!used.has(i))pool.push(i);return pool[Math.floor(Math.random()*pool.length)]}
 function openPickup(pno,tab){
   const p=pno||newPickupNo();const ex=tickets.find(t=>t.pickup&&t.pno===p);
-  ord={pickup:true,pno:p,lead:"P"+p,tab:tab||"menu",cat:CATS[0],review:false,pname:ex?ex.pname:"",pphone:ex?ex.pphone:""};
+  ord={pickup:true,pno:p,lead:"P"+p,tab:tab||"menu",cat:CATS[0],review:false,pname:ex?ex.pname:"",pphone:ex?ex.pphone:"",walk:!!(ex&&ex.walk)};
   sheetGroup=null;$("ordOv").classList.add("show");renderOrder();
 }
 function cart(){return carts[ord.lead]||(carts[ord.lead]=[])}
@@ -2064,8 +2080,8 @@ function renderOrder(){
   $("ordOv").classList.toggle("barmode",!!(ord&&ord.barMode));   // bar staff: big, bold, full-screen drinks screen
   if(!ord)return;
   const g=curGroup(),ids=g.slice().sort((a,b)=>a-b),b=ord.pickup?null:state.bookings[leadOf(g)];
-  if(ord.pickup){$("oTitle").innerHTML=ord.pname==="Bar walk-up"?`🍸 Bar walk-up <span style="color:var(--wine)">#${ord.pno}</span>`:`🥡 Pickup <span style="color:var(--wine)">#${ord.pno}</span><span class="chip" style="background:#3f5f86">No table</span>`;
-    $("oSub").textContent=(ord.pname?ord.pname+(ord.pphone?" · "+ord.pphone:""):"Collection order")+" · tell the customer their number";}
+  if(ord.pickup){$("oTitle").innerHTML=ord.walk?`🍸 Bar walk-up <span style="color:var(--wine)">#${ord.pno}</span>`:`🥡 Pickup <span style="color:var(--wine)">#${ord.pno}</span><span class="chip" style="background:#3f5f86">No table</span>`;
+    $("oSub").textContent=ord.walk?(ord.pname?ord.pname+" · ":"")+"Served and paid at the bar":(ord.pname?ord.pname+(ord.pphone?" · "+ord.pphone:""):"Collection order")+" · tell the customer their number";}
   else{$("oTitle").innerHTML=esc(gnameLong(g))+`<span class="chip">${seatsOf(g)} seats</span>`;
   const lead=b&&b.guests[0]&&b.guests[0].name;
   $("oSub").textContent=(b?`${lead||"Booked"}${b.time?" · "+b.time:""} · ${partyOf(b)} guests`:"Walk-in")+(waiter?" · 👤 "+waiter.name:"");}
@@ -2244,9 +2260,9 @@ $("oFoot").addEventListener("click",async e=>{
     const pace=!ord.pickup&&ord.holdMains!==false&&courseSplit(c);
     if(pace)parts=[["kitchen",pace.st],["kitchen",pace.mn,true]].concat(parts.filter(p=>p[0]==="bar"));
     const made=parts.map(([st,list,hold])=>{const t={wait:!!hold,id:"t"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)+st[0],date:dateKey,tables:ids,station:st,
-      label:ord.pickup?"Pickup #"+ord.pno:gname(g),items:list.map(x=>Object.assign({n:x.n,q:x.q,p:priceOf(x.n),note:(x.note||"").trim()},x.g?{g:x.g}:{})),
+      label:ord.pickup?(ord.walk?"Bar walk-up #":"Pickup #")+ord.pno:gname(g),items:list.map(x=>Object.assign({n:x.n,q:x.q,p:priceOf(x.n),note:(x.note||"").trim()},x.g?{g:x.g}:{})),
       note:[st==="kitchen"?bkAlg:"",(ord.note||"").trim()].filter(Boolean).join(" · ").slice(0,200),status:"new",createdAt:Date.now(),updatedAt:Date.now(),closed:false,no,covers:coversLeft,by:waiter?waiter.id:"",byName:waiter?waiter.name:"",
-      pickup:!!ord.pickup,pno:ord.pickup?ord.pno:0,pname:ord.pickup?(ord.pname||"").trim():"",pphone:ord.pickup?(ord.pphone||"").trim():""};coversLeft=0;return t});
+      pickup:!!ord.pickup,walk:!!(ord.pickup&&ord.walk),pno:ord.pickup?ord.pno:0,pname:ord.pickup?(ord.pname||"").trim():"",pphone:ord.pickup?(ord.pphone||"").trim():""};coversLeft=0;return t});
     bt.disabled=true;
     try{for(const t of made){await putTicket(t);if(!tickets.find(x=>x.id===t.id))tickets.push(t)}
       carts[ord.lead]=[];ord.note="";ord.review=false;ord.tab="sent";
@@ -2290,7 +2306,7 @@ function renderStation(st){
     const nb=BTN[t.status];
     const alg=isAlg(t.note)||t.items.some(x=>!x.v&&isAlg(x.note));
     return `<article class="tk ${t.status}${late}${t.pickup?" pick":""}${alg?" alg":""}" data-id="${t.id}">${alg?`<div class="algb">⚠ ALLERGY — read the notes</div>`:""}
-      <div class="th">${t.pickup?`<span class="tt" style="color:#3f5f86">🥡 #${t.pno}</span><span class="tag">PICKUP${t.pname?" · "+esc(t.pname):""}</span>`:`<span class="tt">${esc(t.label)}</span><span class="tag">#${t.no||""}</span>`}
+      <div class="th">${t.walk?`<span class="tt" style="color:var(--olive-dk)">🍸 #${t.pno}</span><span class="tag">WALK-UP${t.pname?" · "+esc(t.pname):""}</span>`:t.pickup?`<span class="tt" style="color:#3f5f86">🥡 #${t.pno}</span><span class="tag">PICKUP${t.pname?" · "+esc(t.pname):""}</span>`:`<span class="tt">${esc(t.label)}</span><span class="tag">#${t.no||""}</span>`}
         <span class="tm">${t.status==="served"?"Served "+timeOf(t.updatedAt):`${timeOf(t.createdAt)} · <b>⏱ ${mins<1?"now":mins+" min"}</b>`}</span></div>
       ${ot?"":`<div class="prog">${KSTEPS.map(([k,l],i)=>`<div class="pg${i<=si?" done":""}${i===si?" cur":""}"><i></i><span>${st==="bar"&&k==="preparing"?"Making":l}</span></div>`).join("")}</div>`}
       <ul>${t.items.map(x=>x.v?`<li class="void"><b>${x.q}</b><span><s>${esc(x.n)}</s><i>VOID — don't make</i></span></li>`:`<li><b>${x.q}</b><span>${esc(x.n)}${x.g?`<em class="kg">· ${esc(x.g)}</em>`:""}${x.note?`<i${isAlg(x.note)?' class="alg"':""}>${isAlg(x.note)?"⚠ ":""}${esc(x.note)}</i>`:""}</span></li>`).join("")}</ul>
@@ -2604,7 +2620,7 @@ function reportPdf(){
   box(222,"Card",money(R.card));box(322,"Cash",money(R.cash),"for the till count");box(432,"Discounts",money(R.discTotal),`${R.discN} bills`);
   y+=108;
   const kv=[["Covers",String(R.covers)],["Spend per head",R.covers?money((R.sales-R.discTotal)/R.covers):"—"],["Orders",`${R.all.length} (${R.itemsSold} dishes)`],
-    ["Pickup orders",String(new Set(R.all.filter(t=>t.pickup).map(t=>t.pno)).size)],["Avg kitchen time",R.served.length?mins(R.avgKitchen):"—"],["Bookings",`${R.bk.length} (${R.noShows} no-show${R.noShows===1?"":"s"})`]];
+    ["Pickup orders",String(new Set(R.all.filter(t=>t.pickup&&!t.walk).map(t=>t.pno)).size)],["Avg kitchen time",R.served.length?mins(R.avgKitchen):"—"],["Bookings",`${R.bk.length} (${R.noShows} no-show${R.noShows===1?"":"s"})`]];
   kv.forEach(([k,v],i)=>{const cx=40+(i%3)*172,cy=y+Math.floor(i/3)*30;P.text(cx,cy,k,{size:8,color:PDFC.muted});P.text(cx,cy+14,v,{font:"HB",size:11})});
   y+=70;
   const section=(t)=>{P.text(40,y,t,{font:"TB",size:12,color:PDFC.olive});P.line(40,y+5,W-40,y+5,0.6,PDFC.line);y+=20};
@@ -2668,7 +2684,7 @@ function buildReport(){
   const payM=m=>paid.reduce((a,t)=>a+(t.pays||[]).filter(x=>x.m===m).reduce((b2,x)=>b2+x.a,0),0);
   const card=paid.filter(t=>t.paid==="card").reduce((a,t)=>a+net(t),0)+payM("card"),cash=paid.filter(t=>t.paid==="cash").reduce((a,t)=>a+net(t),0)+payM("cash");
   const voids=[];all.forEach(t=>t.items.forEach(x=>{if(x.v)voids.push({n:x.n,q:x.q,v:x.q*x.p,r:x.vr,by:x.vb,label:t.label})}));
-  const byW={};all.forEach(t=>{const k=t.byName||(t.qr?"QR (customers)":t.pickup?"Pickup":"Not logged in");byW[k]=(byW[k]||0)+net(t)});
+  const byW={};all.forEach(t=>{const k=t.byName||(t.qr?"QR (customers)":t.walk?"Bar walk-up":t.pickup?"Pickup":"Not logged in");byW[k]=(byW[k]||0)+net(t)});
   const discTk=paid.filter(t=>t.discAmt>0),discTotal=discTk.reduce((a,t)=>a+t.discAmt,0);
   const discBy={};discTk.forEach(t=>{if(t.discBy&&Object.keys(t.discBy).length){Object.entries(t.discBy).forEach(([k,v])=>discBy[k]=(discBy[k]||0)+v);return}const k=(t.disc&&t.disc.reason)||"Other";discBy[k]=(discBy[k]||0)+t.discAmt});
   const openAmt=open.reduce((a,t)=>a+sub(t),0);
@@ -2726,7 +2742,7 @@ function renderReport(){
       <div class="rrow"><span>Bookings</span><b>${R.bk.length}</b></div><div class="rrow"><span>Guests booked</span><b>${R.bGuests}</b></div>
       <div class="rrow"><span>Confirmed / pending</span><b>${R.bConf} / ${R.bk.length-R.bConf}</b></div>
       <div class="rrow"><span>🚫 No-shows / cancelled</span><b>${R.noShows} / ${R.cancels}</b></div>
-      <div class="rrow"><span>Pickup orders</span><b>${new Set(R.all.filter(t=>t.pickup).map(t=>t.pno)).size}</b></div>
+      <div class="rrow"><span>Pickup orders</span><b>${new Set(R.all.filter(t=>t.pickup&&!t.walk).map(t=>t.pno)).size}</b></div>
       <div class="rrow"><span>Orders served</span><b>${R.served.length}</b></div>
       <div class="rrow"><span>Slowest order</span><b>${R.slowest?esc(R.slowest.label)+" · "+mins(R.slowest.tSrv-R.slowest.createdAt):"—"}</b></div></div>
   </div>`;
@@ -2868,7 +2884,7 @@ function openTables(){
   return rows;
 }
 function pickupRows(){
-  const by={};tickets.filter(t=>t.pickup&&!t.closed).forEach(t=>{(by[t.pno]=by[t.pno]||[]).push(t)});
+  const by={};tickets.filter(t=>t.pickup&&!t.walk&&!t.closed).forEach(t=>{(by[t.pno]=by[t.pno]||[]).push(t)});
   return Object.entries(by).map(([p,list])=>{let st="served";for(const k of ["new","received","preparing"])if(list.some(t=>t.status===k)){st=k;break}
     return {pno:+p,list,st,total:billOf(list).total,items:list.reduce((a,t)=>a+t.items.reduce((s2,x)=>s2+x.q,0),0),
       first:Math.min(...list.map(t=>t.createdAt)),name:(list.find(t=>t.pname)||{}).pname||""}}).sort((a,b)=>a.first-b.first);
@@ -3284,7 +3300,7 @@ function barTake(){
   const gs=groupsOf(state.tables).slice().sort((a,b)=>(isBar(Math.min(...b))-isBar(Math.min(...a)))||Math.min(...a)-Math.min(...b));
   openX("bartake","Drinks order for…","Pick the table, or Walk-up for someone paying at the bar",e=>{
     const b=e.target.closest("[data-bt]");if(!b)return;closeX();
-    if(b.dataset.bt==="walk"){openPickup(0,"menu");ord.pname="Bar walk-up"}else openOrder(+b.dataset.bt,"menu");
+    if(b.dataset.bt==="walk"){openPickup(0,"menu");ord.walk=true}else openOrder(+b.dataset.bt,"menu");
     ord.barMode=true;ord.cat=CATS.find(k=>BAR_CATS.has(k));renderOrder()});
   $("xBody").innerHTML=`<button class="btpick walk" data-bt="walk">🚶 Walk-up · pay now</button><div class="btgrid">${gs.map(g=>{const busy=activeFor(g).length;
     return `<button class="btpick${busy?" busy":""}${isBar(Math.min(...g))?" isbar":""}" data-bt="${leadOf(g)}">${esc(gname(g))}${busy?"<small>open</small>":""}</button>`}).join("")}</div>`;
@@ -3769,7 +3785,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261110215458";
+const APP_BUILD="20261110221716";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
