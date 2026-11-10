@@ -474,9 +474,9 @@ body.g .gbar{display:flex}
 .olist h4{font-family:Cinzel,Georgia,serif;font-size:12px;letter-spacing:2px;color:#5d5640;margin:14px 2px 8px}
 .rcpt{background:#fff;border:1.5px dashed #cbbd9c;border-radius:12px;padding:14px 16px;margin-top:6px;font-size:14px}
 .rc-h{text-align:center;line-height:1.05;margin-bottom:8px}
-.rc-h i{display:block;font-family:Cinzel,Georgia,serif;font-style:normal;font-size:12px;letter-spacing:6px;font-weight:700}
-.rc-h b{display:block;font-family:"Cormorant Garamond",Georgia,serif;font-size:34px;color:var(--wine)}
-.rc-h small{display:block;font-family:Cinzel,Georgia,serif;font-size:8px;letter-spacing:3px}
+.rc-h i{display:block;line-height:1.3;font-family:Cinzel,Georgia,serif;font-style:normal;font-size:12px;letter-spacing:6px;font-weight:700}
+.rc-h b{display:block;font-family:"Cormorant Garamond",Georgia,serif;font-size:34px;color:var(--wine);line-height:1;font-variant-numeric:lining-nums;font-feature-settings:"lnum" 1;margin:2px 0 4px}
+.rc-h small{display:block;line-height:1.3;font-family:Cinzel,Georgia,serif;font-size:8px;letter-spacing:3px}
 .rc-h span{display:block;font-size:11px;color:#8a7d62;margin-top:4px}
 .rc-m{display:flex;justify-content:space-between;font-size:12px;color:#5d5640;border-top:1px dashed #d9cdb3;border-bottom:1px dashed #d9cdb3;padding:6px 0;margin-bottom:6px}
 .rc-l{display:flex;justify-content:space-between;gap:10px;padding:3px 0;font-variant-numeric:tabular-nums}
@@ -2055,13 +2055,14 @@ function renderOrder(){
     cats.style.display="none";
     const all=act.slice().sort((a,b)=>a.createdAt-b.createdAt);let total=0;
     const heldN=all.filter(t=>t.hold).length;
+    const hasTabs=!ord.pickup&&tabNames(all).length>0;   // only show the 👤 tab tags once guests have been added
     const lastBar=all.filter(t=>stOf(t)==="bar"&&!t.hold&&!t.rejected).pop();
     const tools=all.length?`<div class="otools">${lastBar?`<button data-f="repeat">🔁 Repeat drinks</button>`:""}${ord.pickup?"":`<button data-f="move">↔ Move table</button>`}${all.some(t=>t.wait&&!t.closed)?`<button data-fire="all" class="firebtn">🔥 Fire mains</button>`:""}${all.some(t=>!t.hold)?`<button data-f="split">➗ Split bill</button>`:""}${all.some(t=>!t.hold)?`<button data-f="delall" class="deltool">🗑 Delete order</button>`:""}</div>`:"";
     body.innerHTML=`<div class="sent">${tools}${heldN>1?`<button class="btn ok2" data-f="qrall" style="width:100%;margin-bottom:10px;padding:13px">✓ Approve all ${heldN} QR orders</button>`:""}${all.length?all.map(t=>{
       const sub=t.items.reduce((a,x)=>a+lv(x),0);if(!t.hold)total+=sub;
       return `<div class="st-card"${t.hold?' style="border-color:#3f5f86;background:#eef3f9"':""}><div class="h"><span>${t.qr?"📱 ":""}Order ${t.no||""} · ${timeOf(t.createdAt)}${t.byName?" · "+esc(t.byName):""}<span class="stpill ${stOf(t)==="bar"?"sp-bar":"sp-kit"}">${stOf(t)==="bar"?"Bar":"Kitchen"}</span>${t.wait?`<span class="stpill heldp">⏸ Held</span>`:""}${t.hold||t.items.every(x=>x.v)?"":`<button class="delt" data-delt="${t.id}" title="Delete this order">🗑</button>`}</span><span class="pill ${t.hold?"hold":t.status}">${t.hold?"QR · check":t.status}</span></div>
         ${t.items.map((x,xi)=>x.v?`<div class="ln void"><span><s>${x.q}× ${esc(x.n)}</s><i>VOID · ${esc(x.vr)}${x.vb?" · "+esc(x.vb):""}</i></span><span><s>${money(x.q*x.p)}</s></span></div>`
-          :`<div class="ln"><span>${x.q}× ${esc(x.n)}${ord.pickup||t.hold?"":`<button class="gtag rt${x.g?"":" g0"}" data-retab="${t.id}|${xi}">👤 ${esc(x.g||"Table")}</button>`}${x.note?`<i${isAlg(x.note)?' class="alg"':""}>${esc(x.note)}</i>`:""}</span><span>${money(x.q*x.p)}${t.hold?"":`<button class="vd" data-void="${t.id}|${xi}" title="Void">✕</button>`}</span></div>`).join("")}
+          :`<div class="ln"><span>${x.q}× ${esc(x.n)}${ord.pickup||t.hold||!(x.g||hasTabs)?"":`<button class="gtag rt${x.g?"":" g0"}" data-retab="${t.id}|${xi}">👤 ${esc(x.g||"Table")}</button>`}${x.note?`<i${isAlg(x.note)?' class="alg"':""}>${esc(x.note)}</i>`:""}</span><span>${money(x.q*x.p)}${t.hold?"":`<button class="vd" data-void="${t.id}|${xi}" title="Void">✕</button>`}</span></div>`).join("")}
         ${t.note?`<div class="ln"><i>Note: ${esc(t.note)}</i></div>`:""}
         ${t.hold?`<div class="qrbtns"><button class="btn no2" data-f="qrno" data-id="${t.id}">✕ Reject</button><button class="btn ok2" data-f="qrok" data-id="${t.id}">✓ Approve &amp; send</button></div>`:""}</div>`}).join("")+tabsHtml(all)+receiptHtml(billOf(all))
       :`<div class="empty">No orders sent for this table yet.</div>`}</div>`;
@@ -3708,7 +3709,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261110112423";
+const APP_BUILD="20261110113020";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
