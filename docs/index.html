@@ -808,6 +808,12 @@ body.training{padding-top:30px}
 .prnl .green i{background:#3c9a4a;box-shadow:0 0 0 3px rgba(60,154,74,.18)}.prnl .amber i{background:#e0a020;box-shadow:0 0 0 3px rgba(224,160,32,.2)}
 .prnl .red i{background:#c0392b;box-shadow:0 0 0 3px rgba(192,57,43,.2);animation:prnb 1s steps(2) infinite}.prnl .red{color:#a62a1c}
 @keyframes prnb{50%{opacity:.3}}
+.msearch{display:flex;gap:6px;margin-bottom:8px}.msearch input{flex:1;min-width:0;font-size:15px;padding:10px 12px;border-radius:12px}
+.msearch button{border:0;background:#efe6d6;border-radius:10px;padding:0 14px;font-weight:800}
+#ordOv.barmode .msearch input{font-size:18px;padding:13px 14px}
+.undobar{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:90;display:flex;gap:12px;align-items:center;background:#2e2b1f;color:#fff;border-radius:14px;padding:10px 10px 10px 16px;font-weight:700;box-shadow:0 6px 20px rgba(0,0,0,.3);font-size:15px}
+.undobar button{border:0;border-radius:10px;background:#f4ecdc;color:#2e2b1f;font-weight:800;padding:10px 16px;font-size:15px}
+.undobar i{font-style:normal;opacity:.7;font-variant-numeric:tabular-nums}
 </style>
 </head>
 <body>
@@ -1675,7 +1681,7 @@ function fillHH(){const h=settings.hh||cleanHH({});$("hhOn").checked=!!(settings
 function readHH(){return cleanHH({on:$("hhOn").checked,from:$("hhFrom").value,to:$("hhTo").value,pct:$("hhPct").value,
   days:[...$("hhDays").querySelectorAll("input:checked")].map(i=>+i.value),cats:[...$("hhCats").querySelectorAll("input:checked")].map(i=>i.value)})}
 function openSettings(){$("sPick").value=settings.pickupPct;$("sOwner").value=settings.ownerEmail;$("sAuto").checked=settings.auto;$("sIg").value=settings.ig||"";$("sReview").value=settings.review||"";$("sTa").value=settings.ta||"";fillHH();$("sRcp").value=rcpPrinter();$("sAutoRc").checked=settings.autoRc!==false;$("sFb").value=settings.fb||"";$("setOv").classList.add("show")}
-$("setBtn").onclick=openSettings;
+$("setBtn").onclick=()=>mgrCheck(openSettings,"Settings are for managers");
 $("setClose").onclick=()=>$("setOv").classList.remove("show");
 $("setOv").addEventListener("pointerdown",e=>{if(e.target===$("setOv"))$("setOv").classList.remove("show")});
 $("setSave").onclick=async()=>{
@@ -1797,7 +1803,7 @@ function cleanTicket(id,d){
   const items=Array.isArray(d.items)?d.items.slice(0,80).map(x=>({n:str(x&&x.n,80),q:Math.max(1,Math.min(99,Math.floor(+(x&&x.q))||1)),p:Math.max(0,+(x&&x.p)||0),note:str(x&&x.note,120),v:!!(x&&x.v),vr:str(x&&x.vr,40),vb:str(x&&x.vb,40),g:str(x&&x.g,20)})):[];
   const tables=Array.isArray(d.tables)?d.tables.map(Number).filter(i=>i>=1&&i<=N):[];
   return {id,date:str(d.date,10),tables,label:str(d.label,30),items,note:str(d.note,200),
-    status:FLOW.includes(d.status)?d.status:"new",createdAt:+d.createdAt||0,updatedAt:+d.updatedAt||0,closed:!!d.closed,no:+d.no||0,station:d.station==="bar"?"bar":"kitchen",hold:!!d.hold,qr:!!d.qr,rejected:!!d.rejected,disc:cleanDisc(d.disc),discAmt:Math.max(0,+d.discAmt||0),wait:!!d.wait,pickup:!!d.pickup,walk:!!d.walk,pno:Math.max(0,Math.floor(+d.pno)||0),pname:str(d.pname,40),pphone:str(d.pphone,30),covers:Math.max(0,Math.min(99,Math.floor(+d.covers)||0)),paid:['card','cash','split'].includes(d.paid)?d.paid:'',by:str(d.by,40),byName:str(d.byName,40),pays:cleanPays(d.pays),idisc:cleanIdisc(d.idisc),discBy:cleanNumMap(d.discBy),paidAt:+d.paidAt||0,tRec:+d.tRec||0,tPrep:+d.tPrep||0,tSrv:+d.tSrv||0};
+    status:FLOW.includes(d.status)?d.status:"new",createdAt:+d.createdAt||0,updatedAt:+d.updatedAt||0,closed:!!d.closed,no:+d.no||0,station:d.station==="bar"?"bar":"kitchen",hold:!!d.hold,qr:!!d.qr,rejected:!!d.rejected,disc:cleanDisc(d.disc),discAmt:Math.max(0,+d.discAmt||0),wait:!!d.wait,printed:+d.printed||0,pickup:!!d.pickup,walk:!!d.walk,pno:Math.max(0,Math.floor(+d.pno)||0),pname:str(d.pname,40),pphone:str(d.pphone,30),covers:Math.max(0,Math.min(99,Math.floor(+d.covers)||0)),paid:['card','cash','split'].includes(d.paid)?d.paid:'',by:str(d.by,40),byName:str(d.byName,40),pays:cleanPays(d.pays),idisc:cleanIdisc(d.idisc),discBy:cleanNumMap(d.discBy),paidAt:+d.paidAt||0,tRec:+d.tRec||0,tPrep:+d.tPrep||0,tSrv:+d.tSrv||0};
 }
 function cleanPays(a){if(!Array.isArray(a))return [];return a.slice(0,40).filter(x=>x&&typeof x==="object").map(x=>{const it={};if(x.it&&typeof x.it==="object")Object.keys(x.it).slice(0,80).forEach(k=>{it[str(k,100)]=Math.max(0,Math.floor(+x.it[k])||0)});
   return {a:Math.max(0,Math.round((+x.a||0)*100)/100),m:x.m==="cash"?"cash":"card",at:+x.at||0,it,who:str(x.who,40),tab:str(x.tab,20)}})}
@@ -2129,7 +2135,10 @@ $("oCats").addEventListener("click",e=>{const bt=e.target.closest("button");if(!
   if(bt.dataset.side){const d=bt.dataset.side==="drinks";if(BAR_CATS.has(ord.cat)===d)return;
     ord[BAR_CATS.has(ord.cat)?"lastDrink":"lastFood"]=ord.cat;
     ord.pop=null;ord.cat=(d?ord.lastDrink:ord.lastFood)||CATS.find(k=>BAR_CATS.has(k)===d);renderOrder();$("oBody").scrollTop=0;return}
-  ord.pop=null;ord.cat=bt.dataset.c;renderOrder();$("oBody").scrollTop=0});
+  ord.pop=null;ord.q="";ord.cat=bt.dataset.c;renderOrder();$("oBody").scrollTop=0});
+$("oCats").addEventListener("input",e=>{if(e.target.id!=="mSearch"||!ord)return;ord.q=e.target.value;ord.pop=null;const pos=e.target.selectionStart;renderOrder();
+  const i=$("mSearch");if(i){i.focus();try{i.setSelectionRange(pos,pos)}catch(_){}}$("oBody").scrollTop=0});
+$("oCats").addEventListener("click",e=>{if(e.target.closest("[data-mq]")&&ord){ord.q="";renderOrder()}});
 function renderOrder(){
   $("ordOv").classList.toggle("barmode",!!(ord&&ord.barMode));   // bar staff: big, bold, full-screen drinks screen
   if(!ord)return;
@@ -2150,10 +2159,11 @@ function renderOrder(){
   if(ord.tab==="menu"&&!ord.review){
     cats.style.display="";
     const drinks=BAR_CATS.has(ord.cat),cnt=d=>c.filter(x=>BAR_CATS.has(ITEMS[x.n].cat)===d).reduce((a,x)=>a+x.q,0);
-    cats.innerHTML=(hhActive()?`<div class="hhbar">🍹 Happy hour until ${settings.hh.to} · ${settings.hh.pct}% off ${settings.hh.cats.length>3?"drinks":settings.hh.cats.join(", ")}</div>`:"")+tabChips(drinks)+`<div class="sidetog">${ord.barMode?"":`<button data-side="food" class="${drinks?"":"on"}">🍝 Food${cnt(false)?` <b>${cnt(false)}</b>`:""}</button>`}<button data-side="drinks" class="${drinks?"on":""}">🍸 Drinks${cnt(true)?` <b>${cnt(true)}</b>`:""}</button></div>
+    cats.innerHTML=`<div class="msearch"><input id="mSearch" type="search" placeholder="🔎 Search the menu, e.g. peroni, diavola" value="${esc(ord.q||"")}" autocomplete="off">${ord.q?`<button data-mq>✕</button>`:""}</div>`+(hhActive()?`<div class="hhbar">🍹 Happy hour until ${settings.hh.to} · ${settings.hh.pct}% off ${settings.hh.cats.length>3?"drinks":settings.hh.cats.join(", ")}</div>`:"")+tabChips(drinks)+`<div class="sidetog">${ord.barMode?"":`<button data-side="food" class="${drinks?"":"on"}">🍝 Food${cnt(false)?` <b>${cnt(false)}</b>`:""}</button>`}<button data-side="drinks" class="${drinks?"on":""}">🍸 Drinks${cnt(true)?` <b>${cnt(true)}</b>`:""}</button></div>
       <div class="catrow">${CATS.filter(k=>BAR_CATS.has(k)===drinks).map(k=>{const n=c.filter(x=>ITEMS[x.n].cat===k).reduce((a,x)=>a+x.q,0);
       return `<button data-c="${esc(k)}" class="${k===ord.cat?"on":""}">${esc(k)}${n?" · "+n:""}</button>`}).join("")}</div>`;
-    const list=MENU.find(m=>m[0]===ord.cat)[1];
+    const qq=(ord.q||"").trim().toLowerCase();
+    const list=qq?MENU.flatMap(([k,l])=>l.map(x=>[x[0],x[1],k+(x[2]?" · "+x[2]:"")])).filter(([n,p,d])=>(n+" "+d).toLowerCase().includes(qq)).slice(0,60):MENU.find(m=>m[0]===ord.cat)[1];
     body.innerHTML=list.map(([n,p,d])=>{const q=c.filter(x=>x.n===n).reduce((a,x)=>a+x.q,0);
       const out=outSet.has(n);
       return `<div class="mi${q?" has":""}${out?" out":""}" data-n="${esc(n)}"><div class="nm"><b>${esc(n)}</b>${d?`<small>${esc(d)}</small>`:""}</div><div class="pr">${priceOf(n)<p?`<s>${money(p)}</s> <b class="hhp">${money(priceOf(n))}</b>`:money(p)}</div>
@@ -2318,7 +2328,9 @@ $("oFoot").addEventListener("click",async e=>{
       note:[st==="kitchen"?bkAlg:"",(ord.note||"").trim()].filter(Boolean).join(" · ").slice(0,200),status:"new",createdAt:Date.now(),updatedAt:Date.now(),closed:false,no,covers:coversLeft,by:waiter?waiter.id:"",byName:waiter?waiter.name:"",
       pickup:!!ord.pickup,walk:!!(ord.pickup&&ord.walk),pno:ord.pickup?ord.pno:0,pname:ord.pickup?(ord.pname||"").trim():"",pphone:ord.pickup?(ord.pphone||"").trim():""};coversLeft=0;return t});
     bt.disabled=true;
+    const cartCopy=JSON.parse(JSON.stringify(c)),noteCopy=ord.note,leadNow=ord.lead;
     try{for(const t of made){await putTicket(t);if(!tickets.find(x=>x.id===t.id))tickets.push(t)}
+      showUndo(made.map(t=>t.id),cartCopy,noteCopy,leadNow);
       carts[ord.lead]=[];ord.note="";ord.review=false;ord.tab="sent";
       toast(pace?"Starters → kitchen · mains on hold — tap 🔥 Fire mains when ready":(ord.pickup?`Pickup #${ord.pno}: `:"")+(parts.length>1?"food → kitchen · drinks → bar":parts[0][0]==="bar"?"sent to bar":"sent to kitchen"));ticketsChanged()}
     catch(err){bt.disabled=false;toast(err&&err.code==="invalid_argument"?"View only — can't send orders":"Couldn't send — try again")}
@@ -3216,6 +3228,27 @@ $("xBody").addEventListener("input",e=>{if(xKind!=="menued")return;const rows=me
   const pi=e.target.dataset.mep;if(pi!==undefined){const r=rows[+pi],v=Math.round(+e.target.value*100)/100;if(e.target.value!==""&&isFinite(v)&&v>=0){if(v===r.p0)delete meDraft.price[r.n];else meDraft.price[r.n]=v;e.target.parentElement.classList.toggle("chg",v!==r.p0);meDirty=true;$("xFoot").querySelector("[data-mesave]").textContent="💾 Save menu"}}
   const di=e.target.dataset.med;if(di!==undefined){const r=rows[+di],v=e.target.value.trim();if(v===(r.d0||""))delete meDraft.desc[r.n];else meDraft.desc[r.n]=v;meDirty=true;$("xFoot").querySelector("[data-mesave]").textContent="💾 Save menu"}});
 
+// ---- undo a just-sent order for 10 seconds (wrong table, wrong item) ----
+let undoT=null;
+function showUndo(ids,cartCopy,note,lead){
+  let bar=$("undoBar");if(bar)bar.remove();clearInterval(undoT);
+  bar=document.createElement("div");bar.id="undoBar";bar.className="undobar";let left=10;
+  bar.innerHTML=`<span>Sent ✓</span><i>${left}s</i><button>↶ Undo</button>`;document.body.appendChild(bar);
+  undoT=setInterval(()=>{left--;const i=bar.querySelector("i");if(i)i.textContent=left+"s";if(left<=0){clearInterval(undoT);bar.remove()}},1000);
+  bar.querySelector("button").onclick=async()=>{clearInterval(undoT);bar.remove();
+    const list=tickets.filter(t=>ids.includes(t.id));
+    if(list.some(t=>t.status!=="new"&&!t.wait)){toast("Too late — the kitchen/bar has already started it");return}
+    for(const t of list){
+      const q=outbox.findIndex(x=>x.id===t.id&&x.op==="set");
+      if(q>=0){outbox.splice(q,1);saveOutbox()}                                   // never left this tablet
+      else if(!db){}
+      else if(t.printed){await delCore([t],"Undone by waiter",true)}               // already printed: CANCELLED slip
+      else{try{await db.collection("tickets").doc(t.id).delete()}catch(e){await delCore([t],"Undone by waiter",true)}}
+      tickets=tickets.filter(x=>x.id!==t.id)}
+    if(!db)storeLocal();
+    carts[lead]=cartCopy;if(ord&&ord.lead===lead){ord.note=note;ord.tab="menu";ord.review=true}
+    ticketsChanged();if(ord&&$("ordOv").classList.contains("show"))renderOrder();toast("↶ Order taken back — fix it and send again")}}
+
 // ---- course pacing: starters first, mains held until the waiter (or kitchen) fires them ----
 const STARTER_CATS=new Set(["Starters","Garlic Pizzas"]);
 function courseSplit(c){const food=c.filter(x=>ITEMS[x.n].station!=="bar");const st=food.filter(x=>STARTER_CATS.has(ITEMS[x.n].cat)),mn=food.filter(x=>!STARTER_CATS.has(ITEMS[x.n].cat));
@@ -3347,7 +3380,7 @@ async function saveGuestForm(){
   await upsertGuest(ph,{name:$("gfName").value.trim(),bday:bd,allergy:$("gfAlg").value.trim(),notes:$("gfNotes").value.trim()});
   toast("Guest saved");gEdit=null;renderGuests()}
 $("xBody").addEventListener("input",e=>{if(xKind==="guests"&&e.target.id==="gSearch"){gq=e.target.value;renderGuests();const si=$("gSearch");si.focus();si.setSelectionRange(gq.length,gq.length)}});
-$("sGuestsBtn").onclick=openGuests;$("sMenuBtn").onclick=()=>mgrCheck(openMenuEd,"Editing the menu needs a manager");
+$("sGuestsBtn").onclick=()=>mgrCheck(openGuests,"The guest list (phone numbers) is for managers");$("sMenuBtn").onclick=()=>mgrCheck(openMenuEd,"Editing the menu needs a manager");
 
 // ---- bar staff take drinks orders from the bar screen ----
 function barTake(){
@@ -3700,7 +3733,7 @@ $("areaBar").addEventListener("click",e=>{
   if(e.target.closest("#modeBtn")){mode=mode==="tiles"?"map":"tiles";try{localStorage.setItem("t57-mode",mode)}catch(_){}applyArea()}});
 $("tilesView").addEventListener("click",e=>{const t=e.target.closest(".tile");if(!t)return;
   if(t.dataset.p){openPickup(+t.dataset.p,"sent");return}tableTap(+t.dataset.t)});
-$("resetBtn").onclick=()=>{if(readOnly){toast("View only");return}
+$("resetBtn").onclick=()=>{if(readOnly){toast("View only");return}if(Date.now()>=mgrUntil){mgrCheck(()=>$("resetBtn").click(),"Resetting the layout needs a manager");return}
   ask("Reset the layout?","All joined tables split back to their own spots. Bookings stay on their first table.",()=>{
     const all=new Set();for(let i=1;i<=N;i++)all.add(i);commit([],all);toast("Layout reset")})};
 $("hideHint").onclick=()=>{$("hint").style.display="none";try{localStorage.setItem("t57-3d-hint","0")}catch(e){}};
@@ -3839,7 +3872,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261110230309";
+const APP_BUILD="20261110230954";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
