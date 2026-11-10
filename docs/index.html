@@ -812,6 +812,7 @@ body.training{padding-top:30px}
       <button id="zoomIn" title="Zoom in">+</button>
       <button id="zoomOut" title="Zoom out">−</button>
       <button id="fitBtn" title="Fit to screen">⤢</button>
+      <button id="turnBtn" title="Turn the plan">⟲</button>
       <button id="resetBtn" title="Reset layout">↺</button>
       <button id="setBtn" title="Settings">⚙</button>
     </div>
@@ -1224,6 +1225,7 @@ const AREAS={all:{x:0,y:0,w:2000,h:1460},bar:{x:140,y:0,w:1850,h:615},din:{x:0,y
 const TRAIN=(()=>{try{return localStorage.getItem("t57-train")==="1"&&!/^#table-/.test(location.hash)}catch(e){return false}})();
 const LK=TRAIN?"t57-tr-":"t57-";
 let area="all";try{area=localStorage.getItem("t57-area")||"all";if(!AREAS[area])area="all"}catch(e){}
+let autoRot=false;
 function fit(){
   const r=stage.getBoundingClientRect();
   // short landscape (Galaxy Tab A11 etc.): buttons sit in a column on the left, so the plan can use the full height
@@ -1232,7 +1234,9 @@ function fit(){
   const A=AREAS[area],top=wideShort?44:58,bot=wideShort?10:58,availW=Math.max(120,r.width-sideL-sideR),availH=Math.max(120,r.height-top-bot);
   const kOf=ro=>{const dw=ro?A.h:A.w,dh=ro?A.w:A.h;return view3d?Math.min(availW/(dw*1.12),availH/(dh*0.8)):Math.min(availW/dw,availH/dh)};
   // turn the plan sideways only when that makes it clearly bigger (upright tablets / phones)
-  const nr=!wideShort&&kOf(true)>kOf(false)*1.08;
+  autoRot=!wideShort&&kOf(true)>kOf(false)*1.08;
+  let rp="auto";try{rp=localStorage.getItem("t57-rot")||"auto"}catch(e){}
+  const nr=rp==="1"?true:rp==="0"?false:autoRot;
   if(nr!==rot){rot=nr;floor.classList.toggle("rot",rot);if(typeof render==="function"&&state)try{render()}catch(e){}}
   kFit=kOf(rot);
   zoom=1;panX=FW/2-(A.x+A.w/2);panY=FH/2-(A.y+A.h/2);
@@ -3567,6 +3571,9 @@ $("viewBtn").onclick=()=>{view3d=!view3d;try{localStorage.setItem("t57-view",vie
 $("zoomIn").onclick=()=>{zoom=Math.min(3.2,zoom*1.3);animCam()};
 $("zoomOut").onclick=()=>{zoom=Math.max(.6,zoom/1.3);animCam()};
 $("fitBtn").onclick=()=>{fit();animCam()};
+// turn the plan either way; this tablet remembers it (turning back to the automatic way = automatic again)
+$("turnBtn").onclick=()=>{const want=!rot;try{localStorage.setItem("t57-rot",want===autoRot?"auto":(want?"1":"0"))}catch(e){}
+  fit();animCam();toast(want?"Plan turned sideways — tap ⟲ again to turn back":"Plan the normal way round — tap ⟲ to turn it")};
 $("areaBar").addEventListener("click",e=>{
   const a=e.target.closest("[data-area]");if(a){area=a.dataset.area;try{localStorage.setItem("t57-area",area)}catch(_){}applyArea();return}
   if(e.target.closest("#modeBtn")){mode=mode==="tiles"?"map":"tiles";try{localStorage.setItem("t57-mode",mode)}catch(_){}applyArea()}});
@@ -3711,7 +3718,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261110113650";
+const APP_BUILD="20261110113812";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
