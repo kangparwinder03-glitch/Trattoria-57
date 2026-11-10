@@ -1,0 +1,19 @@
+name: Send a one-off print job
+on:
+  push:
+    paths: ["tools/printjob.json"]
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Insert print job
+        env:
+          U: https://uzrkewizkqdnqpovwune.supabase.co/rest/v1/t57_docs
+          K: sb_publishable_Hix2EgA_xpjxMYFvmarVIQ_Hj0qx3YM
+        run: |
+          jq '.data.createdAt=(now*1000|floor)' tools/printjob.json > /tmp/job.json
+          code=$(curl -s -o /tmp/out.txt -w '%{http_code}' -X POST "$U" -H "apikey: $K" -H "Authorization: Bearer $K" -H "Content-Type: application/json" -H "Prefer: resolution=merge-duplicates,return=minimal" --data @/tmp/job.json)
+          echo "HTTP $code"; cat /tmp/out.txt
+          test "$code" -lt 300
+          curl -s -H "apikey: $K" -H "Authorization: Bearer $K" "$U?select=id,data->>to,data->>title&coll=eq.printjobs&order=updated_at.desc&limit=2"
