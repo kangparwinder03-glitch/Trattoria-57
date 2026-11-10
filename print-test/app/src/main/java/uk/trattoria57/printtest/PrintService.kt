@@ -71,6 +71,7 @@ class PrintService : Service() {
     private fun loop() {
         while (running) {
             try { poll(); Hub.net("Connected · checked ${SimpleDateFormat("HH:mm:ss", Locale.UK).format(Date())}", true) }
+            catch (e: Exception) { Hub.net("⚠ Can't reach orders (${e.message ?: "no internet"}) — retrying", false) }
             // heartbeat: the website shows a green / red light for this printer
             if (System.currentTimeMillis() - lastBeat > 15000) try {
                 val st = prefs.getString("station", "kitchen") ?: "kitchen"
@@ -78,7 +79,6 @@ class PrintService : Service() {
                     .put("paper", if (prefs.getInt("cols", 32) >= 48) "80mm" else "58mm").put("dev", Build.MODEL ?: ""))
                 lastBeat = System.currentTimeMillis()
             } catch (_: Exception) {}
-            catch (e: Exception) { Hub.net("⚠ Can't reach orders (${e.message ?: "no internet"}) — retrying", false) }
             try { Thread.sleep(3000) } catch (_: InterruptedException) { break }
         }
     }
