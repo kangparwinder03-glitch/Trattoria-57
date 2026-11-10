@@ -774,6 +774,25 @@ body.training{padding-top:30px}
   #oFoot .btn{padding:15px 12px;font-size:15px}
 }
 @keyframes upFull{from{transform:translateY(24px);opacity:.6}}
+
+/* ---- bar ordering (Take drinks order / walk-up): full screen, big and bold ---- */
+#ordOv.barmode{align-items:stretch!important}
+#ordOv.barmode .sheet{max-width:none!important;width:100%;max-height:none!important;height:100vh;height:100dvh;border-radius:0!important}
+#ordOv.barmode #oTitle{font-size:30px!important}
+#ordOv.barmode #oCats .sidetog{display:none!important}
+#ordOv.barmode .otabs button,#ordOv.barmode [data-otab]{font-size:18px!important;font-weight:800;padding:12px!important}
+#ordOv.barmode #oCats .sidetog button{font-size:20px!important;padding:14px 10px!important}
+#ordOv.barmode #oCats .catrow button{font-size:18px!important;font-weight:800!important;padding:12px 18px!important;border-radius:22px!important}
+#ordOv.barmode .mi{padding:16px 22px!important;gap:14px}
+#ordOv.barmode .mi .nm b{font-size:21px!important;font-weight:800}
+#ordOv.barmode .mi .nm small{font-size:14px}
+#ordOv.barmode .mi .pr{font-size:20px!important;font-weight:800;color:var(--ink)}
+#ordOv.barmode .mi .step{gap:12px}
+#ordOv.barmode .mi .step button{width:56px!important;height:56px!important;font-size:34px!important;font-weight:800}
+#ordOv.barmode .mi .step span{font-size:22px;font-weight:800;min-width:26px;text-align:center}
+#ordOv.barmode .pq button{font-size:16px;padding:10px 16px}
+#ordOv.barmode #oFoot .btn{font-size:19px!important;padding:18px 14px!important;font-weight:800}
+#ordOv.barmode .cl{font-size:18px}#ordOv.barmode .cl .step button{width:48px;height:48px;font-size:26px}
 </style>
 </head>
 <body>
@@ -2037,6 +2056,7 @@ $("oCats").addEventListener("click",e=>{const bt=e.target.closest("button");if(!
     ord.pop=null;ord.cat=(d?ord.lastDrink:ord.lastFood)||CATS.find(k=>BAR_CATS.has(k)===d);renderOrder();$("oBody").scrollTop=0;return}
   ord.pop=null;ord.cat=bt.dataset.c;renderOrder();$("oBody").scrollTop=0});
 function renderOrder(){
+  $("ordOv").classList.toggle("barmode",!!(ord&&ord.barMode));   // bar staff: big, bold, full-screen drinks screen
   if(!ord)return;
   const g=curGroup(),ids=g.slice().sort((a,b)=>a-b),b=ord.pickup?null:state.bookings[leadOf(g)];
   if(ord.pickup){$("oTitle").innerHTML=ord.pname==="Bar walk-up"?`🍸 Bar walk-up <span style="color:var(--wine)">#${ord.pno}</span>`:`🥡 Pickup <span style="color:var(--wine)">#${ord.pno}</span><span class="chip" style="background:#3f5f86">No table</span>`;
@@ -3742,7 +3762,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261110213242";
+const APP_BUILD="20261110214637";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
