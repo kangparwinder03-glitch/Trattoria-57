@@ -742,6 +742,14 @@ body.training{padding-top:30px}
 .heldt{display:inline-flex;gap:8px;align-items:center;background:#fff;border:1px solid #ecd9a6;border-radius:10px;padding:4px 6px 4px 10px;font-weight:700}
 .heldt button,.firebtn{background:#c0501b!important;color:#fff!important;border:0!important;border-radius:8px;padding:6px 10px;font-weight:800}
 .stpill.heldp{background:#fff3d6;color:#7a5a00}
+.mecats{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}.mecats>div{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.mecats small{font-weight:800;color:#6d6448;min-width:46px}
+.mecats button{border:1px solid var(--parch2);background:#fffaf0;border-radius:14px;padding:5px 10px;font-weight:700;font-size:13px;color:#5d5640}.mecats button.on{background:var(--olive-dk);border-color:var(--olive-dk);color:#fff}
+.merow{display:flex;gap:8px;align-items:center;padding:8px 0;border-top:1px dashed var(--parch2)}.merow.off .men b{text-decoration:line-through;color:#9a917a}
+.men{flex:1;min-width:0}.men b{font-size:14px}.men i{font-style:normal;font-size:11px;font-weight:800;border-radius:8px;padding:1px 6px;margin-left:6px}.mnew{background:#e6efd8;color:var(--olive-dk)}.moff{background:#f6e1dc;color:var(--wine)}
+.med{display:block;width:100%;margin-top:4px;font-size:12px!important;padding:5px 8px!important}
+.mep{display:flex;align-items:center;gap:2px;font-weight:800}.mep input{width:84px!important;text-align:right}.mep.chg input{border-color:#d9b04a!important;background:#fff6e6}
+.meh{max-width:none!important;width:auto!important;padding:8px 10px!important;font-size:13px!important;flex:none}
+.meadd{margin-top:12px;padding:10px 12px;border:1px dashed var(--olive);border-radius:12px;background:#f7f9f0}.meaddrow{display:flex;gap:8px;margin:6px 0}.meaddrow>input{flex:1}.meadd>input{width:100%}
 </style>
 </head>
 <body>
@@ -829,7 +837,7 @@ body.training{padding-top:30px}
   <section id="report"><div class="rwrap" id="repBody"></div></section>
 
   <section id="staff">
-    <div class="sbar"><h2>STAFF</h2><span class="clock" id="sClock"></span><button id="sHours">Hours</button><button id="sGuests">👥 Guests</button><button id="sManage">Manage staff</button></div>
+    <div class="sbar"><h2>STAFF</h2><span class="clock" id="sClock"></span><button id="sHours">Hours</button><button id="sGuestsBtn">👥 Guests</button><button id="sMenuBtn">🍽 Menu</button><button id="sManage">Manage staff</button></div>
     <div id="sGrid"></div>
   </section>
 
@@ -1607,6 +1615,8 @@ $("setSave").onclick=async()=>{
 };
 function subscribeSettings(){
   if(!db)return;
+  db.doc("settings/menu").onSnapshot(sn=>{if(!sn.exists||sn.metadata.hasPendingWrites)return;menuOv=cleanMenuOv(sn.data());applyMenu();
+    try{localStorage.setItem("t57-menu",JSON.stringify(menuOv))}catch(e){}if(ord&&$("ordOv").classList.contains("show")&&!ord.review)renderOrder();if(xKind==="menued"&&!meDirty)renderMenuEd()},()=>{});
   db.doc("settings/main").onSnapshot(sn=>{if(!sn.exists||sn.metadata.hasPendingWrites)return;const d=sn.data()||{};
     settings={ownerEmail:str(d.ownerEmail,80),auto:d.auto!==false,pickupPct:pickPct(d.pickupPct),review:cleanLink(d.review)||settings.review,autoRc:d.autoRc!==false,ig:cleanUrl(d.ig)||settings.ig,fb:d.fb===undefined?settings.fb:cleanUrl(d.fb),ta:d.ta===undefined?settings.ta:cleanLink(d.ta),hh:d.hh===undefined?settings.hh:cleanHH(d.hh)};try{localStorage.setItem("t57-3d-settings",JSON.stringify(settings))}catch(e){}},()=>{});
 }
@@ -1680,6 +1690,22 @@ const MENU=[
 // ---------- orders & kitchen ----------
 const CATS=MENU.map(c=>c[0]);
 const ITEMS={};MENU.forEach(([cat,list])=>list.forEach(([n,p,d])=>{ITEMS[n]={n,p,d,cat,station:BAR_CATS.has(cat)?"bar":"kitchen"}}));
+// ---- menu edits (manager): price changes, new items, removed items — stored once, synced to every device ----
+const BASE_MENU=JSON.parse(JSON.stringify(MENU));
+let menuOv={price:{},desc:{},hide:[],add:[]};
+function cleanMenuOv(d){d=d&&typeof d==="object"?d:{};const o={price:{},desc:{},hide:[],add:[]};
+  if(d.price&&typeof d.price==="object")for(const k in d.price){const v=Math.round(+d.price[k]*100)/100;if(isFinite(v)&&v>=0&&v<1000)o.price[str(k,60)]=v}
+  if(d.desc&&typeof d.desc==="object")for(const k in d.desc)o.desc[str(k,60)]=str(d.desc[k],80);
+  if(Array.isArray(d.hide))o.hide=d.hide.map(x=>str(x,60)).filter(Boolean).slice(0,500);
+  if(Array.isArray(d.add))o.add=d.add.filter(a=>a&&a.n&&BASE_MENU.some(c=>c[0]===a.cat)).map(a=>({n:str(a.n,60).trim(),cat:a.cat,p:Math.max(0,Math.min(999,Math.round(+a.p*100)/100||0)),d:str(a.d||"",80)})).slice(0,300);
+  return o}
+function applyMenu(){
+  const hide=new Set(menuOv.hide);
+  const out=BASE_MENU.map(([cat,list])=>[cat,list.map(([n,p,d])=>[n,menuOv.price[n]!=null?menuOv.price[n]:p,menuOv.desc[n]!=null?menuOv.desc[n]:d])]);
+  menuOv.add.forEach(a=>{const c=out.find(x=>x[0]===a.cat);if(c&&!c[1].some(x=>x[0]===a.n))c[1].push([a.n,menuOv.price[a.n]!=null?menuOv.price[a.n]:a.p,menuOv.desc[a.n]!=null?menuOv.desc[a.n]:a.d])});
+  out.forEach(([cat,list])=>list.forEach(([n,p,d])=>{ITEMS[n]={n,p,d,cat,station:BAR_CATS.has(cat)?"bar":"kitchen",hidden:hide.has(n)}}));
+  MENU.length=0;out.forEach(([cat,list])=>MENU.push([cat,list.filter(x=>!hide.has(x[0]))]))}
+try{const v=JSON.parse(localStorage.getItem("t57-menu")||"null");if(v){menuOv=cleanMenuOv(v);applyMenu()}}catch(e){}
 const FLOW=["new","received","preparing","served"];
 const ST_LABEL={new:"Sent",received:"Received",preparing:"Preparing",served:"✓ Served"};
 const ST_BTN={new:"Mark received",received:"Start preparing",preparing:"Mark served"};
@@ -2979,6 +3005,41 @@ function renderAllOrders(){
           ${t.note?`<div><i>Note: ${esc(t.note)}</i></div>`:""}${k==="del"||k==="rej"?"":`<button class="btn dng aodel" data-aodel="${t.id}">🗑 Delete this order</button>`}</div>`:""}</div>`}).join("")||`<p class="trial">No orders here.</p>`}`;
   $("xFoot").innerHTML=`<button class="btn pri" data-xdone>Done</button>`}
 
+// ---- menu editor (Staff → 🍽 Menu, manager PIN) ----
+let meCat=null,meDraft=null,meDirty=false;
+function openMenuEd(){meCat=meCat||CATS[0];meDraft=JSON.parse(JSON.stringify(menuOv));meDirty=false;
+  openX("menued","Edit menu","Change prices, add dishes and drinks, or take items off. Saves to every tablet.",e=>{
+    const c=e.target.closest("[data-mec]");if(c){meCat=c.dataset.mec;renderMenuEd();return}
+    const h=e.target.closest("[data-mehide]");if(h){const n=meRows()[+h.dataset.mehide].n,i=meDraft.hide.indexOf(n);if(i>=0)meDraft.hide.splice(i,1);else meDraft.hide.push(n);meDirty=true;renderMenuEd();return}
+    const del=e.target.closest("[data-medel]");if(del){const n=meRows()[+del.dataset.medel].n;meDraft.add=meDraft.add.filter(a=>a.n!==n);delete meDraft.price[n];delete meDraft.desc[n];meDraft.hide=meDraft.hide.filter(x=>x!==n);meDirty=true;renderMenuEd();return}
+    if(e.target.closest("[data-meadd]")){meAdd();return}
+    if(e.target.closest("[data-mesave]")){meSave();return}
+    if(e.target.closest("[data-mecancel]")){if(!meDirty){closeX();return}ask("Throw away your menu changes?","Nothing has been saved yet.",()=>closeX());return}});
+  renderMenuEd()}
+function meRows(){const base=(BASE_MENU.find(c=>c[0]===meCat)||[0,[]])[1].map(([n,p,d])=>({n,p0:p,d0:d,custom:false}));
+  return base.concat(meDraft.add.filter(a=>a.cat===meCat).map(a=>({n:a.n,p0:a.p,d0:a.d,custom:true})))}
+function renderMenuEd(){
+  if(xKind!=="menued")return;const rows=meRows(),hide=new Set(meDraft.hide);
+  const tabs=`<div class="mecats">${[["Drinks",CATS.filter(k=>BAR_CATS.has(k))],["Food",CATS.filter(k=>!BAR_CATS.has(k))]].map(([t,ks])=>`<div><small>${t}</small>${ks.map(k=>`<button data-mec="${esc(k)}" class="${k===meCat?"on":""}">${esc(k)}</button>`).join("")}</div>`).join("")}</div>`;
+  $("xBody").innerHTML=tabs+`<div class="melist">${rows.map((r,i)=>{const p=meDraft.price[r.n]!=null?meDraft.price[r.n]:r.p0,off=hide.has(r.n),chg=meDraft.price[r.n]!=null&&meDraft.price[r.n]!==r.p0;
+    return `<div class="merow${off?" off":""}"><span class="men"><b>${esc(r.n)}</b>${r.custom?`<i class="mnew">new</i>`:""}${off?`<i class="moff">off the menu</i>`:""}<input class="med" data-med="${i}" maxlength="80" value="${esc(meDraft.desc[r.n]!=null?meDraft.desc[r.n]:r.d0||"")}" placeholder="Description (optional)"></span>
+      <label class="mep${chg?" chg":""}">£<input type="number" step="0.05" min="0" max="999" inputmode="decimal" data-mep="${i}" value="${p.toFixed(2)}"></label>
+      <button class="btn sec meh" data-mehide="${i}">${off?"↩ Put back":"Remove"}</button>${r.custom?`<button class="btn dng meh" data-medel="${i}" title="Delete for good">🗑</button>`:""}</div>`}).join("")}</div>
+    <div class="meadd"><b>+ Add to ${esc(meCat)}</b><div class="meaddrow"><input id="meN" maxlength="60" placeholder="Name, e.g. Pizza Tartufo"><label class="mep">£<input id="meP" type="number" step="0.05" min="0" max="999" inputmode="decimal" placeholder="0.00"></label></div>
+      <input id="meD" maxlength="80" placeholder="Description (optional)"><button class="btn sec" data-meadd style="max-width:none;width:100%;margin-top:6px">Add item</button></div>`;
+  $("xFoot").innerHTML=`<button class="btn sec" data-mecancel>Cancel</button><button class="btn pri" data-mesave>${meDirty?"💾 Save menu":"Save menu"}</button>`}
+function meAdd(){const n=($("meN").value||"").replace(/\s+/g," ").trim(),p=Math.round(+$("meP").value*100)/100,d=($("meD").value||"").trim();
+  if(!n){toast("Type a name");return}if(!isFinite(p)||p<0||$("meP").value===""){toast("Type a price");return}
+  if(ITEMS[n]||meDraft.add.some(a=>a.n===n)){toast(`"${n}" is already on the menu`);return}
+  meDraft.add.push({n,cat:meCat,p,d});meDirty=true;renderMenuEd();toast(`Added ${n} — tap Save menu`)}
+async function meSave(){const ov=cleanMenuOv(meDraft);menuOv=ov;applyMenu();
+  try{localStorage.setItem("t57-menu",JSON.stringify(ov))}catch(e){}
+  if(db&&!readOnly){try{await db.doc("settings/menu").set(ov)}catch(e){toast("Saved here, but couldn't sync — try again");return}}
+  meDirty=false;closeX();toast("Menu saved — every tablet updates now")}
+$("xBody").addEventListener("input",e=>{if(xKind!=="menued")return;const rows=meRows();
+  const pi=e.target.dataset.mep;if(pi!==undefined){const r=rows[+pi],v=Math.round(+e.target.value*100)/100;if(e.target.value!==""&&isFinite(v)&&v>=0){if(v===r.p0)delete meDraft.price[r.n];else meDraft.price[r.n]=v;e.target.parentElement.classList.toggle("chg",v!==r.p0);meDirty=true;$("xFoot").querySelector("[data-mesave]").textContent="💾 Save menu"}}
+  const di=e.target.dataset.med;if(di!==undefined){const r=rows[+di],v=e.target.value.trim();if(v===(r.d0||""))delete meDraft.desc[r.n];else meDraft.desc[r.n]=v;meDirty=true;$("xFoot").querySelector("[data-mesave]").textContent="💾 Save menu"}});
+
 // ---- course pacing: starters first, mains held until the waiter (or kitchen) fires them ----
 const STARTER_CATS=new Set(["Starters","Garlic Pizzas"]);
 function courseSplit(c){const food=c.filter(x=>ITEMS[x.n].station!=="bar");const st=food.filter(x=>STARTER_CATS.has(ITEMS[x.n].cat)),mn=food.filter(x=>!STARTER_CATS.has(ITEMS[x.n].cat));
@@ -3110,7 +3171,7 @@ async function saveGuestForm(){
   await upsertGuest(ph,{name:$("gfName").value.trim(),bday:bd,allergy:$("gfAlg").value.trim(),notes:$("gfNotes").value.trim()});
   toast("Guest saved");gEdit=null;renderGuests()}
 $("xBody").addEventListener("input",e=>{if(xKind==="guests"&&e.target.id==="gSearch"){gq=e.target.value;renderGuests();const si=$("gSearch");si.focus();si.setSelectionRange(gq.length,gq.length)}});
-$("sGuests").onclick=openGuests;
+$("sGuestsBtn").onclick=openGuests;$("sMenuBtn").onclick=()=>mgrCheck(openMenuEd,"Editing the menu needs a manager");
 
 // ---- bar staff take drinks orders from the bar screen ----
 function barTake(){
@@ -3599,7 +3660,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261110081031";
+const APP_BUILD="20261110081736";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
