@@ -802,6 +802,7 @@ body.training{padding-top:30px}
 .bigtext .tk button{font-size:22px!important;padding:16px!important}
 .bigtext .pg{font-size:13px}.bigtext .pg i{height:8px}
 [data-big].on{background:var(--olive-dk)!important;color:#fff!important;border-color:var(--olive-dk)!important}
+.obx{order:6;width:100%;background:#fff3d6;border:1px solid #e0b850;color:#6a4a00;border-radius:10px;padding:6px 10px;font-size:13px;font-weight:700;text-align:center}
 </style>
 </head>
 <body>
@@ -1873,18 +1874,52 @@ function subscribeTickets(){
   const key=dateKey;
   ticketUnsub=db.collection("tickets").where("date","==",key).onSnapshot(sn=>{
     if(key!==dateKey)return;
-    tickets=sn.docs.map(d=>cleanTicket(d.id,d.data())).filter(Boolean);ticketsChanged();
+    tickets=withOutbox(sn.docs.map(d=>cleanTicket(d.id,d.data())).filter(Boolean));ticketsChanged();
   },()=>{});
 }
+// ---- offline safety: if the Wi-Fi drops, orders and changes wait on this tablet and send themselves when it's back ----
+let outbox=[];try{outbox=JSON.parse(localStorage.getItem(LK+"outbox")||"[]")||[]}catch(e){outbox=[]}
+const saveOutbox=()=>{try{localStorage.setItem(LK+"outbox",JSON.stringify(outbox))}catch(e){}updOutbox()};
+const hardErr=e=>e&&e.code==="invalid_argument";
+function queueWrite(op,id,data){
+  if(op==="update"){const q=outbox.find(x=>x.id===id&&(x.op==="update"||x.op==="set"));
+    if(q){if(q.op==="set")Object.assign(q.data,data);else Object.assign(q.data,data);saveOutbox();return}}
+  outbox.push({op,coll:"tickets",id,data:JSON.parse(JSON.stringify(data)),at:Date.now()});saveOutbox()}
+let flushing=false;
+async function flushOutbox(){
+  if(flushing||!db||!outbox.length)return;flushing=true;
+  try{while(outbox.length){const q=outbox[0];
+      try{const ref=db.collection(q.coll).doc(q.id);if(q.op==="set")await ref.set(q.data);else await ref.update(q.data)}
+      catch(e){if(hardErr(e)){outbox.shift();saveOutbox();continue}break}
+      outbox.shift();saveOutbox()}
+    if(!outbox.length){toast("✅ Back online — everything sent");ticketsChanged()}}
+  finally{flushing=false}}
+setInterval(flushOutbox,5000);addEventListener("online",()=>setTimeout(flushOutbox,500));
+function withOutbox(list){   // show waiting orders/changes on screen even though the server hasn't got them yet
+  if(!outbox.length)return list;const by=new Map(list.map(t=>[t.id,t]));
+  outbox.forEach(q=>{if(q.coll!=="tickets")return;const cur=by.get(q.id);
+    if(q.op==="set"&&!cur&&q.data.date===dateKey){const t=cleanTicket(q.id,q.data);if(t)by.set(q.id,t)}
+    else if(cur)by.set(q.id,cleanTicket(q.id,Object.assign({},cur,q.data))||cur)});
+  return [...by.values()]}
+function updOutbox(){const el=$("status");if(!el)return;let w=$("obx");
+  if(!outbox.length){if(w)w.remove();return}
+  if(!w){w=document.createElement("div");w.id="obx";w.className="obx";el.after(w)}
+  const n=outbox.filter(q=>q.op==="set").length,m=outbox.length-n;
+  w.textContent=`⏳ No connection — ${n?n+" order"+(n===1?"":"s"):""}${n&&m?" + ":""}${m?m+" change"+(m===1?"":"s"):""} waiting, will send automatically`}
+setTimeout(updOutbox,0);
 async function putTicket(t){
   if(!db){const i=tickets.findIndex(x=>x.id===t.id);if(i>=0)tickets[i]=t;else tickets.push(t);storeLocal();ticketsChanged();return}
-  await db.collection("tickets").doc(t.id).set(t);
+  if(outbox.length){queueWrite("set",t.id,t);flushOutbox();return}   // keep the order of things
+  try{await db.collection("tickets").doc(t.id).set(t)}
+  catch(e){if(hardErr(e))throw e;queueWrite("set",t.id,t);toast("⏳ No connection — order saved on this tablet, it'll send when the Wi-Fi is back")}
 }
 async function patchTicket(t,fields){
   Object.assign(t,fields,{updatedAt:Date.now()});
   if(!db){storeLocal();ticketsChanged();return}
-  try{await db.collection("tickets").doc(t.id).update({...fields,updatedAt:t.updatedAt})}
-  catch(e){toast(e&&e.code==="invalid_argument"?"View only — can't update":"Couldn't update — try again")}
+  const f={...fields,updatedAt:t.updatedAt};
+  if(outbox.length){queueWrite("update",t.id,f);flushOutbox();return}
+  try{await db.collection("tickets").doc(t.id).update(f)}
+  catch(e){if(hardErr(e)){toast("View only — can't update");return}queueWrite("update",t.id,f);toast("⏳ No connection — saved here, will send when the Wi-Fi is back")}
 }
 // ---- floor alerts: flash + chime when kitchen moves an order ----
 const prevSt={};let stInit=false;
@@ -3785,7 +3820,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261110221716";
+const APP_BUILD="20261110230209";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
