@@ -240,6 +240,16 @@ body.k #stage,body.k footer,body.s #stage,body.s footer,body.r #stage,body.r foo
 #report{display:none;flex:1;overflow:auto;background:linear-gradient(180deg,#F4ECDB,#E9DFC6);padding:14px}
 body.r #report{display:block}
 .rwrap{max-width:980px;margin:0 auto}
+.rmode{display:inline-flex;background:#efe6d3;border-radius:12px;padding:3px;margin-bottom:10px;gap:2px}
+.rmode button{border:0;background:none;padding:9px 18px;border-radius:9px;font:700 14px system-ui;color:#5c5438;min-height:40px}
+.rmode button.on{background:#fff;color:var(--ink);box-shadow:0 1px 4px rgba(70,50,20,.15)}
+.pmv{min-width:44px;min-height:40px;font-size:22px;line-height:1;padding:0 10px}
+.pmv[disabled]{opacity:.35}
+.phls{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:12px}
+.phl{background:#fff;border-radius:14px;padding:10px 12px;box-shadow:0 1px 6px rgba(70,50,20,.08);display:flex;flex-direction:column;gap:2px;min-width:0}
+.phl span{font-size:11px;font-weight:700;color:#7a6f52;letter-spacing:.5px;text-transform:uppercase}
+.phl b{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.phl small{font-size:12px;color:#6d6448}
+.vb.vbm,.vbx.vbm{gap:2px}.vbx.vbm span{font-size:8.5px}
 .rhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 .rhead h2{margin:0;font-family:Cinzel,Georgia,serif;font-size:16px;letter-spacing:3px;margin-right:auto}
 .rhead button{border:1px solid var(--parch2);background:#fffaf0;border-radius:12px;padding:9px 13px;font-weight:700;font-size:13px;color:var(--olive-dk)}
@@ -2693,7 +2703,13 @@ function pdfHeader(P,title,sub){
 async function offerPdf(P,filename){
   const bytes=P.bytes();window.__t57lastPdf={filename,bytes};
   let dl=null;try{dl=window.claude&&typeof window.claude.use==="function"?await window.claude.use("downloads"):null}catch(_){}
-  if(!dl){toast("PDF ready — saving isn't available in this view");return}
+  if(!dl){
+    try{const f=new File([bytes],filename,{type:"application/pdf"});
+      if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:filename.replace(/_/g," ").replace(/\.pdf$/,""),text:"Trattoria 57"});toast("PDF shared");return}}
+    catch(e){if(e&&e.name==="AbortError")return}
+    try{const u=URL.createObjectURL(new Blob([bytes],{type:"application/pdf"}));const a=document.createElement("a");a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),30000);toast("PDF downloaded — open it from Downloads to email or print")}
+    catch(_){toast("Couldn't make the PDF here")}
+    return}
   try{const r=await dl.save({filename,data:bytes});toast(r&&r.status==="delivered"?"PDF sent":"PDF saved — open it and tap Share → Print")}
   catch(e){const c=e&&e.code;toast(c==="declined"?"Not saved":c==="rate_limited"?"One moment — try again":"Couldn't save the PDF here")}
 }
@@ -2762,8 +2778,8 @@ function receiptPdf(B){
 let repUnlockUntil=0;
 function catOf(n){return ITEMS[n]?ITEMS[n].cat:"Other"}
 function dayRange(k){const s=new Date(k+"T00:00:00").getTime();return [s,s+864e5]}
-function buildReport(){
-  const all=tickets.filter(t=>t.items.length&&!t.hold&&!t.rejected);
+function buildReport(src){
+  const all=(src?src.tk:tickets).filter(t=>t.items.length&&!t.hold&&!t.rejected);
   const sub=t=>t.items.reduce((a,x)=>a+lv(x),0);
   const sales=all.reduce((a,t)=>a+sub(t),0);
   const paid=all.filter(t=>t.closed&&t.paid),open=all.filter(t=>!t.closed);
@@ -2784,11 +2800,11 @@ function buildReport(){
   const served=all.filter(t=>t.tSrv&&t.createdAt);
   const avgKitchen=served.length?served.reduce((a,t)=>a+(t.tSrv-t.createdAt),0)/served.length:0;
   const slowest=served.slice().sort((a,b)=>(b.tSrv-b.createdAt)-(a.tSrv-a.createdAt))[0];
-  const [ds,de]=dayRange(dateKey);const names=allStaffMap();const staffH={};
+  const [ds,de]=src?[src.ds,src.de]:dayRange(dateKey);const names=allStaffMap();const staffH={};
   shifts().forEach(x=>{const st=Math.max(x.in,ds),en=Math.min(x.out||Date.now(),de);if(en<=st)return;
     let ms=en-st;x.breaks.forEach(b=>{const bs=Math.max(b.s,st),be=Math.min(b.e||en,en);if(be>bs)ms-=be-bs});staffH[x.staff]=(staffH[x.staff]||0)+Math.max(0,ms)});
   const labour=Object.values(staffH).reduce((a,x)=>a+x,0);
-  const bk=Object.values(state.bookings).concat(state.done||[]);const bGuests=bk.reduce((a,b)=>a+partyOf(b),0),bConf=bk.filter(b=>b.status==="confirmed").length,noShows=bk.filter(b=>b.status==="noshow").length,cancels=bk.filter(b=>b.status==="cancelled").length,walkouts=bk.filter(b=>b.status==="walkout").length;
+  const bk=src?src.bk:Object.values(state.bookings).concat(state.done||[]);const bGuests=bk.reduce((a,b)=>a+partyOf(b),0),bConf=bk.filter(b=>b.status==="confirmed").length,noShows=bk.filter(b=>b.status==="noshow").length,cancels=bk.filter(b=>b.status==="cancelled").length,walkouts=bk.filter(b=>b.status==="walkout").length;
   return {voids,voidTotal:voids.reduce((a,x)=>a+x.v,0),byW,noShows,cancels,walkouts,discTotal,discBy,discN:discTk.length,all,sales,paidAmt:card+cash,card,cash,openAmt,openTables,covers,items,cats,hours,itemsSold,served,avgKitchen,slowest,staffH,names,labour,bk,bGuests,bConf};
 }
 const mins=ms=>Math.round(ms/60000)+" min";
@@ -2798,13 +2814,14 @@ function renderReport(){
   const el=$("repBody");
   if(Date.now()>repUnlockUntil){
     el.innerHTML=`<div class="rlock"><b style="font-size:17px;color:var(--ink)">Manager only</b><br>The day report shows takings and staff hours.<br><button class="btn pri" id="repUnlock" style="margin-top:14px;max-width:none">Enter manager PIN</button></div>`;return}
+  if(repMode!=="day"){renderPeriod();return}
   const R=buildReport(),L=$("dateLabel").textContent;
   const top=Object.entries(R.items).sort((a,b)=>b[1].q-a[1].q||b[1].v-a[1].v).slice(0,10);
   const cats=Object.entries(R.cats).sort((a,b)=>b[1]-a[1]);
   const hs=Object.keys(R.hours).map(Number);const h0=hs.length?Math.min(12,...hs):12,h1=hs.length?Math.max(22,...hs):22;
   const hrs=[];for(let h=h0;h<=h1;h++)hrs.push([h,R.hours[h]||0]);const hmax=Math.max(...hrs.map(x=>x[1]),1);
   const staffRows=Object.entries(R.staffH).sort((a,b)=>b[1]-a[1]);
-  el.innerHTML=`<div class="rhead"><h2>DAY REPORT · ${esc(L.toUpperCase())}</h2><button class="pri" id="repPdf">🖨 Print / PDF</button>${canThermal()?`<button class="pri" id="repThermal">🧾 Thermal print</button>`:""}<button class="pri" id="repOrders">📋 All orders</button><button id="repCopy">Copy report</button><button id="repMail">✉ Email to owner</button></div>
+  el.innerHTML=`${repModeBar()}<div class="rhead"><h2>DAY REPORT · ${esc(L.toUpperCase())}</h2><button class="pri" id="repPdf">🖨 Print / PDF</button>${canThermal()?`<button class="pri" id="repThermal">🧾 Thermal print</button>`:""}<button class="pri" id="repOrders">📋 All orders</button><button id="repCopy">Copy report</button><button id="repMail">✉ Email to owner</button></div>
   ${R.all.length?"":`<p class="trial">No orders on this day yet. Use the date arrows at the top to look at another day.</p>`}
   <div class="kpis">
     <div class="kpi hero"><span>Takings (paid)</span><b>${money(R.paidAmt)}</b><small>${R.openAmt?`+ ${money(R.openAmt)} still open on ${R.openTables} ${R.openTables===1?"table":"tables"}`:"All bills closed"}</small></div>
@@ -2847,7 +2864,211 @@ function reportText(){
   t+=`\n\nBookings: ${R.bk.length} (${R.bGuests} guests, ${R.bConf} confirmed, ${R.noShows} no-shows, ${R.cancels} cancelled, ${R.walkouts} walk-outs)\n`;
   return t;
 }
+// ---------- weekly & monthly reports ----------
+let repMode=(()=>{try{const v=localStorage.getItem("t57-repmode");return v==="week"||v==="month"?v:"day"}catch(_){return "day"}})();
+const perCache={};
+function repModeBar(){return `<div class="rmode">${[["day","Day"],["week","Week"],["month","Month"]].map(([k,t])=>`<button data-rm="${k}" class="${repMode===k?"on":""}">${t}</button>`).join("")}</div>`}
+function periodRange(kind,k){
+  if(kind==="week"){const d=new Date(k+"T12:00:00");const back=(d.getDay()+6)%7;const s=addDays(k,-back),e=addDays(s,6);
+    const days=[];for(let i=0;i<7;i++)days.push(addDays(s,i));return {kind,s,e,days,prevS:addDays(s,-7),prevE:addDays(s,-1)}}
+  const y=+k.slice(0,4),m=+k.slice(5,7),s=k.slice(0,8)+"01",n=new Date(y,m,0).getDate(),e=k.slice(0,8)+String(n).padStart(2,"0");
+  const days=[];for(let i=0;i<n;i++)days.push(addDays(s,i));
+  const pe=addDays(s,-1),ps=pe.slice(0,8)+"01";return {kind,s,e,days,prevS:ps,prevE:pe};
+}
+const perLabel=Pd=>Pd.kind==="week"?`${dDay(new Date(Pd.s+"T12:00:00").getTime())} – ${dDay(new Date(Pd.e+"T12:00:00").getTime())}`:new Date(Pd.s+"T12:00:00").toLocaleDateString("en-GB",{month:"long",year:"numeric"});
+async function ticketsBetween(s,e){
+  if(!db){const out=[];let k=s;while(k<=e){try{(JSON.parse(localStorage.getItem(LK+"tk-"+k)||"[]")||[]).forEach(t=>{const c=cleanTicket(t.id,t);if(c)out.push(c)})}catch(_){}k=addDays(k,1)}return out}
+  const sn=await db.collection("tickets").where("date",">=",s).where("date","<=",e).get();
+  return sn.docs.map(d=>cleanTicket(d.id,d.data())).filter(Boolean);
+}
+async function loadPeriod(kind,k){
+  const P=periodRange(kind,k),key=kind+":"+P.s,c=perCache[key];
+  if(c&&Date.now()-c.at<60000)return c.Pd;
+  const [tk,prev,days]=await Promise.all([ticketsBetween(P.s,P.e),ticketsBetween(P.prevS,P.prevE).catch(()=>[]),Promise.all(P.days.map(d=>loadDay(d).catch(()=>defaultState())))]);
+  const bk=[];days.forEach(st=>bk.push(...Object.values(st.bookings||{}),...(st.done||[])));
+  const ds=new Date(P.s+"T00:00:00").getTime(),de=new Date(P.e+"T00:00:00").getTime()+864e5;
+  const R=buildReport({tk,ds,de,bk});
+  const Rp=buildReport({tk:prev,ds:new Date(P.prevS+"T00:00:00").getTime(),de:ds,bk:[]});
+  const ok=t=>t.items.length&&!t.hold&&!t.rejected;
+  const net=t=>t.items.reduce((a,x)=>a+lv(x),0)-(t.discAmt||0);
+  const byDay=P.days.map(d=>{const L=tk.filter(t=>t.date===d&&ok(t));return {d,v:L.reduce((a,t)=>a+net(t),0),covers:L.reduce((a,t)=>a+(t.covers||0),0),orders:L.length}});
+  const wk=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(n=>({n,v:0,c:0}));
+  byDay.forEach(x=>{const i=(new Date(x.d+"T12:00:00").getDay()+6)%7;wk[i].v+=x.v;if(x.v>0)wk[i].c++});
+  const its=Object.entries(R.items).map(([n,x])=>({n,q:x.q,v:x.v,bar:BAR_CATS.has(catOf(n))}));
+  const byQ=its.slice().sort((a,b)=>b.q-a.q||b.v-a.v);
+  const food=byQ.filter(x=>!x.bar),drink=byQ.filter(x=>x.bar);
+  const least=byQ.slice().reverse().slice(0,6);
+  const sold=new Set(its.map(x=>x.n));
+  const notSold=[];MENU.forEach(([cat,list])=>{if(BAR_CATS.has(cat))return;list.forEach(([n])=>{if(!sold.has(n)&&!notSold.some(z=>z.n===n))notSold.push({n,bar:false})})});
+  const open=byDay.filter(x=>x.v>0);
+  const best=open.slice().sort((a,b)=>b.v-a.v)[0]||null,quiet=open.slice().sort((a,b)=>a.v-b.v)[0]||null;
+  const hrs=Object.entries(R.hours).sort((a,b)=>b[1]-a[1])[0];
+  const foodV=its.filter(x=>!x.bar).reduce((a,x)=>a+x.v,0),drinkV=its.filter(x=>x.bar).reduce((a,x)=>a+x.v,0);
+  const Pd=Object.assign({},P,{R,Rp,byDay,wk,byQ,food,drink,least,notSold,best,quiet,openDays:open.length,busyHour:hrs?+hrs[0]:null,foodV,drinkV,
+    change:Rp.paidAmt>0?(R.paidAmt-Rp.paidAmt)/Rp.paidAmt:null,label:perLabel(P)});
+  perCache[key]={at:Date.now(),Pd};return Pd;
+}
+function withPeriod(fn){loadPeriod(repMode,dateKey).then(fn).catch(()=>toast("Couldn't load the report — check the internet"))}
+function movePeriod(dir){
+  const P=periodRange(repMode,dateKey);
+  const k=repMode==="week"?addDays(P.s,7*dir):(dir<0?addDays(P.s,-1).slice(0,8)+"01":addDays(P.e,1));
+  setDate(k>todayKey()?todayKey():k);
+}
+const pct=v=>v==null?"":(v>=0?"▲ ":"▼ ")+Math.abs(Math.round(v*100))+"%";
+const shortDay=(d,kind)=>{const x=new Date(d+"T12:00:00");return kind==="week"?x.toLocaleDateString("en-GB",{weekday:"short"}):String(x.getDate())};
+async function renderPeriod(){
+  const el=$("repBody"),kind=repMode,k=dateKey,P=periodRange(kind,k);
+  const head=`${repModeBar()}<div class="rhead"><button class="pmv" data-pmove="-1" aria-label="Previous">‹</button><h2>${kind==="week"?"WEEKLY":"MONTHLY"} REPORT · ${esc(perLabel(P).toUpperCase())}</h2><button class="pmv" data-pmove="1" aria-label="Next"${P.e>=todayKey()?" disabled":""}>›</button></div>`;
+  if(!perCache[kind+":"+P.s])el.innerHTML=head+`<p class="trial">Loading ${kind==="week"?"the week":"the month"}…</p>`;
+  let Pd;try{Pd=await loadPeriod(kind,k)}catch(e){el.innerHTML=head+`<p class="trial">Couldn't load — check the internet and try again.</p>`;return}
+  if(repMode!==kind||dateKey!==k||view!=="report")return;
+  const R=Pd.R,max=Math.max(...Pd.byDay.map(x=>x.v),1);
+  const hl=(ic,t,v,sub2)=>`<div class="phl"><span>${ic} ${t}</span><b>${esc(v)}</b>${sub2?`<small>${esc(sub2)}</small>`:""}</div>`;
+  const top=Pd.byQ.slice(0,10),f0=Pd.food[0],d0=Pd.drink[0],l0=Pd.least[0];
+  const cats=Object.entries(R.cats).sort((a,b)=>b[1]-a[1]);
+  el.innerHTML=head+`<div class="rhead"><span style="margin-right:auto"></span><button class="pri" id="perPdf">📄 PDF / email</button>${canThermal()?`<button class="pri" id="perThermal">🧾 Thermal print</button>`:""}<button id="perCopy">Copy report</button><button id="perMail">✉ Email text</button></div>
+  ${R.all.length?"":`<p class="trial">No orders in this ${kind} yet. Use ‹ › to look at another ${kind}.</p>`}
+  <div class="kpis">
+    <div class="kpi hero"><span>Takings (paid)</span><b>${money(R.paidAmt)}</b><small>${Pd.change==null?`${kind==="week"?"Last week":"Last month"}: no sales`:`${pct(Pd.change)} vs ${kind==="week"?"last week":"last month"} (${money(Pd.Rp.paidAmt)})`}</small></div>
+    <div class="kpi"><span>💳 Card</span><b>${money(R.card)}</b></div>
+    <div class="kpi"><span>💵 Cash</span><b>${money(R.cash)}</b></div>
+    <div class="kpi"><span>Avg per day open</span><b>${Pd.openDays?money(R.paidAmt/Pd.openDays):"—"}</b><small>${Pd.openDays} ${Pd.openDays===1?"day":"days"} with sales</small></div>
+    <div class="kpi"><span>Covers</span><b>${R.covers}</b></div>
+    <div class="kpi"><span>Spend / head</span><b>${R.covers?money((R.sales-R.discTotal)/R.covers):"—"}</b></div>
+    <div class="kpi"><span>Orders</span><b>${R.all.length}</b><small>${R.itemsSold} items</small></div>
+    <div class="kpi"><span>🏷 Discounts</span><b>${money(R.discTotal)}</b><small>Voids ${money(R.voidTotal)}</small></div>
+  </div>
+  <div class="phls">
+    ${hl("🏆","Most sold",top[0]?top[0].n:"—",top[0]?`${top[0].q} sold · ${money(top[0].v)}`:"")}
+    ${hl("🐢","Least sold",l0?l0.n:"—",l0?`${l0.q} sold`:"")}
+    ${hl("🍝","Best dish",f0?f0.n:"—",f0?`${f0.q} sold`:"")}
+    ${hl("🍷","Best drink",d0?d0.n:"—",d0?`${d0.q} sold`:"")}
+    ${hl("📅","Best day",Pd.best?dDay(new Date(Pd.best.d+"T12:00:00").getTime()):"—",Pd.best?money(Pd.best.v):"")}
+    ${hl("⏰","Busiest hour",Pd.busyHour==null?"—":`${Pd.busyHour}:00 – ${Pd.busyHour+1}:00`,"")}
+  </div>
+  <div class="rgrid">
+    <div class="rcard" style="grid-column:1/-1"><h3>SALES BY DAY</h3><div class="vb${kind==="month"?" vbm":""}">${Pd.byDay.map(x=>`<div title="${esc(dDay(new Date(x.d+"T12:00:00").getTime()))} – ${money(x.v)}">${x.v&&kind==="week"?`<em>£${Math.round(x.v)}</em>`:""}<i style="height:${(x.v/max*90).toFixed(1)}%"></i></div>`).join("")}</div>
+      <div class="vbx${kind==="month"?" vbm":""}">${Pd.byDay.map(x=>`<span>${shortDay(x.d,kind)}</span>`).join("")}</div></div>
+    ${kind==="month"?`<div class="rcard"><h3>BY WEEKDAY (TOTAL)</h3>${hbars(Pd.wk.map(w=>[w.n,w.v,money(w.v)]),money)}</div>`:""}
+    <div class="rcard"><h3>TOP 10 SELLERS</h3>${top.length?hbars(top.map(x=>[x.n,x.q,`${x.q} · ${money(x.v)}`]),v=>v+" sold"):`<p class="trial">—</p>`}</div>
+    <div class="rcard"><h3>BEST DRINKS</h3>${Pd.drink.length?hbars(Pd.drink.slice(0,8).map(x=>[x.n,x.q,`${x.q} · ${money(x.v)}`]),v=>v+" sold"):`<p class="trial">—</p>`}</div>
+    <div class="rcard"><h3>LEAST SOLD</h3>${Pd.least.length?hbars(Pd.least.map(x=>[x.n,x.q,`${x.q} · ${money(x.v)}`]),v=>v+" sold"):`<p class="trial">—</p>`}
+      ${Pd.notSold.length?`<p class="trial" style="margin-top:8px"><b>Dishes not sold at all (${Pd.notSold.length}):</b> ${esc(Pd.notSold.slice(0,20).map(x=>x.n).join(", "))}${Pd.notSold.length>20?"…":""}</p>`:""}</div>
+    <div class="rcard"><h3>FOOD VS DRINK</h3>${hbars([["🍝 Food",Pd.foodV],["🍷 Drinks",Pd.drinkV]],money)}<h3 style="margin-top:12px">SALES BY SECTION</h3>${cats.length?hbars(cats.map(([c,v])=>[c,v]),money):`<p class="trial">—</p>`}</div>
+    <div class="rcard"><h3>SALES BY WAITER</h3>${Object.keys(R.byW).length?hbars(Object.entries(R.byW).sort((a,b)=>b[1]-a[1]),money):`<p class="trial">—</p>`}</div>
+    <div class="rcard"><h3>STAFF HOURS</h3>${Object.keys(R.staffH).length?Object.entries(R.staffH).sort((a,b)=>b[1]-a[1]).map(([id,ms])=>`<div class="rrow"><span>${esc(R.names[id]||"Unknown")}</span><b>${hm(ms)}</b></div>`).join("")+`<div class="rrow"><span><b>Total labour</b></span><b>${hm(R.labour)}</b></div><div class="rrow"><span>Sales per staff hour</span><b>${R.labour>=30*60000?money(R.sales/(R.labour/3600e3)):"—"}</b></div>`:`<p class="trial">Nobody clocked in.</p>`}</div>
+    <div class="rcard"><h3>BOOKINGS</h3>
+      <div class="rrow"><span>Bookings / walk-ins</span><b>${R.bk.length}</b></div><div class="rrow"><span>Guests booked</span><b>${R.bGuests}</b></div>
+      <div class="rrow"><span>🚫 No-shows / cancelled</span><b>${R.noShows} / ${R.cancels}</b></div><div class="rrow"><span>🚶 Walk-outs</span><b>${R.walkouts}</b></div>
+      <div class="rrow"><span>Pickup orders</span><b>${new Set(R.all.filter(t=>t.pickup&&!t.walk).map(t=>t.date+":"+t.pno)).size}</b></div>
+      <div class="rrow"><span>Avg kitchen time</span><b>${R.served.length?mins(R.avgKitchen):"—"}</b></div></div>
+  </div>`;
+}
+function periodText(Pd){
+  const R=Pd.R,T=Pd.kind==="week"?"WEEKLY":"MONTHLY";
+  let t=`TRATTORIA 57 — ${T} REPORT\n${Pd.label}\n\nTakings (paid): ${money(R.paidAmt)}${Pd.change==null?"":` (${pct(Pd.change)} vs previous)`}\n  Card: ${money(R.card)}\n  Cash: ${money(R.cash)}\nDiscounts: ${money(R.discTotal)} · Voids: ${money(R.voidTotal)}\n`;
+  t+=`\nCovers: ${R.covers}\nSpend per head: ${R.covers?money((R.sales-R.discTotal)/R.covers):"—"}\nOrders: ${R.all.length}\nAverage per day open: ${Pd.openDays?money(R.paidAmt/Pd.openDays):"—"}\n`;
+  t+=`\nMost sold: ${Pd.byQ[0]?Pd.byQ[0].n+" ("+Pd.byQ[0].q+")":"—"}\nLeast sold: ${Pd.least[0]?Pd.least[0].n+" ("+Pd.least[0].q+")":"—"}\nBest dish: ${Pd.food[0]?Pd.food[0].n+" ("+Pd.food[0].q+")":"—"}\nBest drink: ${Pd.drink[0]?Pd.drink[0].n+" ("+Pd.drink[0].q+")":"—"}\nBest day: ${Pd.best?dDay(new Date(Pd.best.d+"T12:00:00").getTime())+" "+money(Pd.best.v):"—"}\n`;
+  t+=`\nSales by day:\n`+Pd.byDay.map(x=>`  ${dDay(new Date(x.d+"T12:00:00").getTime())}: ${money(x.v)}`).join("\n");
+  t+=`\n\nTop 10:\n`+Pd.byQ.slice(0,10).map((x,i)=>`${i+1}. ${x.n} — ${x.q} (${money(x.v)})`).join("\n");
+  t+=`\n\nFood ${money(Pd.foodV)} · Drinks ${money(Pd.drinkV)}\nStaff hours: ${hm(R.labour)}\nBookings: ${R.bk.length} · No-shows ${R.noShows} · Walk-outs ${R.walkouts}\n`;
+  return t;
+}
+function mailPeriod(Pd){
+  if(!settings.ownerEmail){toast("Add the owner's email in Settings (⚙ on the floor)");return}
+  const a=document.createElement("a");a.href="mailto:"+encodeURIComponent(settings.ownerEmail)+"?subject="+encodeURIComponent(`Trattoria 57 ${Pd.kind==="week"?"weekly":"monthly"} report — ${Pd.label}`)+"&body="+encodeURIComponent(periodText(Pd));
+  a.target="_blank";a.rel="noopener";document.body.appendChild(a);a.click();a.remove();toast("Opening your mail app…");
+}
+// thermal: text bar graphs (█ blocks) that fit 58mm and 80mm paper
+function tbar(v,max,w){const n=max>0?Math.round(v/max*w):0;return "█".repeat(n)}
+function periodLines(Pd){
+  const R=Pd.R,T=Pd.kind==="week"?"WEEKLY REPORT":"MONTHLY REPORT",max=Math.max(...Pd.byDay.map(x=>x.v),1);
+  const L=[PL.t(T,"c",1,2),PL.t("Trattoria 57","c",1),PL.t(Pd.label,"c"),PL.rule(),
+    PL.lr("TAKINGS",money(R.paidAmt),1)];
+  if(Pd.change!=null)L.push(PL.lr("vs previous",(Pd.change>=0?"+":"-")+Math.abs(Math.round(Pd.change*100))+"%"));
+  L.push(PL.lr("Card",money(R.card)),PL.lr("Cash",money(R.cash)),PL.lr("Discounts",money(R.discTotal)),PL.lr("Voids",money(R.voidTotal)),PL.rule(),
+    PL.lr("Covers",R.covers),PL.lr("Spend per head",R.covers?money((R.sales-R.discTotal)/R.covers):"-"),PL.lr("Orders",R.all.length),PL.lr("Avg per day open",Pd.openDays?money(R.paidAmt/Pd.openDays):"-"),PL.rule());
+  L.push(PL.t("SALES BY DAY","l",1));
+  if(Pd.kind==="week")Pd.byDay.forEach(x=>L.push(PL.t(`${shortDay(x.d,"week").padEnd(4)}${tbar(x.v,max,14).padEnd(14)} £${Math.round(x.v)}`)));
+  else{const wm=Math.max(...Pd.wk.map(w=>w.v),1);Pd.byDay.forEach(x=>L.push(PL.t(`${String(shortDay(x.d,"month")).padStart(2)} ${tbar(x.v,max,16).padEnd(16)} £${Math.round(x.v)}`)));
+    L.push(PL.rule(),PL.t("BY WEEKDAY","l",1));Pd.wk.forEach(w=>L.push(PL.t(`${w.n} ${tbar(w.v,wm,16).padEnd(16)} £${Math.round(w.v)}`)))}
+  L.push(PL.rule(),PL.t("HIGHLIGHTS","l",1));
+  const h=(k,x)=>L.push(PL.t(k+":",null,1),PL.t("  "+(x?`${x.n} (${x.q})`:"-")));
+  h("Most sold",Pd.byQ[0]);h("Least sold",Pd.least[0]);h("Best dish",Pd.food[0]);h("Best drink",Pd.drink[0]);
+  L.push(PL.t("Best day:",null,1),PL.t("  "+(Pd.best?dDay(new Date(Pd.best.d+"T12:00:00").getTime())+" "+money(Pd.best.v):"-")));
+  if(Pd.busyHour!=null)L.push(PL.t("Busiest hour:",null,1),PL.t(`  ${Pd.busyHour}:00 - ${Pd.busyHour+1}:00`));
+  L.push(PL.rule(),PL.t("TOP 10","l",1));const tm=Math.max(...Pd.byQ.slice(0,10).map(x=>x.q),1);
+  Pd.byQ.slice(0,10).forEach((x,i)=>{L.push(PL.lr(`${i+1}. ${x.n}`,"x"+x.q),PL.t("   "+tbar(x.q,tm,18)))});
+  if(Pd.drink.length){L.push(PL.rule(),PL.t("BEST DRINKS","l",1));Pd.drink.slice(0,5).forEach((x,i)=>L.push(PL.lr(`${i+1}. ${x.n}`,"x"+x.q)))}
+  if(Pd.least.length){L.push(PL.rule(),PL.t("LEAST SOLD","l",1));Pd.least.slice(0,5).forEach(x=>L.push(PL.lr(x.n,"x"+x.q)))}
+  if(Pd.notSold.length)L.push(PL.t(`Dishes not sold at all: ${Pd.notSold.length}`));
+  const fm=Math.max(Pd.foodV,Pd.drinkV,1);
+  L.push(PL.rule(),PL.t("FOOD VS DRINK","l",1),PL.lr("Food",money(Pd.foodV)),PL.t("   "+tbar(Pd.foodV,fm,18)),PL.lr("Drinks",money(Pd.drinkV)),PL.t("   "+tbar(Pd.drinkV,fm,18)));
+  const w=Object.entries(R.byW).sort((a,b)=>b[1]-a[1]);if(w.length){L.push(PL.rule(),PL.t("SALES BY WAITER","l",1));w.forEach(([k,v])=>L.push(PL.lr(k,money(v))))}
+  L.push(PL.rule(),PL.t("STAFF HOURS","l",1));Object.entries(R.staffH).sort((a,b)=>b[1]-a[1]).forEach(([id,ms])=>L.push(PL.lr(R.names[id]||"Unknown",hm(ms))));L.push(PL.lr("Total",hm(R.labour),1));
+  L.push(PL.rule(),PL.lr("Bookings",R.bk.length),PL.lr("No-shows / cancelled",`${R.noShows} / ${R.cancels}`),PL.lr("Walk-outs",R.walkouts),PL.lr("Pickup orders",new Set(R.all.filter(t=>t.pickup&&!t.walk).map(t=>t.date+":"+t.pno)).size));
+  L.push(PL.rule("="),PL.t("TRATTORIA 57","c",1),PL.t("Italian Kitchen & Bar","c"));
+  return L;
+}
+function periodPdf(Pd){
+  const R=Pd.R,P=makePdf().page(),W=P.W,T=Pd.kind==="week"?"Weekly Report":"Monthly Report";let y=pdfHeader(P,T,Pd.label);
+  const now=new Date();P.text(W-40,162,"Printed "+now.toLocaleDateString("en-GB")+" "+timeOf(now.getTime()),{size:7.5,align:"right",color:PDFC.muted});
+  const foot=()=>P.text(W/2,820,`Trattoria 57 · ${T} · ${Pd.label}`,{size:7,align:"center",color:PDFC.muted});
+  const need=h=>{if(y+h>790){foot();P.page();y=50}};
+  P.rect(40,y,W-80,88,PDFC.parch);
+  const box=(x,label,val,sub2,big)=>{P.text(x,y+20,label.toUpperCase(),{size:7.5,font:"HB",color:PDFC.muted});P.text(x,y+(big?52:48),val,{font:"TB",size:big?28:18});if(sub2)P.text(x,y+70,sub2,{size:7.5,color:Pd.change!=null&&big?(Pd.change>=0?PDFC.olive:PDFC.wine):PDFC.muted})};
+  box(52,"Takings (paid)",money(R.paidAmt),Pd.change==null?"No sales in the previous "+Pd.kind:`${Pd.change>=0?"Up":"Down"} ${Math.abs(Math.round(Pd.change*100))}% vs previous (${money(Pd.Rp.paidAmt)})`,true);
+  box(240,"Card",money(R.card));box(340,"Cash",money(R.cash));box(440,"Avg / day open",Pd.openDays?money(R.paidAmt/Pd.openDays):"—",`${Pd.openDays} days`);
+  y+=108;
+  const kv=[["Covers",String(R.covers)],["Spend per head",R.covers?money((R.sales-R.discTotal)/R.covers):"—"],["Orders",`${R.all.length} (${R.itemsSold} items)`],
+    ["Discounts",money(R.discTotal)],["Voids",money(R.voidTotal)],["Staff hours",hm(R.labour)]];
+  kv.forEach(([k,v],i)=>{const cx=40+(i%3)*172,cy=y+Math.floor(i/3)*30;P.text(cx,cy,k,{size:8,color:PDFC.muted});P.text(cx,cy+14,v,{font:"HB",size:11})});
+  y+=70;
+  const section=t=>{need(40);P.text(40,y,t,{font:"TB",size:12,color:PDFC.olive});P.line(40,y+5,W-40,y+5,0.6,PDFC.line);y+=20};
+  // highlights grid
+  section("Highlights");
+  const H=[["Most sold",Pd.byQ[0]],["Least sold",Pd.least[0]],["Best dish",Pd.food[0]],["Best drink",Pd.drink[0]]];
+  H.forEach(([k,x],i)=>{const cx=40+(i%2)*258,cy=y+Math.floor(i/2)*40;P.rect(cx,cy-10,250,34,PDFC.parch);P.text(cx+8,cy+2,k.toUpperCase(),{size:7,font:"HB",color:PDFC.muted});
+    P.text(cx+8,cy+17,x?x.n:"—",{font:"HB",size:10.5});if(x)P.text(cx+242,cy+17,`${x.q} sold · ${money(x.v)}`,{size:8.5,align:"right",color:PDFC.muted})});
+  y+=84;
+  P.text(48,y,"Best day: "+(Pd.best?dDay(new Date(Pd.best.d+"T12:00:00").getTime())+" ("+money(Pd.best.v)+")":"—"),{size:9.5});
+  P.text(300,y,"Quietest day: "+(Pd.quiet?dDay(new Date(Pd.quiet.d+"T12:00:00").getTime())+" ("+money(Pd.quiet.v)+")":"—"),{size:9.5});y+=14;
+  if(Pd.busyHour!=null){P.text(48,y,`Busiest hour: ${Pd.busyHour}:00 – ${Pd.busyHour+1}:00`,{size:9.5});y+=14}
+  y+=8;
+  // sales by day column chart
+  section("Sales by day");need(150);
+  {const max=Math.max(...Pd.byDay.map(x=>x.v),1),ch=110,x0=56,cw=(W-40-x0)/Pd.byDay.length,bw=Math.min(cw*0.68,46),base=y+ch;
+    [0.5,1].forEach(f=>{P.line(x0,base-ch*f*0.9,W-40,base-ch*f*0.9,0.4,PDFC.line,true);P.text(x0-4,base-ch*f*0.9+3,"£"+Math.round(max*f),{size:6.5,align:"right",color:PDFC.muted})});
+    Pd.byDay.forEach((x,i)=>{const h=x.v/max*ch*0.9,cx=x0+i*cw+(cw-bw)/2;if(h>0)P.rect(cx,base-h,bw,h,Pd.best&&x.d===Pd.best.d?PDFC.wine:PDFC.olive);
+      if(Pd.kind==="week"&&x.v)P.text(cx+bw/2,base-h-4,"£"+Math.round(x.v),{size:7.5,align:"center",font:"HB"});
+      P.text(cx+bw/2,base+10,shortDay(x.d,Pd.kind),{size:Pd.kind==="week"?8:6.5,align:"center",color:PDFC.muted})});
+    P.line(x0,base,W-40,base,0.8,PDFC.ink);y=base+26}
+  // horizontal bar helper
+  const hb=(rows,fmt,color)=>{const max=Math.max(...rows.map(r=>r[1]),1);rows.forEach(([l,v,ex])=>{need(16);const bx=230,bw=(W-40-90-bx)*v/max;
+    P.text(48,y,String(l).slice(0,38),{size:9});P.rect(bx,y-8,Math.max(bw,0.5),9,color||PDFC.olive);P.text(W-40,y,ex||fmt(v),{size:9,align:"right",font:"HB"});y+=15});y+=8};
+  if(Pd.kind==="month"){section("By day of the week (total)");hb(Pd.wk.map(w=>[w.n,w.v,money(w.v)]),money)}
+  section("Top 10 sellers");Pd.byQ.length?hb(Pd.byQ.slice(0,10).map((x,i)=>[`${i+1}. ${x.n}`,x.q,`${x.q} · ${money(x.v)}`]),v=>v):(P.text(48,y,"No sales",{size:9.5}),y+=20);
+  section("Best drinks");Pd.drink.length?hb(Pd.drink.slice(0,8).map((x,i)=>[`${i+1}. ${x.n}`,x.q,`${x.q} · ${money(x.v)}`]),v=>v,PDFC.wine):(P.text(48,y,"No drinks sold",{size:9.5}),y+=20);
+  section("Least sold");Pd.least.length?hb(Pd.least.map(x=>[x.n,x.q,`${x.q} · ${money(x.v)}`]),v=>v,PDFC.muted):(P.text(48,y,"—",{size:9.5}),y+=20);
+  if(Pd.notSold.length){const txt=`Dishes not sold at all (${Pd.notSold.length}): `+Pd.notSold.slice(0,40).map(x=>x.n).join(", ")+(Pd.notSold.length>40?` and ${Pd.notSold.length-40} more`:"");const words=txt.split(" ");let ln="";
+    words.forEach(wd=>{if(P.width(ln+" "+wd,8.5,"H")>W-96){need(13);P.text(48,y,ln,{size:8.5,color:PDFC.muted});y+=12;ln=wd}else ln=ln?ln+" "+wd:wd});if(ln){need(13);P.text(48,y,ln,{size:8.5,color:PDFC.muted});y+=12}y+=8}
+  section("Food vs drink");hb([["Food",Pd.foodV],["Drinks",Pd.drinkV]],money);
+  section("Sales by section");hb(Object.entries(R.cats).sort((a,b)=>b[1]-a[1]),money);
+  if(Object.keys(R.byW).length){section("Sales by waiter");hb(Object.entries(R.byW).sort((a,b)=>b[1]-a[1]),money)}
+  section("Staff hours");const sr=Object.entries(R.staffH).sort((a,b)=>b[1]-a[1]);
+  (sr.length?sr.map(([id,ms])=>[R.names[id]||"Unknown",hm(ms)]).concat([["Total labour",hm(R.labour)],["Sales per staff hour",R.labour>=30*60000?money(R.sales/(R.labour/3600e3)):"—"]]):[["Nobody clocked in",""]])
+    .forEach(([a,b])=>{need(16);P.text(48,y,a,{size:9.5});P.text(W-40,y,b,{size:9.5,align:"right",font:"HB"});y+=15});y+=8;
+  section("Bookings");[["Bookings & walk-ins",String(R.bk.length)],["Guests booked",String(R.bGuests)],["No-shows / cancelled",`${R.noShows} / ${R.cancels}`],["Walk-outs",String(R.walkouts)],["Pickup orders",String(new Set(R.all.filter(t=>t.pickup&&!t.walk).map(t=>t.date+":"+t.pno)).size)]]
+    .forEach(([a,b])=>{need(16);P.text(48,y,a,{size:9.5});P.text(W-40,y,b,{size:9.5,align:"right",font:"HB"});y+=15});
+  foot();return P;
+}
 $("report").addEventListener("click",e=>{
+  {const m=e.target.closest("[data-rm]");if(m){repMode=m.dataset.rm;try{localStorage.setItem("t57-repmode",repMode)}catch(_){}renderReport();return}}
+  {const m=e.target.closest("[data-pmove]");if(m){movePeriod(+m.dataset.pmove);return}}
+  if(e.target.id==="perPdf"){withPeriod(Pd=>offerPdf(periodPdf(Pd),`Trattoria57_${Pd.kind==="week"?"Weekly":"Monthly"}_Report_${Pd.s}.pdf`));return}
+  if(e.target.id==="perThermal"){withPeriod(Pd=>pickPrinter(to=>printJob(to,"report",(Pd.kind==="week"?"Weekly":"Monthly")+" report "+Pd.s,periodLines(Pd),"full")));return}
+  if(e.target.id==="perCopy"){withPeriod(Pd=>copyText(periodText(Pd),"Report copied"));return}
+  if(e.target.id==="perMail"){withPeriod(Pd=>mailPeriod(Pd));return}
   if(e.target.id==="repUnlock"){managerGate(()=>{repUnlockUntil=Date.now()+15*60000;renderReport()});return}
   if(e.target.id==="repPdf"){offerPdf(reportPdf(),`Trattoria57_Day_Report_${dateKey}.pdf`);return}
   if(e.target.id==="repThermal"){pickPrinter(to=>printJob(to,"report","Day report "+dateKey,reportLines(),"full"));return}
@@ -3954,7 +4175,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261111090105";
+const APP_BUILD="20261111111344";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
