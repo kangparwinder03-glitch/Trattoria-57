@@ -777,11 +777,17 @@ body.training{padding-top:30px}
 .tmr.late{background:#f6d7cf;color:#8e2a1a}.tile .tmr{margin-top:4px}
 .cl.pace{display:flex;gap:10px;align-items:flex-start;background:#fff6e6;border:1px solid #f0d58a;border-radius:12px;padding:10px 12px;margin:8px 12px}.cl.pace small{display:block;color:#6d6448;font-size:12px;font-weight:400}.cl.pace input{margin-top:4px;width:20px;height:20px}
 .patrow{background:#eef3f9;border:1.5px solid #3f5f86;border-radius:14px;padding:10px 12px;margin-bottom:10px}
-.patrow>b{display:block;color:#3f5f86;margin-bottom:6px;font-size:15px}
-.patc{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
-.patc button{flex:none;min-width:64px;min-height:44px;border-radius:12px;border:1.5px solid #c9d5e4;background:#fff;font-weight:800;font-size:16px;color:#2e3d52}
-.patc button.on{background:#3f5f86;border-color:#3f5f86;color:#fff}
-.patc.big{flex-wrap:wrap;overflow:visible}.patc.big button{min-width:84px;min-height:54px;font-size:18px}
+.patq{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.patq button{flex:1;min-width:64px;min-height:44px;border-radius:12px;border:1.5px solid #c9d5e4;background:#fff;font-weight:800;font-size:15px;color:#2e3d52}
+.patq button.on{background:#3f5f86;border-color:#3f5f86;color:#fff}
+.wheel{position:relative;display:flex;align-items:center;gap:6px;height:132px}
+.wheel::before{content:"";position:absolute;left:0;width:170px;top:44px;height:44px;border-radius:10px;background:rgba(63,95,134,.12);border:1.5px solid rgba(63,95,134,.35);pointer-events:none}
+.wcol{width:76px;height:132px;overflow-y:scroll;scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;text-align:center;
+  -webkit-mask-image:linear-gradient(180deg,transparent,#000 30%,#000 70%,transparent);mask-image:linear-gradient(180deg,transparent,#000 30%,#000 70%,transparent)}
+.wcol::-webkit-scrollbar{display:none}
+.wcol b,.wcol i{display:block;height:44px;line-height:44px;scroll-snap-align:center;font-size:28px;font-weight:800;color:#2e3d52;font-variant-numeric:tabular-nums}
+.wc{font-size:28px;font-weight:800;color:#2e3d52}
+.wsel{margin-left:auto;text-align:right;font-size:14px;color:#3f5f86;line-height:1.3}.wsel b{font-size:24px}
 .ostrip.pat{background:#eef3f9;border-color:#3f5f86}.ostrip.pat b{color:#2e3d52}
 .patb{background:#3f5f86;color:#fff;border-radius:6px;padding:1px 6px}
 .heldbar{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:#fff6e6;border:1px dashed #d9b04a;border-radius:12px;padding:10px 12px;margin-bottom:10px;font-size:15px}
@@ -3578,8 +3584,31 @@ const PICK_LEAD=20;
 function patFireAt(pat,st){const [h,m]=pat.split(":").map(Number);const d=new Date();d.setHours(h,m,0,0);return d.getTime()-(st==="bar"?5:PICK_LEAD)*60000}
 function patSlots(){const out=[],d=new Date(Date.now()+25*60000);d.setSeconds(0,0);d.setMinutes(Math.ceil(d.getMinutes()/15)*15);
   for(let i=0;i<40&&d.getHours()<23&&d.getDate()===new Date().getDate();i++){out.push(String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"));d.setMinutes(d.getMinutes()+15)}return out}
-function patChips(){return `<div class="patrow"><b>⏰ Ready for</b><div class="patc"><button data-pt="" class="${ord.pat?"":"on"}">Now</button>${patSlots().map(x=>`<button data-pt="${x}" class="${ord.pat===x?"on":""}">${x}</button>`).join("")}</div></div>`}
-$("oBody").addEventListener("click",e=>{const b=e.target.closest(".patrow [data-pt]");if(!b||!ord)return;e.stopPropagation();ord.pat=b.dataset.pt;renderOrder()},true);
+// time wheel (like the iPhone clock): hours : minutes in 5-minute steps, plus quick buttons
+const WH=44,pad2=n=>String(n).padStart(2,"0");
+function wheelHtml(id,pat){const h0=Math.min(new Date().getHours(),pat?+pat.slice(0,2):24);const hs=[];for(let h=h0;h<=23;h++)hs.push(h);if(!hs.length)hs.push(23);
+  return `<div class="patrow" id="${id}"><div class="patq"><button data-pq="0" class="${pat?"":"on"}">Now</button>${[20,30,45,60].map(m=>`<button data-pq="${m}">+${m<60?m+" min":"1 hr"}</button>`).join("")}</div>
+    <div class="wheel"><div class="wcol" data-w="h"><i></i>${hs.map(h=>`<b data-v="${h}">${pad2(h)}</b>`).join("")}<i></i></div><span class="wc">:</span>
+    <div class="wcol" data-w="m"><i></i>${Array.from({length:12},(_,k)=>`<b data-v="${k*5}">${pad2(k*5)}</b>`).join("")}<i></i></div>
+    <div class="wsel"></div></div></div>`}
+function wheelInit(root,pat,onPick){
+  const H=root.querySelector('[data-w="h"]'),M=root.querySelector('[data-w="m"]');let user=false,t=0;
+  const label=v=>{root.querySelector(".wsel").innerHTML=v?`Ready at<br><b>${v}</b>`:`<b>ASAP</b><br>cooked now`;root.querySelectorAll("[data-pq]").forEach(b=>b.classList.toggle("on",!v&&b.dataset.pq==="0"))};
+  const val=()=>{const hb=H.querySelectorAll("b"),mb=M.querySelectorAll("b");const hi=Math.max(0,Math.min(hb.length-1,Math.round(H.scrollTop/WH))),mi=Math.max(0,Math.min(11,Math.round(M.scrollTop/WH)));
+    return pad2(+hb[hi].dataset.v)+":"+pad2(+mb[mi].dataset.v)};
+  const go=(v,smooth)=>{user=false;const [h,m]=v.split(":").map(Number);const hb=[...H.querySelectorAll("b")];let hi=hb.findIndex(b=>+b.dataset.v===h);if(hi<0)hi=hb.length-1;
+    H.scrollTo({top:hi*WH,behavior:smooth?"smooth":"auto"});M.scrollTo({top:Math.round(m/5)*WH,behavior:smooth?"smooth":"auto"})};
+  const soon=n=>{const d=new Date(Date.now()+n*60000);let m=Math.ceil(d.getMinutes()/5)*5;if(m===60){d.setHours(d.getHours()+1);m=0}return pad2(Math.min(23,d.getHours()))+":"+pad2(m)};
+  go(pat||soon(30),false);label(pat);
+  const onScroll=()=>{clearTimeout(t);t=setTimeout(()=>{if(!user)return;const v=val();label(v);onPick(v)},140)};
+  ["pointerdown","touchstart","wheel"].forEach(ev=>[H,M].forEach(c=>c.addEventListener(ev,()=>{user=true},{passive:true})));
+  H.addEventListener("scroll",onScroll,{passive:true});M.addEventListener("scroll",onScroll,{passive:true});
+  root.querySelector(".patq").addEventListener("click",e=>{const b=e.target.closest("[data-pq]");if(!b)return;e.stopPropagation();const n=+b.dataset.pq;
+    if(!n){label("");onPick("");return}const v=soon(n);go(v,true);label(v);onPick(v)});
+}
+function patChips(){setTimeout(()=>{const el=$("patW");if(el&&!el._w){el._w=1;wheelInit(el,ord.pat,v=>{ord.pat=v;
+  $("oSub").textContent=(ord.pname?ord.pname+(ord.pphone?" · "+ord.pphone:""):"Collection order")+(v?" · ⏰ ready for "+v:" · ASAP")+" · tell the customer their number"})}},0);
+  return wheelHtml("patW",ord.pat)}
 async function setPickupTime(pat){
   const list=ordTickets().filter(t=>!t.closed&&(t.wait||t.status==="new"));
   for(const t of list){const fa=pat?patFireAt(pat,stOf(t)):0;
@@ -3587,9 +3616,10 @@ async function setPickupTime(pat){
   ord.pat=pat;renderOrder();toast(pat?`⏰ Ready for ${pat}`:"Sent to the kitchen now")}
 $("oStrip").addEventListener("click",e=>{const b=e.target.closest("[data-pat]");if(!b||!ord)return;
   if(b.dataset.pat==="now"){fireMains(ordTickets().filter(t=>t.wait&&!t.closed).map(t=>t.id));return}
-  openX("pat","⏰ Change pickup time",`Pickup #${ord.pno}${ord.pname?" · "+ord.pname:""}`,ev=>{const c=ev.target.closest("[data-pt]");if(!c)return;closeX();setPickupTime(c.dataset.pt)});
-  $("xBody").innerHTML=`<div class="patc big"><button data-pt="">Now</button>${patSlots().map(x=>`<button data-pt="${x}" class="${ord.pat===x?"on":""}">${x}</button>`).join("")}</div>`;
-  $("xFoot").innerHTML=`<button class="btn sec" data-xdone style="max-width:none">Cancel</button>`});
+  let pick=ord.pat;
+  openX("pat","⏰ Change pickup time",`Pickup #${ord.pno}${ord.pname?" · "+ord.pname:""}`,ev=>{if(ev.target.closest("[data-patok]")){closeX();setPickupTime(pick)}});
+  $("xBody").innerHTML=wheelHtml("patX",ord.pat);wheelInit($("patX"),ord.pat,v=>{pick=v});
+  $("xFoot").innerHTML=`<button class="btn sec" data-xdone>Cancel</button><button class="btn pri" data-patok>Save time</button>`});
 // any open tablet moves scheduled orders into the kitchen when their time comes (safe if two do it at once)
 setInterval(()=>{if(typeof view==="undefined"||view==="guest"||readOnly)return;const now=Date.now();
   tickets.filter(t=>t.wait&&t.fireAt&&t.fireAt<=now&&!t.closed&&!t.rejected).forEach(t=>patchTicket(t,{wait:false,createdAt:now,firedAt:now,firedBy:"⏰ Scheduled"}).catch(()=>{}))},15000);
@@ -4273,7 +4303,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261111134431";
+const APP_BUILD="20261111135343";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
