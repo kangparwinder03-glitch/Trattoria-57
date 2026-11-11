@@ -84,13 +84,13 @@ class EscPos(val cols: Int) {
     fun social(list: List<Triple<String, String, String>>): EscPos {
         if (list.isEmpty()) return this
         rule(); align(1).bold(true).size(1, 2).line("FOLLOW US").size(1, 1).bold(false).line("for news, specials & events")
-        // generous white space around each code so phones can pick them up easily
+        // tight spacing: codes stay the same size, less blank paper between them
         list.forEachIndexed { i, (name, handle, url) ->
-            feed(if (i == 0) 2 else 3)
+            feed(1)
             qr(url, if (cols >= 48) 7 else 6)
-            feed(1); bold(true).line(name).bold(false); if (handle.isNotBlank()) line(handle)
+            bold(true).line(if (handle.isNotBlank()) "$name · $handle" else name).bold(false)
         }
-        feed(2); line("Scan to follow our journey"); return align(0)
+        line("Scan to follow our journey"); return align(0)
     }
 
     fun bytes(): ByteArray = out.toByteArray()

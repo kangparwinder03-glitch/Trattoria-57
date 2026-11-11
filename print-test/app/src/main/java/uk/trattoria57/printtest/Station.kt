@@ -127,11 +127,11 @@ object Format {
             rule(); align(1).bold(true).size(1, 2).line("ENJOYED YOUR MEAL?").size(1, 1).bold(false)
             line("Scan to leave us a review")
             reviews.forEachIndexed { i, (name, url) ->
-                feed(if (i == 0) 2 else 3)
+                feed(1)
                 qr(url, if (cols >= 48) 7 else 6)
-                if (name.isNotBlank()) { feed(1); bold(true).line(name).bold(false) }
+                if (name.isNotBlank()) bold(true).line(name).bold(false)
             }
-            feed(1); line("Grazie mille!"); align(0)
+            line("Grazie mille!"); align(0)
         }
         val soc = j.optJSONArray("social")
         if (soc != null) social((0 until soc.length()).mapNotNull { soc.optJSONObject(it) }
