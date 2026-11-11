@@ -820,6 +820,8 @@ body.mode-waiter #vKitchen,body.mode-waiter #vBar,body.mode-waiter #vReport{disp
 .modechip{border:1px solid var(--olive-dk);background:var(--olive-dk);color:#fff;border-radius:12px;padding:6px 12px;font-weight:800;font-size:13px}
 .dmgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.dmgrid button{border:2px solid var(--parch2);background:#fffaf0;border-radius:14px;padding:16px 12px;text-align:left;color:var(--ink)}
 .dmgrid button b{display:block;font-size:18px}.dmgrid button small{display:block;color:#6d6448;margin-top:4px;font-size:13px}.dmgrid button.on{border-color:var(--olive-dk);background:#eef2e4}
+.lblbox{border:1px solid var(--parch2);background:#fffaf0;border-radius:12px;padding:10px 12px;margin-bottom:12px}.lblbox .sub{display:block;font-size:12px;color:#6d6448;margin:2px 0 8px}
+.lblrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}.lblrow label{display:flex;flex-direction:column;font-size:12px;font-weight:700;color:#5d5640;gap:3px}.lblrow .btn{flex:1;max-width:none}
 </style>
 </head>
 <body>
@@ -1052,7 +1054,11 @@ body.mode-waiter #vKitchen,body.mode-waiter #vBar,body.mode-waiter #vReport{disp
 <div class="overlay" id="qrOv">
   <div class="sheet tall" role="dialog" aria-modal="true">
     <div class="sh-head"><div><h2>Table QR codes</h2><div class="sub">Each code opens ordering for that table</div></div><button class="x" id="qrClose" aria-label="Close">×</button></div>
-    <div class="sh-body"><p class="note" style="font-size:13px">Test codes for now: they only open for people signed in to this app. Print the real ones after the app moves to its own website — the address changes then.</p><div class="qrgrid" id="qrGrid"></div></div>
+    <div class="sh-body"><p class="note" style="font-size:13px">Test codes for now: they only open for people signed in to this app. Print the real ones after the app moves to its own website — the address changes then.</p><div class="lblbox"><b>🏷 Print table labels</b><span class="sub">On a label roll (e.g. the Katasymbol T50M Pro): QR + table name on each sticker</span>
+      <div class="lblrow"><label>Label size<select id="lblSize"><option value="50x30">50 × 30 mm</option><option value="40x30">40 × 30 mm</option><option value="50x40">50 × 40 mm</option><option value="50x50">50 × 50 mm</option><option value="40x40">40 × 40 mm</option><option value="30x20">30 × 20 mm</option></select></label>
+      <label>Gap<select id="lblGap"><option value="2">2 mm</option><option value="3">3 mm</option><option value="1.5">1.5 mm</option><option value="1">1 mm</option><option value="0">none</option></select></label>
+      <label>Printer<select id="lblTo"><option value="bar">Bar</option><option value="till">Till</option><option value="kitchen">Kitchen</option></select></label></div>
+      <div class="lblrow"><button class="btn sec" id="lblTest">Print 1 test label</button><button class="btn pri" id="lblAll">Print all tables</button></div></div><div class="qrgrid" id="qrGrid"></div></div>
   </div>
 </div>
 
@@ -3094,6 +3100,23 @@ $("setQr").onclick=async()=>{
   if(await loadQr())for(let id=1;id<=N;id++){const el=$("qr-"+id);el.textContent="";try{new window.QRCode(el,{text:APP_URL+"#"+tableHash(id),width:128,height:128,correctLevel:window.QRCode.CorrectLevel.M})}catch(_){el.textContent=APP_URL+"#"+tableHash(id)}}
 };
 $("qrClose").onclick=()=>$("qrOv").classList.remove("show");
+// ---- table QR labels: send the QR grid + table name; the printer app draws each sticker to the exact label size ----
+try{const v=JSON.parse(localStorage.getItem("t57-lbl")||"{}");if(v.size)$("lblSize").value=v.size;if(v.gap!=null)$("lblGap").value=v.gap;if(v.to)$("lblTo").value=v.to}catch(e){}
+async function printLabels(ids){
+  if(!canThermal()){toast("Label printing works on the website version (GitHub link)");return}
+  if(!(await loadQr())){toast("Couldn't load the QR maker — check the internet");return}
+  const [w,h]=$("lblSize").value.split("x").map(Number),gap=+$("lblGap").value,to=$("lblTo").value;
+  try{localStorage.setItem("t57-lbl",JSON.stringify({size:$("lblSize").value,gap:$("lblGap").value,to}))}catch(e){}
+  const tmp=document.createElement("div");tmp.style.display="none";document.body.appendChild(tmp);
+  const labels=ids.map(id=>{tmp.innerHTML="";const q=new window.QRCode(tmp,{text:APP_URL+"#"+tableHash(id),width:64,height:64,correctLevel:window.QRCode.CorrectLevel.M})._oQRCode;
+    const n=q.getModuleCount(),rows=[];for(let r=0;r<n;r++){let row="";for(let c=0;c<n;c++)row+=q.isDark(r,c)?"1":"0";rows.push(row)}
+    return {brand:"TRATTORIA 57",name:tlabel(id),line3:"Scan to order",line4:"or call a waiter",qr:rows}});
+  tmp.remove();
+  const id=uid(),target=TRAIN&&db.base?db.base:db;
+  try{await target.collection("printjobs").doc(id).set({to,kind:"labels",title:(ids.length===1?"Test label ":"Table labels ×"+ids.length),labels,w,h,gap,date:dateKey,createdAt:Date.now(),by:waiter?waiter.name:""});
+    toast(`🏷 ${ids.length} label${ids.length===1?"":"s"} sent to the ${prName(to)} printer`)}catch(e){toast("Couldn't send to printer — try again")}}
+$("lblTest").onclick=()=>printLabels([1]);
+$("lblAll").onclick=()=>ask(`Print ${N} table labels?`,`One sticker per table on the ${prName($("lblTo").value)} printer. Print a test label first to check the size lines up.`,()=>printLabels(Array.from({length:N},(_,k)=>k+1)));
 
 
 // ================= service-flow extras =================
@@ -3911,7 +3934,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261111081101";
+const APP_BUILD="20261111081942";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){

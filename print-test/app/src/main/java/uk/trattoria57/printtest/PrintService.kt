@@ -122,7 +122,8 @@ class PrintService : Service() {
         for ((id, d) in jobs) {
             if (!running) return
             EscPos.hasCutter = cutterFor(prefs, st)
-            if (!Bt.print(this, Format.job(d, cols, logos(cols)), d.optString("title", "Print"))) return
+            val bytes = if (d.optString("kind") == "labels") Labels.make(d, cols) else Format.job(d, cols, logos(cols))
+            if (!Bt.print(this, bytes, d.optString("title", "Print"))) return
             Hub.say(ready, true)
             markDone(done, "printjobs", id, st)
         }
