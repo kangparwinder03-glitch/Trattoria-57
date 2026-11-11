@@ -57,6 +57,30 @@ class MainActivity : Activity() {
 
         root.addView(label("Trattoria 57 — Printer", 26f, true))
 
+        // ---- restaurant sign-in ----
+        Cloud.init(this)
+        val authInfo = label("", 15f, true)
+        val emailIn = EditText(this).apply { hint = "Restaurant email"; inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS; textSize = 17f }
+        val passIn = EditText(this).apply { hint = "Password"; inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD; textSize = 17f }
+        val signBtn = button("🔐 Sign in", 16f) {}
+        fun showAuth() {
+            val who = Cloud.signedInAs
+            authInfo.text = if (who.isBlank()) "🔐 Not signed in — sign in with the restaurant login" else "🔐 Signed in as $who"
+            authInfo.setTextColor(if (who.isBlank()) wine else olive)
+            emailIn.visibility = if (who.isBlank()) android.view.View.VISIBLE else android.view.View.GONE
+            passIn.visibility = emailIn.visibility
+            signBtn.text = if (who.isBlank()) "🔐 Sign in" else "Sign out"
+        }
+        signBtn.setOnClickListener {
+            if (Cloud.signedInAs.isNotBlank()) { Cloud.signOut(); showAuth(); return@setOnClickListener }
+            val e = emailIn.text.toString().trim(); val pw = passIn.text.toString()
+            if (e.isBlank() || pw.isBlank()) { authInfo.text = "Type the email and password first"; return@setOnClickListener }
+            signBtn.isEnabled = false; authInfo.text = "Signing in…"
+            Thread { val ok = Cloud.signIn(e, pw); runOnUiThread { signBtn.isEnabled = true; passIn.setText(""); showAuth(); if (!ok) { authInfo.text = "❌ Wrong email or password (or no internet)"; authInfo.setTextColor(wine) } } }.start()
+        }
+        root.addView(authInfo); root.addView(emailIn); root.addView(passIn); root.addView(signBtn)
+        showAuth()
+
         // ---- which station ----
         root.addView(label("This tablet's printer is for", 14f, true))
         val stGroup = RadioGroup(this).apply { orientation = RadioGroup.HORIZONTAL }

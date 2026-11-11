@@ -205,6 +205,12 @@ footer{display:flex;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bo
 input,select,textarea{font:inherit;font-size:16px;border:1.5px solid #ddd0bb;border-radius:10px;padding:9px 10px;background:#fff;color:var(--ink);width:100%;min-width:0}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--pine);box-shadow:0 0 0 3px rgba(91,107,47,.18)}
 textarea{resize:vertical;min-height:44px}
+.loginov{position:fixed;inset:0;z-index:9999;background:radial-gradient(ellipse at 50% 30%,#3d4a24,#1f2612);display:none;align-items:center;justify-content:center;padding:20px}
+.loginov.show{display:flex}
+.loginbox{background:#fffaf0;border-radius:22px;padding:26px 24px;width:min(420px,100%);display:flex;flex-direction:column;gap:12px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.45)}
+.loginbox img{align-self:center;border-radius:16px}.loginbox h2{margin:0;font-family:Georgia,serif;font-size:24px}.loginbox p{margin:0;color:#6d6448;font-size:14px}
+.loginbox input{min-height:52px;font-size:18px;border-radius:12px;border:1.5px solid #d9cba8;padding:0 14px}
+.loginbox .btn{min-height:54px;font-size:18px;max-width:none}.lgerr{color:#a3322a;font-weight:700;min-height:18px}
 .hubg{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:14px}
 .hubg button{border:1.5px solid var(--parch2);background:#fffaf0;border-radius:14px;padding:14px 10px;min-height:86px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--ink);text-align:center}
 .hubg button b{font-size:14px;line-height:1.2}.hubg .ic{font-size:24px;line-height:1}
@@ -4095,7 +4101,7 @@ const HUB=[
   ["📊 Reports & money",[["rday","📅","Day report"],["rweek","📈","Weekly report"],["rmonth","🗓","Monthly report"],["allord","📋","All orders"],["hours","⏱","Staff hours"]]],
   ["🍽 Menu & prices",[["menu","✏️","Edit menu & prices"],["hh","🍹","Happy hour"],["pmenu","🖨","Print the menu"]]],
   ["👥 People",[["staff","🧑‍🍳","Staff & their PINs"],["mpin","🔑","Change manager PIN"],["guests","👤","Guest profiles"]]],
-  ["⚙ Restaurant",[["settings","✉️","Emails & pickup discount"],["links","⭐","Review & social links"],["rcp","🧾","Receipts & printing"],["qr","📱","Table QR codes & labels"],["reset","↺","Reset floor layout"]]],
+  ["⚙ Restaurant",[["settings","✉️","Emails & pickup discount"],["links","⭐","Review & social links"],["rcp","🧾","Receipts & printing"],["qr","📱","Table QR codes & labels"],["reset","↺","Reset floor layout"],["signin","🔐","Tablet sign-in"]]],
 ];
 function openHub(){
   const m=MODES[devMode]||MODES.manager;
@@ -4116,7 +4122,7 @@ function hubClick(e){
     guests:openGuests,settings:()=>settingsAt("sOwner"),links:()=>settingsAt("sReview"),rcp:()=>settingsAt("sRcp"),qr:()=>{openSettings();$("setQr").click()},
     reset:()=>$("resetBtn").click(),
     train:()=>ask(TRAIN?"Back to live on this device?":"Switch this device to training?",TRAIN?"Real orders and bookings will show again.":"Practice freely: nothing you do will touch real orders, bookings or reports. Printouts are marked TRAINING. Other devices stay live.",()=>setTraining(!TRAIN)),
-    golive:goLive})[k]();
+    golive:goLive,signin:openSignIn})[k]();
 }
 const openHubGated=()=>mgrCheck(openHub,"The manager area needs the manager PIN");
 $("sHubBtn").onclick=openHubGated;
@@ -4278,7 +4284,7 @@ if(TRAIN){document.body.classList.add("training");$("trainBar").hidden=false;$("
 // ---------- training mode & going live ----------
 const NS_COLLS=["tickets","plan23","printjobs","calls","shifts","stock","guests"];   // kept separate in training
 function nsDb(d){const m=n=>NS_COLLS.includes(n)?"train_"+n:n;
-  return {collection:n=>d.collection(m(n)),doc:p=>{const i=p.indexOf("/");return d.doc(m(p.slice(0,i))+p.slice(i))},supa:d.supa,base:d}}
+  return {collection:n=>d.collection(m(n)),doc:p=>{const i=p.indexOf("/");return d.doc(m(p.slice(0,i))+p.slice(i))},supa:d.supa,guest:d.guest,base:d}}
 function setTraining(on){try{on?localStorage.setItem("t57-train","1"):localStorage.removeItem("t57-train")}catch(e){}location.reload()}
 function wipeLocalData(prefix){try{const ks=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&["tk-","p23-","c-"].some(x=>k.startsWith(prefix+x)))ks.push(k)}ks.forEach(k=>localStorage.removeItem(k))}catch(e){}}
 let liveSince=0;try{liveSince=+localStorage.getItem("t57-liveSeen")||0}catch(e){}
@@ -4303,7 +4309,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261111135343";
+const APP_BUILD="20261111170604";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
@@ -4316,12 +4322,72 @@ if(!window.claude&&location.protocol.startsWith("http")&&APP_BUILD!=="dev"){
   setTimeout(chk,4000);setInterval(chk,60000);
   document.addEventListener("visibilitychange",()=>{if(!document.hidden)chk()});
 }
+// ---------- lockdown: tablets sign in once; customers' phones (QR menu) use a limited guest connection ----------
+let sbc=null,sbUser="";
+const isLocked=()=>{try{return localStorage.getItem("t57-locked")==="1"}catch(_){return false}};
+function makeGuestDb(sb){
+  let cache=null,busy=false;const subs=new Set(),ns=TRAIN?"train":"";
+  const base=n=>String(n).replace(/^train_/,"");
+  async function pull(){if(busy)return;busy=true;try{const {data,error}=await sb.rpc("t57_guest",{ns,d:dateKey});if(!error){cache=data||{};subs.forEach(s=>s())}}catch(_){}busy=false}
+  setInterval(pull,5000);document.addEventListener("visibilitychange",()=>{if(!document.hidden)pull()});pull();
+  const sd=(id,data)=>({id,exists:data!=null,data:()=>data==null?undefined:clone(data),metadata:{fromCache:false,hasPendingWrites:false}});
+  const docData=(c,id)=>{if(!cache)return undefined;c=base(c);
+    if(c==="plan23")return id===dateKey?cache.plan:undefined;
+    if(c==="stock")return id==="main"?cache.stock:undefined;
+    if(c==="settings")return id==="menu"?cache.menu:id==="main"?cache.main:id==="live"?cache.live:undefined;
+    const arr=c==="tickets"?cache.tickets:c==="calls"?cache.calls:null;const r=arr&&arr.find(x=>x.id===id);return r?r.data:undefined};
+  const rows=(c,w)=>{if(!cache)return [];c=base(c);const arr=(c==="tickets"?cache.tickets:c==="calls"?cache.calls:[])||[];
+    return arr.filter(r=>r&&r.data&&w.every(([f,op,v])=>{const a=r.data[f];return op==="=="?a===v:op===">="?a>=v:op==="<="?a<=v:op===">"?a>v:op==="<"?a<v:true}))};
+  const many=r=>({docs:r.map(x=>sd(x.id,x.data)),size:r.length,empty:!r.length});
+  function docRef(c,id){return {id,
+    get:async()=>{if(!cache)await pull();return sd(id,docData(c,id))},
+    set:async d=>{const {data,error}=await sb.rpc("t57_guest_put",{c,i:id,d});if(error||data!==true){const e=new Error("not allowed");e.code="denied";throw e}setTimeout(pull,300)},
+    update:async()=>{},delete:async()=>{},
+    onSnapshot:cb=>{let last;const s=()=>{const d=docData(c,id),j=JSON.stringify(d===undefined?null:d);if(j===last)return;last=j;cb(sd(id,d))};subs.add(s);if(cache)s();return ()=>subs.delete(s)}}}
+  function query(c,w){return {where:(f,op,v)=>query(c,w.concat([[f,op,v]])),doc:id=>docRef(c,id),
+    get:async()=>{if(!cache)await pull();return many(rows(c,w))},
+    onSnapshot:cb=>{let last;const s=()=>{const r=rows(c,w),j=JSON.stringify(r);if(j===last)return;last=j;cb(many(r))};subs.add(s);if(cache)s();return ()=>subs.delete(s)}}}
+  return {collection:n=>query(n,[]),doc:p=>{const i=p.indexOf("/");return docRef(p.slice(0,i),p.slice(i+1))},supa:true,guest:true};
+}
+function showLogin(after,cancelable){
+  let ov=$("loginOv");
+  if(!ov){ov=document.createElement("div");ov.id="loginOv";ov.className="loginov";document.body.appendChild(ov)}
+  ov.innerHTML=`<form class="loginbox" autocomplete="on"><img src="icon-192.png" alt="" width="72" height="72"><h2>Sign in this tablet</h2>
+    <p>Use the restaurant login. You only need to do this once on each tablet.</p>
+    <input id="lgEmail" type="email" placeholder="Restaurant email" autocomplete="username" required>
+    <input id="lgPass" type="password" placeholder="Password" autocomplete="current-password" required>
+    <div id="lgErr" class="lgerr"></div>
+    <button class="btn pri" type="submit">Sign in</button>${cancelable?`<button class="btn sec" type="button" data-lgx>Not now</button>`:""}</form>`;
+  ov.classList.add("show");setTimeout(()=>$("lgEmail").focus(),100);
+  ov.querySelector("[data-lgx]")?.addEventListener("click",()=>ov.classList.remove("show"));
+  ov.querySelector("form").onsubmit=async e=>{e.preventDefault();const btn=ov.querySelector("button[type=submit]");btn.disabled=true;$("lgErr").textContent="";
+    try{const {data,error}=await sbc.auth.signInWithPassword({email:$("lgEmail").value.trim(),password:$("lgPass").value});
+      if(error)throw error;sbUser=(data.user&&data.user.email)||"";try{sbc.realtime.setAuth(data.session.access_token)}catch(_){}
+      ov.classList.remove("show");toast("🔐 Signed in — this tablet stays signed in");after&&after()}
+    catch(err){btn.disabled=false;$("lgErr").textContent=/invalid/i.test(err.message||"")?"Wrong email or password":"Couldn't sign in — check the internet and try again"}};
+}
+function openSignIn(){
+  if(!sbc){toast("Sign-in only works on the restaurant website");return}
+  if(!sbUser){showLogin(()=>{if(!db||db.guest)startDb(makeSupaDb(sbc));else location.reload()},true);return}
+  ask("This tablet is signed in",`Signed in as ${sbUser}. Sign out only if you're giving this tablet away — it will stop working until someone signs in again.`,async()=>{try{await sbc.auth.signOut()}catch(_){}sbUser="";location.reload()},"Sign out");
+}
+async function bootSupa(lib){
+  sbc=lib.createClient(SUPA_URL,SUPA_KEY,{auth:{persistSession:true,autoRefreshToken:true,storageKey:"t57-auth"}});
+  let session=null;try{session=(await sbc.auth.getSession()).data.session}catch(_){}
+  if(session){sbUser=(session.user&&session.user.email)||"";try{sbc.realtime.setAuth(session.access_token)}catch(_){}}
+  let locked=isLocked();
+  try{const r=await sbc.rpc("t57_locked");if(!r.error&&r.data===true){locked=true;try{localStorage.setItem("t57-locked","1")}catch(_){}}}catch(_){}
+  if(session){startDb(makeSupaDb(sbc));return}
+  if(!locked){startDb(makeSupaDb(sbc));return}
+  if(view==="guest"){startDb(makeGuestDb(sbc));return}
+  setStatus("local","Not signed in");showLogin(()=>startDb(makeSupaDb(sbc)),false);
+}
 function startDb(d){db=TRAIN?nsDb(d):d;subscribeLive();subscribePrinters();subscribe();subscribeSettings();subscribeTickets();startStaffStores();gIdx=null}
 if(window.claude&&typeof window.claude.use==="function"){
   window.claude.use("db").then(d=>{if(!d){setStatus("local","This device");return}startDb(d)}).catch(()=>setStatus("local","This device"));
 }else if(SUPA_URL&&location.protocol.startsWith("http")){
   setStatus("saving","Connecting…");
-  loadSupaLib().then(lib=>startDb(makeSupaDb(lib.createClient(SUPA_URL,SUPA_KEY,{auth:{persistSession:false}})))).catch(()=>setStatus("local","Offline — this device only"));
+  loadSupaLib().then(bootSupa).catch(()=>setStatus("local","Offline — this device only"));
 }
 })();
 </script>

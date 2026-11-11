@@ -38,6 +38,7 @@ class PrintService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        Cloud.init(this)
         startInForeground()
         if (!running) {
             running = true

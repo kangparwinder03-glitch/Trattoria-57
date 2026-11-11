@@ -14,9 +14,48 @@ object Cloud {
     const val BASE = "https://uzrkewizkqdnqpovwune.supabase.co"
     const val KEY = "sb_publishable_Hix2EgA_xpjxMYFvmarVIQ_Hj0qx3YM"
 
+    // ---- sign-in (the restaurant login): needed once the database is locked down ----
+    private var prefs: android.content.SharedPreferences? = null
+    @Volatile private var token: String? = null
+    @Volatile private var tokenExp = 0L
+    fun init(ctx: android.content.Context) { if (prefs == null) prefs = ctx.applicationContext.getSharedPreferences("t57", android.content.Context.MODE_PRIVATE) }
+    val signedInAs: String get() = prefs?.getString("auth_email", "") ?: ""
+
+    private fun authCall(grant: String, body: JSONObject): Boolean {
+        val c = (URL("$BASE/auth/v1/token?grant_type=$grant").openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"; connectTimeout = 8000; readTimeout = 12000; doOutput = true
+            setRequestProperty("apikey", KEY); setRequestProperty("Content-Type", "application/json") }
+        try {
+            c.outputStream.use { it.write(body.toString().toByteArray()) }
+            if (c.responseCode !in 200..299) return false
+            val j = JSONObject(c.inputStream.bufferedReader().readText())
+            token = j.getString("access_token"); tokenExp = System.currentTimeMillis() + j.optLong("expires_in", 3600) * 1000
+            prefs?.edit()?.putString("auth_refresh", j.optString("refresh_token"))?.apply()
+            return true
+        } finally { c.disconnect() }
+    }
+
+    /** Signs this tablet in. Keeps the login so it can sign itself back in after a restart. */
+    fun signIn(email: String, password: String): Boolean {
+        val ok = try { authCall("password", JSONObject().put("email", email).put("password", password)) } catch (_: Exception) { false }
+        if (ok) prefs?.edit()?.putString("auth_email", email)?.putString("auth_pass", password)?.apply()
+        return ok
+    }
+    fun signOut() { token = null; tokenExp = 0; prefs?.edit()?.remove("auth_email")?.remove("auth_pass")?.remove("auth_refresh")?.apply() }
+
+    @Synchronized private fun bearer(): String {
+        val p = prefs ?: return KEY
+        if (token != null && System.currentTimeMillis() < tokenExp - 120_000) return token!!
+        val rt = p.getString("auth_refresh", "") ?: ""
+        if (rt.isNotBlank() && try { authCall("refresh_token", JSONObject().put("refresh_token", rt)) } catch (_: Exception) { false }) return token!!
+        val e = p.getString("auth_email", "") ?: ""; val pw = p.getString("auth_pass", "") ?: ""
+        if (e.isNotBlank() && pw.isNotBlank() && try { authCall("password", JSONObject().put("email", e).put("password", pw)) } catch (_: Exception) { false }) return token!!
+        return KEY
+    }
+
     private fun conn(path: String, method: String) = (URL(BASE + path).openConnection() as HttpURLConnection).apply {
         requestMethod = method; connectTimeout = 8000; readTimeout = 12000
-        setRequestProperty("apikey", KEY); setRequestProperty("Authorization", "Bearer $KEY")
+        setRequestProperty("apikey", KEY); setRequestProperty("Authorization", "Bearer ${bearer()}")
         setRequestProperty("Content-Type", "application/json"); setRequestProperty("Accept", "application/json")
     }
 
