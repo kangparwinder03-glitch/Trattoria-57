@@ -1,0 +1,18 @@
+name: DB peek (read-only)
+on:
+  push:
+    paths: ["tools/dbpeek.txt"]
+jobs:
+  peek:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read
+        env:
+          U: https://uzrkewizkqdnqpovwune.supabase.co/rest/v1/t57_docs
+          K: sb_publishable_Hix2EgA_xpjxMYFvmarVIQ_Hj0qx3YM
+        run: |
+          H=(-H "apikey: $K" -H "Authorization: Bearer $K")
+          D=$(TZ=Europe/London date +%F); echo "today $D"
+          for c in plan23 train_plan23; do echo "== $c/$D bookings"; curl -s "${H[@]}" "$U?select=data&coll=eq.$c&id=eq.$D" | jq -c '.[0].data.bookings // {} | to_entries[] | {table:.key,walkin:.value.walkin,guests:[.value.guests[]?.name],status:.value.status}'; done
+          for c in calls train_calls; do echo "== $c latest"; curl -s "${H[@]}" "$U?select=id,updated_at,data&coll=eq.$c&order=updated_at.desc&limit=5" | jq -c '.[]|{at:.updated_at[0:19],table:.data.table,what:.data.what,done:.data.done}'; done
+          echo "== settings/live"; curl -s "${H[@]}" "$U?select=data&coll=eq.settings&id=eq.live" | jq -c '.[0].data'
