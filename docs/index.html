@@ -822,6 +822,7 @@ body.mode-waiter #vKitchen,body.mode-waiter #vBar,body.mode-waiter #vReport{disp
 .dmgrid button b{display:block;font-size:18px}.dmgrid button small{display:block;color:#6d6448;margin-top:4px;font-size:13px}.dmgrid button.on{border-color:var(--olive-dk);background:#eef2e4}
 .lblbox{border:1px solid var(--parch2);background:#fffaf0;border-radius:12px;padding:10px 12px;margin-bottom:12px}.lblbox .sub{display:block;font-size:12px;color:#6d6448;margin:2px 0 8px}
 .lblrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}.lblrow label{display:flex;flex-direction:column;font-size:12px;font-weight:700;color:#5d5640;gap:3px}.lblrow .btn{flex:1;max-width:none}
+#xBody .wgrid button.lastp{outline:3px solid var(--olive);outline-offset:-3px}
 </style>
 </head>
 <body>
@@ -1057,7 +1058,7 @@ body.mode-waiter #vKitchen,body.mode-waiter #vBar,body.mode-waiter #vReport{disp
     <div class="sh-body"><p class="note" style="font-size:13px">Test codes for now: they only open for people signed in to this app. Print the real ones after the app moves to its own website — the address changes then.</p><div class="lblbox"><b>🏷 Print table labels</b><span class="sub">On a label roll (e.g. the Katasymbol T50M Pro): QR + table name on each sticker</span>
       <div class="lblrow"><label>Label size<select id="lblSize"><option value="50x30">50 × 30 mm</option><option value="40x30">40 × 30 mm</option><option value="50x40">50 × 40 mm</option><option value="50x50">50 × 50 mm</option><option value="40x40">40 × 40 mm</option><option value="30x20">30 × 20 mm</option></select></label>
       <label>Gap<select id="lblGap"><option value="2">2 mm</option><option value="3">3 mm</option><option value="1.5">1.5 mm</option><option value="1">1 mm</option><option value="0">none</option></select></label>
-      <label>Printer<select id="lblTo"><option value="bar">Bar</option><option value="till">Till</option><option value="kitchen">Kitchen</option></select></label></div>
+</div>
       <div class="lblrow"><button class="btn sec" id="lblTest">Print 1 test label</button><button class="btn pri" id="lblAll">Print all tables</button></div></div><div class="qrgrid" id="qrGrid"></div></div>
   </div>
 </div>
@@ -3101,12 +3102,12 @@ $("setQr").onclick=async()=>{
 };
 $("qrClose").onclick=()=>$("qrOv").classList.remove("show");
 // ---- table QR labels: send the QR grid + table name; the printer app draws each sticker to the exact label size ----
-try{const v=JSON.parse(localStorage.getItem("t57-lbl")||"{}");if(v.size)$("lblSize").value=v.size;if(v.gap!=null)$("lblGap").value=v.gap;if(v.to)$("lblTo").value=v.to}catch(e){}
-async function printLabels(ids){
+try{const v=JSON.parse(localStorage.getItem("t57-lbl")||"{}");if(v.size)$("lblSize").value=v.size;if(v.gap!=null)$("lblGap").value=v.gap}catch(e){}
+async function printLabels(ids,to){
   if(!canThermal()){toast("Label printing works on the website version (GitHub link)");return}
   if(!(await loadQr())){toast("Couldn't load the QR maker — check the internet");return}
-  const [w,h]=$("lblSize").value.split("x").map(Number),gap=+$("lblGap").value,to=$("lblTo").value;
-  try{localStorage.setItem("t57-lbl",JSON.stringify({size:$("lblSize").value,gap:$("lblGap").value,to}))}catch(e){}
+  const [w,h]=$("lblSize").value.split("x").map(Number),gap=+$("lblGap").value;
+  try{localStorage.setItem("t57-lbl",JSON.stringify({size:$("lblSize").value,gap:$("lblGap").value}))}catch(e){}
   const tmp=document.createElement("div");tmp.style.display="none";document.body.appendChild(tmp);
   const labels=ids.map(id=>{tmp.innerHTML="";const q=new window.QRCode(tmp,{text:APP_URL+"#"+tableHash(id),width:64,height:64,correctLevel:window.QRCode.CorrectLevel.M})._oQRCode;
     const n=q.getModuleCount(),rows=[];for(let r=0;r<n;r++){let row="";for(let c=0;c<n;c++)row+=q.isDark(r,c)?"1":"0";rows.push(row)}
@@ -3115,8 +3116,8 @@ async function printLabels(ids){
   const id=uid(),target=TRAIN&&db.base?db.base:db;
   try{await target.collection("printjobs").doc(id).set({to,kind:"labels",title:(ids.length===1?"Test label ":"Table labels ×"+ids.length),labels,w,h,gap,date:dateKey,createdAt:Date.now(),by:waiter?waiter.name:""});
     toast(`🏷 ${ids.length} label${ids.length===1?"":"s"} sent to the ${prName(to)} printer`)}catch(e){toast("Couldn't send to printer — try again")}}
-$("lblTest").onclick=()=>printLabels([1]);
-$("lblAll").onclick=()=>ask(`Print ${N} table labels?`,`One sticker per table on the ${prName($("lblTo").value)} printer. Print a test label first to check the size lines up.`,()=>printLabels(Array.from({length:N},(_,k)=>k+1)));
+$("lblTest").onclick=()=>pickPrinter(to=>printLabels([1],to),"The one with the label roll");
+$("lblAll").onclick=()=>pickPrinter(to=>ask(`Print ${N} table labels?`,`One sticker per table on the ${prName(to)} printer. Print a test label first to check the size lines up.`,()=>printLabels(Array.from({length:N},(_,k)=>k+1),to)),"The one with the label roll");
 
 
 // ================= service-flow extras =================
@@ -3201,6 +3202,9 @@ let aoOpen=null,aoDel=null,aoF="all";
 function openAllOrders(){aoOpen=null;aoDel=null;aoF="all";
   openX("allord","All orders · "+$("dateLabel").textContent,"Tap an order to see what was on it",e=>{
     const f=e.target.closest("[data-aof]");if(f){aoF=f.dataset.aof;renderAllOrders();return}
+    if(e.target.closest("[data-aoprint]")){const all=tickets.filter(t=>t.items.length&&!t.hold).sort((a,b)=>b.createdAt-a.createdAt).filter(t=>aoF==="all"||aoState(t)[0]===aoF);
+      {const f0=aoF;pickPrinter(to=>{printJob(to,"orders","Orders list",aoListLines(all),"small");openAllOrders();aoF=f0;renderAllOrders()},"Print the orders list")};return}
+    const rp=e.target.closest("[data-aorep]");if(rp){const t=tickets.find(x=>x.id===rp.dataset.aorep);if(t){const f0=aoF;pickPrinter(to=>{printJob(to,"order","Order "+(t.no||"")+" "+t.label,orderLines(t),"small");openAllOrders();aoF=f0;aoOpen=t.id;renderAllOrders()},"Reprint this order")};return}
     const d=e.target.closest("[data-aodel]");if(d){const go=()=>{aoDel=d.dataset.aodel;renderAllOrders()};if(Date.now()<repUnlockUntil)go();else mgrCheck(go,"Deleting orders needs a manager");return}
     if(e.target.closest("[data-aoback]")){aoDel=null;renderAllOrders();return}
     const r=e.target.closest("[data-aodr]");if(r){const t=tickets.find(x=>x.id===aoDel);if(!t)return;
@@ -3223,8 +3227,14 @@ function renderAllOrders(){
     ${list.map(t=>{const [k,lab]=aoState(t),val=t.items.reduce((a,x)=>a+lv(x),0),open=aoOpen===t.id;
       return `<div class="aorow ${k}${open?" open":""}"><button class="aohead" data-aoid="${t.id}"><span><b>${t.walk?"🍸":t.pickup?"🥡":""}${esc(t.label)}</b> · #${t.no||""} · ${timeOf(t.createdAt)} · ${stOf(t)==="bar"?"Bar":"Kitchen"}${t.byName?" · "+esc(t.byName):""}</span><em class="aost ${k}">${esc(lab)}</em><b class="amt">${money(val)}</b></button>
         ${open?`<div class="aoitems">${t.items.map(x=>`<div class="${x.v?"void":""}"><span>${x.q}× ${esc(x.n)}${x.g?" · "+esc(x.g):""}${x.note?` <i>${esc(x.note)}</i>`:""}${x.v?` <i>${esc(x.vr||"void")}${x.vb?" · "+esc(x.vb):""}</i>`:""}</span><span>${money(x.q*x.p)}</span></div>`).join("")}
-          ${t.note?`<div><i>Note: ${esc(t.note)}</i></div>`:""}${k==="del"||k==="rej"?"":`<button class="btn dng aodel" data-aodel="${t.id}">🗑 Delete this order</button>`}</div>`:""}</div>`}).join("")||`<p class="trial">No orders here.</p>`}`;
-  $("xFoot").innerHTML=`<button class="btn pri" data-xdone>Done</button>`}
+          ${t.note?`<div><i>Note: ${esc(t.note)}</i></div>`:""}${canThermal()?`<button class="btn sec aodel" data-aorep="${t.id}">🖨 Reprint this order</button>`:""}${k==="del"||k==="rej"?"":`<button class="btn dng aodel" data-aodel="${t.id}">🗑 Delete this order</button>`}</div>`:""}</div>`}).join("")||`<p class="trial">No orders here.</p>`}`;
+  $("xFoot").innerHTML=`${canThermal()&&list.length?`<button class="btn sec" data-aoprint>🖨 Print list</button>`:""}<button class="btn pri" data-xdone>Done</button>`}
+function aoListLines(list){const L=[PL.t("ORDERS · "+$("dateLabel").textContent.toUpperCase(),"c",1),PL.t({all:"All",open:"Open",paid:"Paid",del:"Deleted"}[aoF]+" · "+list.length+" orders","c"),PL.rule()];let tot=0;
+  list.slice().reverse().forEach(t=>{const v=t.items.reduce((a,x)=>a+lv(x),0);tot+=v;L.push(PL.lr(`${timeOf(t.createdAt)} #${t.no||""} ${t.label}`,money(v)),PL.t(`  ${stOf(t)==="bar"?"Bar":"Kitchen"} · ${aoState(t)[1]}${t.byName?" · "+t.byName:""}`))});
+  L.push(PL.rule(),PL.lr("TOTAL",money(tot),1));return L}
+function orderLines(t){const L=[PL.t(t.label+" · order #"+(t.no||""),"c",1),PL.t(timeOf(t.createdAt)+" · "+(stOf(t)==="bar"?"Bar":"Kitchen")+(t.byName?" · "+t.byName:"")+" · "+aoState(t)[1],"c"),PL.rule()];
+  t.items.forEach(x=>{L.push(PL.lr((x.v?"VOID ":"")+x.q+" x "+x.n,money(x.q*x.p)));if(x.note)L.push(PL.t("  "+x.note));if(x.v&&x.vr)L.push(PL.t("  "+x.vr+(x.vb?" · "+x.vb:"")))});
+  if(t.note)L.push(PL.t("Note: "+t.note));L.push(PL.rule(),PL.lr("TOTAL",money(t.items.reduce((a,x)=>a+lv(x),0)),1));return L}
 
 // ---- menu editor (Staff → 🍽 Menu, manager PIN) ----
 let meCat=null,meDraft=null,meDirty=false;
@@ -3235,6 +3245,7 @@ function openMenuEd(){meCat=meCat||CATS[0];meDraft=JSON.parse(JSON.stringify(men
     const del=e.target.closest("[data-medel]");if(del){const n=meRows()[+del.dataset.medel].n;meDraft.add=meDraft.add.filter(a=>a.n!==n);delete meDraft.price[n];delete meDraft.desc[n];meDraft.hide=meDraft.hide.filter(x=>x!==n);meDirty=true;renderMenuEd();return}
     if(e.target.closest("[data-meadd]")){meAdd();return}
     if(e.target.closest("[data-mesave]")){meSave();return}
+    if(e.target.closest("[data-meprint]")){pickPrinter(to=>{printJob(to,"menu","Menu & prices",menuLines(),"full");openMenuEd()},"Print the menu with prices");return}
     if(e.target.closest("[data-mecancel]")){if(!meDirty){closeX();return}ask("Throw away your menu changes?","Nothing has been saved yet.",()=>closeX());return}});
   renderMenuEd()}
 function meRows(){const base=(BASE_MENU.find(c=>c[0]===meCat)||[0,[]])[1].map(([n,p,d])=>({n,p0:p,d0:d,custom:false}));
@@ -3248,7 +3259,10 @@ function renderMenuEd(){
       <button class="btn sec meh" data-mehide="${i}">${off?"↩ Put back":"Remove"}</button>${r.custom?`<button class="btn dng meh" data-medel="${i}" title="Delete for good">🗑</button>`:""}</div>`}).join("")}</div>
     <div class="meadd"><b>+ Add to ${esc(meCat)}</b><div class="meaddrow"><input id="meN" maxlength="60" placeholder="Name, e.g. Pizza Tartufo"><label class="mep">£<input id="meP" type="number" step="0.05" min="0" max="999" inputmode="decimal" placeholder="0.00"></label></div>
       <input id="meD" maxlength="80" placeholder="Description (optional)"><button class="btn sec" data-meadd style="max-width:none;width:100%;margin-top:6px">Add item</button></div>`;
-  $("xFoot").innerHTML=`<button class="btn sec" data-mecancel>Cancel</button><button class="btn pri" data-mesave>${meDirty?"💾 Save menu":"Save menu"}</button>`}
+  $("xFoot").innerHTML=`<button class="btn sec" data-mecancel>Cancel</button>${canThermal()&&!meDirty?`<button class="btn sec" data-meprint>🖨 Print menu</button>`:""}<button class="btn pri" data-mesave>${meDirty?"💾 Save menu":"Save menu"}</button>`}
+function menuLines(){const L=[PL.t("FULL MENU & PRICES","c",1),PL.t(new Date().toLocaleDateString("en-GB"),"c"),PL.rule()];let n=0;
+  MENU.forEach(([cat,list])=>{if(!list.length)return;L.push(PL.t(""),PL.t(cat.toUpperCase(),"l",1),PL.rule());list.forEach(([nm,pr])=>{n++;L.push(PL.lr(nm,money(pr)))})});
+  L.push(PL.t(""),PL.rule(),PL.lr(n+" items on the menu","",1));return L}
 function meAdd(){const n=($("meN").value||"").replace(/\s+/g," ").trim(),p=Math.round(+$("meP").value*100)/100,d=($("meD").value||"").trim();
   if(!n){toast("Type a name");return}if(!isFinite(p)||p<0||$("meP").value===""){toast("Type a price");return}
   if(ITEMS[n]||meDraft.add.some(a=>a.n===n)){toast(`"${n}" is already on the menu`);return}
@@ -3687,8 +3701,10 @@ function reportLines(){
 const PRN={till:"till",bar:"bar",kitchen:"kitchen"};
 const rcpPrinter=()=>{try{const v=localStorage.getItem("t57-rcp");return PRN[v]||"till"}catch(e){return "till"}};
 const prName=t=>({till:"till",bar:"bar",kitchen:"kitchen"})[t]||"bar";
-function pickPrinter(then){
-  openX("printer","Which printer?","",e=>{const b=e.target.closest("[data-pt]");if(!b)return;closeX();try{localStorage.setItem("t57-printer",b.dataset.pt)}catch(_){}then(b.dataset.pt)});
+function pickPrinter(then,what){
+  let last="";try{last=localStorage.getItem("t57-printer")||""}catch(_){}
+  setTimeout(()=>{if(last){const b=document.querySelector(`#xBody [data-pt="${last}"]`);if(b)b.classList.add("lastp")}},0);
+  openX("printer","Which printer?",what||"",e=>{const b=e.target.closest("[data-pt]");if(!b)return;closeX();try{localStorage.setItem("t57-printer",b.dataset.pt)}catch(_){}then(b.dataset.pt)});
   $("xBody").innerHTML=`<div class="wgrid"><button data-pt="till"><span class="av" style="background:#3f5f86">🧾</span><b>Till printer</b></button><button data-pt="bar"><span class="av" style="background:var(--wine)">🍸</span><b>Bar printer</b></button><button data-pt="kitchen"><span class="av" style="background:var(--olive-dk)">🍝</span><b>Kitchen printer</b></button></div>`;
   $("xFoot").innerHTML=`<button class="btn sec" data-xdone>Cancel</button>`;
 }
@@ -3934,7 +3950,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261111081942";
+const APP_BUILD="20261111084614";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
