@@ -25,7 +25,7 @@ object Labels {
             image(draw(L, W, H))
             if (gap > 0) raw(0x1B, 0x4A, gap)          // feed exactly the gap to the next label
         }
-    }
+    }.bytes()
 
     private fun draw(L: JSONObject, W: Int, H: Int): Mono {
         val bmp = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888)
@@ -34,7 +34,7 @@ object Labels {
         // QR from the module grid sent by the website ("0101…" rows)
         val rows = L.optJSONArray("qr") ?: JSONArray()
         val n = rows.length()
-        var x0 = m
+        var x0 = m.toFloat()
         if (n > 0) {
             val mod = maxOf(1, (H - 2 * m) / (n + 2))
             val size = mod * (n + 2)
@@ -43,7 +43,7 @@ object Labels {
             for (r in 0 until n) { val row = rows.optString(r)
                 for (k in row.indices) if (row[k] == '1')
                     c.drawRect(((ox + (k + 1) * mod).toFloat()), ((oy + (r + 1) * mod).toFloat()), ((ox + (k + 2) * mod).toFloat()), ((oy + (r + 2) * mod).toFloat()), p) }
-            x0 = ox + size + 8
+            x0 = (ox + size + 8).toFloat()
         }
         val tw = (W - x0 - m).toFloat()
         fun paint(sz: Float, bold: Boolean, serif: Boolean) = Paint().apply {
