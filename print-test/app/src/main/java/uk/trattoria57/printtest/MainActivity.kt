@@ -26,6 +26,8 @@ import java.util.Locale
 @SuppressLint("MissingPermission", "SetTextI18n")
 class MainActivity : Activity() {
     private var devices: List<BluetoothDevice> = emptyList()
+    /** Our own names for printers, by Bluetooth address — shared by every tablet through the cloud. */
+    private val names = mutableMapOf<String, String>()
     private lateinit var picker: Spinner
     private lateinit var status: TextView
     private lateinit var netStatus: TextView
@@ -96,6 +98,7 @@ class MainActivity : Activity() {
         root.addView(label("Printer (pair it in Android Settings → Bluetooth first)", 14f, true))
         picker = Spinner(this); root.addView(picker, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
         root.addView(button("Refresh printer list", 15f) { loadDevices() })
+        root.addView(button("🏷  Name this printer", 15f) { namePrinter() })
         val wGroup = RadioGroup(this).apply { orientation = RadioGroup.HORIZONTAL }
         wGroup.addView(RadioButton(this).apply { text = "58mm paper  "; id = 58 })
         wGroup.addView(RadioButton(this).apply { text = "80mm paper"; id = 80 })
@@ -176,6 +179,7 @@ class MainActivity : Activity() {
         test("📈  Sample weekly report") { c, l -> Samples.weekReport(c, l) }
         test("📅  Sample monthly report") { c, l -> Samples.monthReport(c, l) }
 
+        loadNames()
         setContentView(ScrollView(this).apply { addView(root, MATCH_PARENT, WRAP_CONTENT) })
         val need = mutableListOf<String>()
         if (Build.VERSION.SDK_INT >= 31) { need += Manifest.permission.BLUETOOTH_CONNECT; need += Manifest.permission.BLUETOOTH_SCAN }
@@ -204,12 +208,60 @@ class MainActivity : Activity() {
         startBtn.setBackgroundColor(if (on) wine else olive); startBtn.setTextColor(Color.WHITE)
     }
 
+    private fun loadNames() {
+        try { val j = org.json.JSONObject(prefs.getString("pnames", "{}") ?: "{}"); j.keys().forEach { names[it] = j.getString(it) } } catch (_: Exception) {}
+        Thread {
+            try {
+                val cloud = Cloud.list("prnnames", emptyList()).firstOrNull { it.first == "main" }?.second ?: return@Thread
+                var changed = false
+                cloud.keys().forEach { k -> val v = cloud.optString(k); if (v.isNotBlank() && names[k] != v) { names[k] = v; changed = true } }
+                if (changed) runOnUiThread { saveNamesLocal(); try { loadDevices() } catch (_: SecurityException) {} }
+            } catch (_: Exception) {}
+        }.start()
+    }
+    private fun saveNamesLocal() { val j = org.json.JSONObject(); names.forEach { (k, v) -> j.put(k, v) }; prefs.edit().putString("pnames", j.toString()).apply() }
+
+    @SuppressLint("MissingPermission")
+    private fun namePrinter() {
+        val d = devices.getOrNull(picker.selectedItemPosition) ?: run { Hub.say("Pick a printer in the list first.", false); return }
+        val input = EditText(this).apply { setText(names[d.address] ?: ""); hint = "e.g. Kitchen printer"; textSize = 18f; setSingleLine() }
+        val also = CheckBox(this).apply { text = "Also try to change the name the printer itself shows when you search Bluetooth"; textSize = 15f; isChecked = true }
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; val p = (16 * resources.displayMetrics.density).toInt(); setPadding(p, p / 2, p, 0); addView(input); addView(also) }
+        android.app.AlertDialog.Builder(this)
+            .setTitle("Name this printer")
+            .setMessage("${d.name ?: "Printer"} · ${d.address}\n\nEvery tablet will show this name.")
+            .setView(box)
+            .setPositiveButton("Save") { _, _ ->
+                val n = input.text.toString().trim().take(20)
+                if (n.isBlank()) { names.remove(d.address) } else names[d.address] = n
+                saveNamesLocal(); loadDevices()
+                Thread { try { Cloud.merge("prnnames", "main", org.json.JSONObject().put(d.address, n)) } catch (_: Exception) {} }.start()
+                if (n.isNotBlank() && also.isChecked) {
+                    // Many small 58mm printers accept this Bluetooth rename command. If this one doesn't, it just prints the line.
+                    prefs.edit().putString("printer", d.address).apply()
+                    Thread {
+                        val ok = Bt.print(this, "AT+NAME $n\r\n".toByteArray(Charsets.US_ASCII), "Rename")
+                        runOnUiThread {
+                            android.app.AlertDialog.Builder(this).setTitle(if (ok) "Rename sent" else "Couldn't reach the printer")
+                                .setMessage(if (ok) "Now switch the printer OFF and ON again, then look in the tablet's Bluetooth settings.\n\n• If it shows \"$n\" — done, the printer is renamed for good.\n• If a line of text printed instead, this printer can't rename itself. That's fine: the name \"$n\" still shows in this app on every tablet."
+                                    else "Make sure the printer is on and nearby, then try again. The name \"$n\" is still saved in the app.")
+                                .setPositiveButton("OK", null).show()
+                        }
+                    }.start()
+                } else Hub.say("🏷 Saved: ${if (n.isBlank()) "name removed" else n}", true)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
     private fun loadDevices() {
         val ad = (getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter
         if (ad == null) { Hub.say("This tablet has no Bluetooth.", false); return }
         if (!ad.isEnabled) { Hub.say("Turn Bluetooth on, then tap Refresh.", false); return }
-        devices = ad.bondedDevices.toList().sortedBy { it.name ?: "" }
-        picker.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, devices.map { "${it.name ?: "Unknown"}  (${it.address})" })
+        devices = ad.bondedDevices.toList().sortedBy { names[it.address] ?: ("~" + (it.name ?: "")) }
+        picker.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, devices.map { d ->
+            val nick = names[d.address]
+            if (nick.isNullOrBlank()) "${d.name ?: "Unknown"}  (${d.address})" else "🏷 $nick  ·  ${d.name ?: ""} (${d.address})" })
         val saved = prefs.getString("printer", null)
         devices.indexOfFirst { it.address == saved }.takeIf { it >= 0 }?.let { picker.setSelection(it) }
         picker.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
