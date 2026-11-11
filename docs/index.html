@@ -4299,7 +4299,8 @@ async function goLive(){
   ask("Go live and delete ALL test data?","Deletes every order, bill, booking, pickup, shift, print job and out-of-stock mark made so far — on every device. Staff, PINs and settings are kept.",()=>{
     setTimeout(()=>ask("Are you sure? This can't be undone.","After this, everything that happens is real and shows on the day reports.",async()=>{
       toast("Clearing test data…");let n=0;
-      if(db){for(const c of NS_COLLS){try{const sn=await db.collection(c).get();for(const d of sn.docs){try{await db.collection(c).doc(d.id).delete();n++}catch(_){}}}catch(_){}}
+      if(db){for(const c of NS_COLLS){try{const sn=await db.collection(c).get();const ids=sn.docs.map(d=>d.id);
+          for(let i=0;i<ids.length;i+=20){await Promise.all(ids.slice(i,i+20).map(id=>db.collection(c).doc(id).delete().then(()=>{n++}).catch(()=>{})));toast(`Clearing test data… ${n}`)}}catch(_){}}
         try{await db.doc("settings/live").set({since:Date.now()})}catch(_){toast("Couldn't finish — check the connection and try again");return}}
       else{try{localStorage.setItem("t57-liveSeen",String(Date.now()))}catch(_){}}
       wipeLocalData("t57-");["t57-waiter"].forEach(k=>{try{localStorage.removeItem(k)}catch(_){}});
@@ -4309,7 +4310,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261111170604";
+const APP_BUILD="20261111231429";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
@@ -4322,6 +4323,12 @@ if(!window.claude&&location.protocol.startsWith("http")&&APP_BUILD!=="dev"){
   setTimeout(chk,4000);setInterval(chk,60000);
   document.addEventListener("visibilitychange",()=>{if(!document.hidden)chk()});
 }
+// ---------- pop-ups: whichever opens last always sits on top (e.g. "Which printer?" over the QR screen) ----------
+(()=>{const ovs=[...document.querySelectorAll(".overlay")];const was=new WeakMap();
+  const mo=new MutationObserver(list=>{list.forEach(m=>{const el=m.target,on=el.classList.contains("show");
+    if(on&&!was.get(el)){const top=Math.max(49,...ovs.filter(o=>o!==el&&o.classList.contains("show")).map(o=>+o.style.zIndex||50));el.style.zIndex=String(Math.min(79,top+1))}
+    if(!on&&was.get(el))el.style.zIndex="";was.set(el,on)})});
+  ovs.forEach(o=>{was.set(o,o.classList.contains("show"));mo.observe(o,{attributes:true,attributeFilter:["class"]})})})();
 // ---------- lockdown: tablets sign in once; customers' phones (QR menu) use a limited guest connection ----------
 let sbc=null,sbUser="";
 const isLocked=()=>{try{return localStorage.getItem("t57-locked")==="1"}catch(_){return false}};
@@ -4377,6 +4384,8 @@ async function bootSupa(lib){
   if(session){sbUser=(session.user&&session.user.email)||"";try{sbc.realtime.setAuth(session.access_token)}catch(_){}}
   let locked=isLocked();
   try{const r=await sbc.rpc("t57_locked");if(!r.error&&r.data===true){locked=true;try{localStorage.setItem("t57-locked","1")}catch(_){}}}catch(_){}
+  // if this tablet ever loses its sign-in, ask straight away rather than showing an empty floor
+  try{sbc.auth.onAuthStateChange(ev=>{if(ev==="SIGNED_OUT"&&isLocked()&&view!=="guest"&&!(db&&db.guest)){sbUser="";setStatus("local","Not signed in");showLogin(()=>location.reload(),false)}})}catch(_){}
   if(session){startDb(makeSupaDb(sbc));return}
   if(!locked){startDb(makeSupaDb(sbc));return}
   if(view==="guest"){startDb(makeGuestDb(sbc));return}
