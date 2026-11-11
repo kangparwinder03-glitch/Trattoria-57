@@ -1610,8 +1610,8 @@ function endBooking(L,kind){
 function askEnd(L,kind){
   if(readOnly){toast("View only");return}
   const bk=state.bookings[L];if(!bk)return;const who=(bk.guests[0]&&bk.guests[0].name)||"this booking";
-  ask(kind==="noshow"?`${who} didn't turn up?`:`Cancel ${who}'s booking?`,
-      kind==="noshow"?"Marks it as a no-show and frees the table. It's kept in the day report.":"Frees the table. The booking is kept in the records as cancelled.",
+  ask(kind==="noshow"?`${who} didn't turn up?`:bk.walkin?"Free the table?":`Cancel ${who}'s booking?`,
+      kind==="noshow"?"Marks it as a no-show and frees the table. It's kept in the day report.":bk.walkin?"The walk-in left without ordering — the table goes back to free.":"Frees the table. The booking is kept in the records as cancelled.",
       ()=>{if($("ordOv").classList.contains("show"))closeOrder();if($("sheetOv").classList.contains("show"))closeSheet();endBooking(L,kind)});
 }
 $("oStrip").addEventListener("click",e=>{const b=e.target.closest("[data-end]");if(!b||!ord)return;askEnd(leadOf(curGroup()),b.dataset.end)});
@@ -2167,7 +2167,8 @@ function renderOrder(){
   $("oSub").textContent=(b?`${lead||"Booked"}${b.time?" · "+b.time:""} · ${partyOf(b)} guests`:"Walk-in")+(waiter?" · 👤 "+waiter.name:"");}
   {const waiting=!ord.pickup&&b&&!b.walkin&&!ordTickets().length;const lead=b&&b.guests[0]&&b.guests[0].name;
    const bal=(!ord.pickup&&b&&isAlg(b.notes)?`<div class="ostrip alg"><b>⚠ Booking note: ${esc(b.notes)}</b></div>`:"")+(!ord.pickup&&b?profStrip(b):"");
-   $("oStrip").innerHTML=bal+(waiting?`<div class="ostrip"><b>⏳ Waiting for ${esc(lead||"guests")}${b.time?" · "+esc(b.time):""}</b><button class="ns" data-end="noshow">🚫 No-show</button><button class="cx" data-end="cancelled">Cancel booking</button></div>`:"");}
+   $("oStrip").innerHTML=bal+(waiting?`<div class="ostrip"><b>⏳ Waiting for ${esc(lead||"guests")}${b.time?" · "+esc(b.time):""}</b><button class="ns" data-end="noshow">🚫 No-show</button><button class="cx" data-end="cancelled">Cancel booking</button></div>`:"")+
+     (!ord.pickup&&b&&b.walkin&&!ordTickets().length&&!cart().length?`<div class="ostrip"><b>🪑 Walk-in · nothing ordered yet</b><button class="cx" data-end="cancelled">✕ Free the table</button></div>`:"");}
   document.querySelector('#ordOv .otabs [data-t="booking"]').style.display=ord.pickup?"none":"";
   document.querySelectorAll("#ordOv .otabs button").forEach(x=>x.classList.toggle("on",x.dataset.t===ord.tab));
   const act=ordTickets();document.querySelector('#ordOv .otabs [data-t="sent"]').textContent=act.length?`Orders & bill (${act.length})`:"Orders & bill";
@@ -3950,7 +3951,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261111084614";
+const APP_BUILD="20261111085304";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
