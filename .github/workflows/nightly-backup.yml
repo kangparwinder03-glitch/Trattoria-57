@@ -1,0 +1,61 @@
+name: Nightly backup
+
+# Every night at 03:17 (UK) a full copy of the restaurant database is saved here,
+# locked with the restaurant password (the repo is public, so the file is encrypted).
+# Each copy is kept for 90 days. Run it any time: Actions → Nightly backup → Run workflow.
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Copy the database
+        env:
+          T57_EMAIL: ${{ secrets.T57_EMAIL }}
+          T57_PASSWORD: ${{ secrets.T57_PASSWORD }}
+        run: |
+          if [ -z "$T57_EMAIL" ] || [ -z "$T57_PASSWORD" ]; then
+            echo "::error::Add the T57_EMAIL and T57_PASSWORD secrets first (Settings → Secrets and variables → Actions)."; exit 1
+          fi
+          python3 - <<'PY'
+          import json, os, gzip, urllib.request, collections, datetime
+          BASE = "https://uzrkewizkqdnqpovwune.supabase.co"
+          KEY = "sb_publishable_Hix2EgA_xpjxMYFvmarVIQ_Hj0qx3YM"
+          def call(url, data=None, headers={}):
+              req = urllib.request.Request(BASE + url, data=json.dumps(data).encode() if data is not None else None,
+                                           headers={"apikey": KEY, "Content-Type": "application/json", **headers})
+              with urllib.request.urlopen(req, timeout=60) as r:
+                  return json.loads(r.read() or b"null")
+          tok = call("/auth/v1/token?grant_type=password", {"email": os.environ["T57_EMAIL"], "password": os.environ["T57_PASSWORD"]})["access_token"]
+          rows, step = [], 1000
+          while True:
+              part = call(f"/rest/v1/t57_docs?select=coll,id,data,updated_at&order=coll.asc,id.asc&offset={len(rows)}&limit={step}",
+                          headers={"Authorization": "Bearer " + tok})
+              rows += part
+              if len(part) < step: break
+          if not rows: raise SystemExit("::error::The backup came back empty — check the login secrets.")
+          out = {"made": datetime.datetime.utcnow().isoformat() + "Z", "rows": rows}
+          with gzip.open("backup.json.gz", "wt", encoding="utf-8") as f: json.dump(out, f)
+          counts = collections.Counter(r["coll"] for r in rows)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as s:
+              s.write(f"### Backup OK — {len(rows)} records\n\n| What | Records |\n|---|---|\n")
+              for k, v in sorted(counts.items()): s.write(f"| {k} | {v} |\n")
+          print(f"Backed up {len(rows)} records")
+          PY
+          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -in backup.json.gz -out t57-backup.json.gz.enc -pass env:T57_PASSWORD
+          rm backup.json.gz
+          echo "STAMP=$(TZ=Europe/London date +%Y-%m-%d_%H%M)" >> "$GITHUB_ENV"
+
+      - name: Keep the copy for 90 days
+        uses: actions/upload-artifact@v4
+        with:
+          name: t57-backup-${{ env.STAMP }}
+          path: t57-backup.json.gz.enc
+          retention-days: 90
+          if-no-files-found: error
