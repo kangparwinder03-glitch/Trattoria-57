@@ -13,6 +13,7 @@ class EscPos(val cols: Int) {
     private fun enc(s: String): ByteArray = s.map { ch ->
         when (ch) {
             '£' -> 0x9C.toByte(); '·' -> 0xFA.toByte(); '×' -> 'x'.code.toByte()
+            '█' -> 0xDB.toByte(); '▓' -> 0xB2.toByte(); '░' -> 0xB0.toByte(); '▲' -> '+'.code.toByte(); '▼' -> '-'.code.toByte()
             '—', '–', '−' -> '-'.code.toByte(); '’', '‘' -> '\''.code.toByte()
             'é' -> 0x82.toByte(); 'è' -> 0x8A.toByte(); 'à' -> 0x85.toByte(); 'ä' -> 0x84.toByte(); 'ù' -> 0x97.toByte(); 'ò' -> 0x95.toByte()
             else -> if (ch.code in 32..126) ch.code.toByte() else '?'.code.toByte()

@@ -149,6 +149,8 @@ class MainActivity : Activity() {
         test("🍸  Sample bar ticket") { c, l -> Samples.barTicket(c, l) }
         test("🧾  Sample bill") { c, l -> Samples.bill(c, l) }
         test("📊  Sample end-of-day report") { c, l -> Samples.dayReport(c, l) }
+        test("📈  Sample weekly report") { c, l -> Samples.weekReport(c, l) }
+        test("📅  Sample monthly report") { c, l -> Samples.monthReport(c, l) }
 
         setContentView(ScrollView(this).apply { addView(root, MATCH_PARENT, WRAP_CONTENT) })
         val need = mutableListOf<String>()

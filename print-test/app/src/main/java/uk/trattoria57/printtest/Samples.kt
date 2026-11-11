@@ -81,4 +81,45 @@ object Samples {
         rule('='); align(1).bold(true).line("TRATTORIA 57").bold(false).line("Italian Kitchen & Bar").align(0)
         feed(5); cut()
     }.bytes()
+
+    private fun bar(v: Double, max: Double, w: Int) = "\u2588".repeat(if (max > 0) Math.round(v / max * w).toInt() else 0)
+
+    private fun period(cols: Int, lg: Logos, title: String, range: String, days: List<Pair<String, Double>>, weekdays: List<Pair<String, Double>>?) = EscPos(cols).apply {
+        header(this, lg)
+        align(1).bold(true).size(1, 2).line(title).size(1, 1).line("Trattoria 57").bold(false).line(range).line("** TEST - SAMPLE NUMBERS **").align(0); rule()
+        val tot = days.sumOf { it.second }
+        bold(true).size(1, 2).lr("TAKINGS", "£%,.2f".format(Locale.UK, tot)).size(1, 1).bold(false)
+        lr("vs previous", "+8%"); lr("Card", "£%,.2f".format(Locale.UK, tot * 0.8)); lr("Cash", "£%,.2f".format(Locale.UK, tot * 0.2)); lr("Discounts", "£96.40"); rule()
+        lr("Covers", (tot / 23).toInt().toString()); lr("Spend per head", "£23.10"); lr("Avg per day open", "£%,.2f".format(Locale.UK, tot / days.count { it.second > 0 })); rule()
+        bold(true).line("SALES BY DAY").bold(false)
+        val mx = days.maxOf { it.second }; val w = if (cols >= 48) 30 else 16
+        days.forEach { (d, v) -> line("${d.padEnd(4)}${bar(v, mx, w).padEnd(w)} £${v.toInt()}") }
+        if (weekdays != null) { rule(); bold(true).line("BY WEEKDAY").bold(false); val wm = weekdays.maxOf { it.second }
+            weekdays.forEach { (d, v) -> line("${d.padEnd(4)}${bar(v, wm, w).padEnd(w)} £${v.toInt()}") } }
+        rule(); bold(true).line("HIGHLIGHTS").bold(false)
+        bold(true).line("Most sold:").bold(false).line("  Pizza Margherita (96)")
+        bold(true).line("Least sold:").bold(false).line("  Calzone (2)")
+        bold(true).line("Best dish:").bold(false).line("  Pizza Margherita (96)")
+        bold(true).line("Best drink:").bold(false).line("  Peroni · Pint (141)")
+        bold(true).line("Busiest hour:").bold(false).line("  19:00 - 20:00"); rule()
+        bold(true).line("TOP 5").bold(false)
+        listOf("Peroni · Pint" to 141, "Pizza Margherita" to 96, "Spaghetti Carbonara" to 71, "Aperol Spritz" to 64, "Garlic Bread" to 52).forEachIndexed { i, (n, q) ->
+            lr("${i + 1}. $n", "x$q"); line("   " + bar(q.toDouble(), 141.0, w)) }
+        rule(); bold(true).line("FOOD VS DRINK").bold(false)
+        lr("Food", "£%,.2f".format(Locale.UK, tot * 0.62)); line("   " + bar(62.0, 62.0, w)); lr("Drinks", "£%,.2f".format(Locale.UK, tot * 0.38)); line("   " + bar(38.0, 62.0, w))
+        rule(); bold(true).line("STAFF HOURS").bold(false); lr("Maria", "38h 30m"); lr("Luca", "41h 05m"); bold(true).lr("Total", "79h 35m").bold(false)
+        rule('='); align(1).bold(true).line("TRATTORIA 57").bold(false).line("Italian Kitchen & Bar").align(0)
+        feed(5); cut()
+    }.bytes()
+
+    fun weekReport(cols: Int, lg: Logos) = period(cols, lg, "WEEKLY REPORT", "Mon 9 Nov - Sun 15 Nov",
+        listOf("Mon" to 0.0, "Tue" to 642.5, "Wed" to 718.2, "Thu" to 905.4, "Fri" to 1640.8, "Sat" to 1987.3, "Sun" to 1210.6), null)
+
+    fun monthReport(cols: Int, lg: Logos): ByteArray {
+        val base = listOf(0.0, 640.0, 710.0, 900.0, 1650.0, 1980.0, 1200.0)
+        val days = (1..30).map { d -> val wd = (d + 5) % 7; d.toString().padStart(2) to base[wd] * (0.85 + (d * 37 % 30) / 100.0) }
+        val names = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+        val wk = names.mapIndexed { i, n -> n to days.filterIndexed { d, _ -> (d + 6) % 7 == i }.sumOf { it.second } }
+        return period(cols, lg, "MONTHLY REPORT", "November 2026", days, wk)
+    }
 }
