@@ -3741,6 +3741,13 @@ function route(){
 }
 addEventListener("hashchange",route);
 setTimeout(applyMode,0);
+// keep the screen awake on kitchen / bar screens (and kitchen/bar tablets) while the app is open
+let wakeLk=null;
+async function keepAwake(){const want=(view==="kitchen"||view==="bar"||devMode==="kitchen"||devMode==="bar")&&!document.hidden;
+  try{if(want&&!wakeLk&&navigator.wakeLock){wakeLk=await navigator.wakeLock.request("screen");wakeLk.addEventListener("release",()=>{wakeLk=null})}
+      else if(!want&&wakeLk){await wakeLk.release();wakeLk=null}}catch(e){}}
+addEventListener("hashchange",()=>setTimeout(keepAwake,50));document.addEventListener("visibilitychange",keepAwake);
+["click","touchend"].forEach(ev=>addEventListener(ev,()=>{if(!wakeLk)keepAwake()},{passive:true}));setTimeout(keepAwake,500);
 
 // confirm dialog
 let confCb=null;
@@ -3904,7 +3911,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261111001556";
+const APP_BUILD="20261111081101";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
