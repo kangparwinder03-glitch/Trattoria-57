@@ -58,6 +58,8 @@ object Format {
             line("PICKUP").size(3, 3).line("#" + t.optInt("pno")).size(1, 1)
             val who = listOf(t.optString("pname"), t.optString("pphone")).filter { it.isNotBlank() }.joinToString(" · ")
             if (who.isNotBlank()) line(who)
+            val pat = t.optString("pat")
+            if (pat.isNotBlank()) size(2, 2).line("FOR $pat").size(1, 1)
         } else size(2, 2).line(t.optString("label").uppercase(Locale.UK)).size(1, 1)
         bold(false)
         val time = SimpleDateFormat("HH:mm", Locale.UK).format(Date(t.optLong("createdAt", System.currentTimeMillis())))
