@@ -814,6 +814,11 @@ body.training{padding-top:30px}
 .undobar{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:90;display:flex;gap:12px;align-items:center;background:#2e2b1f;color:#fff;border-radius:14px;padding:10px 10px 10px 16px;font-weight:700;box-shadow:0 6px 20px rgba(0,0,0,.3);font-size:15px}
 .undobar button{border:0;border-radius:10px;background:#f4ecdc;color:#2e2b1f;font-weight:800;padding:10px 16px;font-size:15px}
 .undobar i{font-style:normal;opacity:.7;font-variant-numeric:tabular-nums}
+body.mode-kitchen .vsw,body.mode-bar .vsw{display:none!important}
+body.mode-waiter #vKitchen,body.mode-waiter #vBar,body.mode-waiter #vReport{display:none!important}
+.modechip{border:1px solid var(--olive-dk);background:var(--olive-dk);color:#fff;border-radius:12px;padding:6px 12px;font-weight:800;font-size:13px}
+.dmgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.dmgrid button{border:2px solid var(--parch2);background:#fffaf0;border-radius:14px;padding:16px 12px;text-align:left;color:var(--ink)}
+.dmgrid button b{display:block;font-size:18px}.dmgrid button small{display:block;color:#6d6448;margin-top:4px;font-size:13px}.dmgrid button.on{border-color:var(--olive-dk);background:#eef2e4}
 </style>
 </head>
 <body>
@@ -1072,6 +1077,7 @@ body.training{padding-top:30px}
     <div class="sh-body">
       <div class="fld" style="margin-bottom:12px"><label for="sOwner">Owner's email</label><input id="sOwner" type="email" inputmode="email" placeholder="owner@example.com" maxlength="80"></div>
       <div class="fld" style="margin-bottom:12px"><label for="sReview">Google review link (QR printed on receipts)</label><input id="sReview" maxlength="300" placeholder="https://g.page/r/…/review" autocomplete="off"></div>
+      <button type="button" class="btn sec" id="sDevMode" style="max-width:none;width:100%;margin-bottom:12px">📱 This tablet is for: <b id="sDevModeLbl"></b> — change</button>
       <div class="hhbox"><label class="hhon"><input type="checkbox" id="hhOn"> 🍹 <b>Happy hour</b> — drink prices drop automatically</label>
         <div class="row3"><div class="fld"><label for="hhFrom">From</label><input id="hhFrom" type="time"></div><div class="fld"><label for="hhTo">To</label><input id="hhTo" type="time"></div><div class="fld"><label for="hhPct">% off</label><input id="hhPct" type="number" min="1" max="90" inputmode="numeric"></div></div>
         <div class="hhchips" id="hhDays"></div><div class="hhchips" id="hhCats"></div></div>
@@ -1682,7 +1688,8 @@ function fillHH(){const h=settings.hh||cleanHH({});$("hhOn").checked=!!(settings
   $("hhCats").innerHTML=CATS.filter(k=>BAR_CATS.has(k)).map(k=>`<label><input type="checkbox" value="${esc(k)}"${h.cats.includes(k)?" checked":""}>${esc(k)}</label>`).join("")}
 function readHH(){return cleanHH({on:$("hhOn").checked,from:$("hhFrom").value,to:$("hhTo").value,pct:$("hhPct").value,
   days:[...$("hhDays").querySelectorAll("input:checked")].map(i=>+i.value),cats:[...$("hhCats").querySelectorAll("input:checked")].map(i=>i.value)})}
-function openSettings(){$("sPick").value=settings.pickupPct;$("sOwner").value=settings.ownerEmail;$("sAuto").checked=settings.auto;$("sIg").value=settings.ig||"";$("sReview").value=settings.review||"";$("sTa").value=settings.ta||"";fillHH();$("sRcp").value=rcpPrinter();$("sAutoRc").checked=settings.autoRc!==false;$("sFb").value=settings.fb||"";$("setOv").classList.add("show")}
+document.addEventListener("click",e=>{if(e.target.closest("#sDevMode")){const ov=document.querySelector(".overlay.show");if(ov)ov.classList.remove("show");openModePicker()}});
+function openSettings(){$("sPick").value=settings.pickupPct;$("sOwner").value=settings.ownerEmail;$("sAuto").checked=settings.auto;$("sIg").value=settings.ig||"";$("sReview").value=settings.review||"";$("sTa").value=settings.ta||"";fillHH();{const m=MODES[devMode];$("sDevModeLbl").textContent=m?m.icon+" "+m.name:"⭐ Manager (everything)"}$("sRcp").value=rcpPrinter();$("sAutoRc").checked=settings.autoRc!==false;$("sFb").value=settings.fb||"";$("setOv").classList.add("show")}
 $("setBtn").onclick=()=>mgrCheck(openSettings,"Settings are for managers");
 $("setClose").onclick=()=>$("setOv").classList.remove("show");
 $("setOv").addEventListener("pointerdown",e=>{if(e.target===$("setOv"))$("setOv").classList.remove("show")});
@@ -3700,9 +3707,31 @@ function openItemDisc(k){
 
 // ---- views (#floor / #kitchen / #staff / #report) ----
 let view="floor";
+// ---- tablet modes: what this device is for (set once, manager PIN to change) ----
+let devMode="";try{devMode=localStorage.getItem("t57-devmode")||""}catch(e){}
+const MODES={kitchen:{name:"Kitchen",icon:"🍝",views:["kitchen"],desc:"Kitchen orders screen only"},
+  bar:{name:"Bar",icon:"🍸",views:["bar"],desc:"Bar orders, drinks orders & walk-up payments"},
+  waiter:{name:"Waiter",icon:"🧑‍🍳",views:["floor","staff"],desc:"Floor, Pickup, Bookings, Staff"},
+  manager:{name:"Manager",icon:"⭐",views:null,desc:"Everything"}};
+const allowedView=v=>{const m=MODES[devMode];return v==="guest"||!m||!m.views||m.views.includes(v)};
+function applyMode(){
+  Object.keys(MODES).forEach(k=>document.body.classList.toggle("mode-"+k,devMode===k));
+  let c=$("modeChip");const m=MODES[devMode],locked=m&&m.views;
+  if(!locked){if(c)c.remove();return}
+  if(!c){c=document.createElement("button");c.id="modeChip";c.className="modechip";c.onclick=()=>managerGate(openModePicker,"Changing what this tablet is for needs a manager");$("status").before(c)}
+  c.textContent=`🔒 ${m.name} tablet`}
+function openModePicker(){
+  openX("devmode","This tablet is for…","Each tablet only shows what that job needs. Changing it later needs the manager PIN.",e=>{
+    const b=e.target.closest("[data-dm]");if(!b)return;devMode=b.dataset.dm;try{localStorage.setItem("t57-devmode",devMode)}catch(_){}
+    closeX();applyMode();const m=MODES[devMode];
+    if(m&&m.views&&!m.views.includes(view))location.hash="#"+m.views[0];else route();
+    toast(`${m?m.icon+" "+m.name:"⭐ Manager"} tablet`)});
+  $("xBody").innerHTML=`<div class="dmgrid">${Object.entries(MODES).map(([k,m])=>`<button data-dm="${k}" class="${devMode===k||(!devMode&&k==="manager")?"on":""}"><b>${m.icon} ${m.name}</b><small>${m.desc}</small></button>`).join("")}</div>`;
+  $("xFoot").innerHTML=`<button class="btn sec" data-xdone style="max-width:none">Cancel</button>`}
 function route(){
   guestId=guestFromHash(location.hash);
   view=guestId?"guest":({"#kitchen":"kitchen","#bar":"bar","#staff":"staff","#report":"report"})[location.hash]||"floor";
+  if(!allowedView(view)){const first=MODES[devMode].views[0];if(location.hash!=="#"+first){location.hash="#"+first;return}}
   document.body.classList.toggle("g",view==="guest");if(view==="guest"){gCat=null;renderGuest()}
   document.body.classList.toggle("bv",view==="bar");$("vBar").classList.toggle("on",view==="bar");
   document.body.classList.toggle("k",view==="kitchen");document.body.classList.toggle("s",view==="staff");document.body.classList.toggle("r",view==="report");
@@ -3711,6 +3740,7 @@ function route(){
   else if(view==="report"){renderReport();if(Date.now()>repUnlockUntil)managerGate(()=>{repUnlockUntil=Date.now()+15*60000;renderReport()})}
 }
 addEventListener("hashchange",route);
+setTimeout(applyMode,0);
 
 // confirm dialog
 let confCb=null;
@@ -3874,7 +3904,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261110232016";
+const APP_BUILD="20261111001102";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
