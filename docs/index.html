@@ -1835,7 +1835,7 @@ const carts={};           // draft orders per table group (by lead id)
 let ord=null;             // {lead, tab, cat, review}
 let outSet=new Set();     // out-of-stock item names
 let waiter=null;try{const w=JSON.parse(localStorage.getItem("t57-waiter")||"null");if(w&&w.id)waiter={id:str(w.id,40),name:str(w.name,40)}}catch(e){}
-let mgrUntil=0;
+let mgrUntil=0;const MGR_GRACE=30000;   // after the manager PIN, other manager actions skip the PIN for 30 seconds
 const money=n=>"£"+n.toFixed(2);
 function cleanTicket(id,d){
   if(!d||typeof d!=="object")return null;
@@ -2292,7 +2292,7 @@ $("discClose").onclick=()=>$("discOv").classList.remove("show");
 const bigDisc=d=>d&&d.type!=="none"&&d.reason!=="Pickup"&&(d.type==="pct"?d.value>10:d.value>5);
 async function setDisc(d,ok){
   if(readOnly){toast("View only");return}
-  if(!ok&&bigDisc(d)&&Date.now()>mgrUntil){$("discOv").classList.remove("show");managerGate(()=>{mgrUntil=Date.now()+5*60000;setDisc(d,true)},"Discounts over 10% or £5 need a manager");return}
+  if(!ok&&bigDisc(d)&&Date.now()>mgrUntil){$("discOv").classList.remove("show");managerGate(()=>{mgrUntil=Date.now()+MGR_GRACE;setDisc(d,true)},"Discounts over 10% or £5 need a manager");return}
   if(d.type!=="none")d.by=waiter?waiter.name:"";
   const B=billOf(ordTickets());if(!B.anchor)return;
   await patchTicket(B.anchor,{disc:d});$("discOv").classList.remove("show");
@@ -3365,7 +3365,7 @@ $("xOv").addEventListener("pointerdown",e=>{if(e.target===$("xOv"))closeX()});
 $("xOv").addEventListener("click",e=>{if(e.target.closest("[data-xdone]")){closeX();return}if(xClick)xClick(e)});
 function copyText(txt,msg){(navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>toast(msg||"Copied")).catch(()=>{
   const ta=document.createElement("textarea");ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand("copy");toast(msg||"Copied")}catch(_){toast("Couldn't copy")}ta.remove()})}
-function mgrCheck(then,why){if(Date.now()<mgrUntil){then();return}managerGate(()=>{mgrUntil=Date.now()+5*60000;then()},why)}
+function mgrCheck(then,why){if(Date.now()<mgrUntil){then();return}managerGate(()=>{mgrUntil=Date.now()+MGR_GRACE;then()},why)}
 
 // ---- waiter login ----
 function updWaiter(){const b=$("waiterBtn");if(b){b.textContent=waiter?"👤 "+waiter.name:"👤 Log in";b.classList.toggle("on",!!waiter)}const w=$("barWho");if(w){w.textContent=waiter?"👤 Bar: "+waiter.name:"👤 Who's on the bar?";w.classList.toggle("on",!!waiter)}}
@@ -3974,7 +3974,7 @@ function openItemDisc(k){
     if(b.hasAttribute("data-iok")&&sel.v){
       const val={t:sel.t,v:sel.v,r:sel.r,by:waiter?waiter.name:""};
       const big=sel.r!=="Pickup deal"&&(sel.t==="pct"?sel.v>10:sel.v>5);
-      if(big&&Date.now()>mgrUntil){closeX();managerGate(async()=>{mgrUntil=Date.now()+5*60000;const m={...billOf(ordTickets()).idisc,[k]:val};await patchTicket(B.anchor,{idisc:m});ticketsChanged();renderOrder();toast("Discount applied")},"Discounts over 10% or £5 need a manager");return}
+      if(big&&Date.now()>mgrUntil){closeX();managerGate(async()=>{mgrUntil=Date.now()+MGR_GRACE;const m={...billOf(ordTickets()).idisc,[k]:val};await patchTicket(B.anchor,{idisc:m});ticketsChanged();renderOrder();toast("Discount applied")},"Discounts over 10% or £5 need a manager");return}
       await save(val);toast(`${l.n}: ${idiscLabel(val)}`)}
   });
   draw();
@@ -4021,7 +4021,7 @@ function settingsAt(id){openSettings();setTimeout(()=>{const el=$(id);if(el){con
 function hubReport(mode){repUnlockUntil=Date.now()+15*60000;repMode=mode;try{localStorage.setItem("t57-repmode",mode)}catch(_){}
   if(location.hash==="#report"){route();renderReport()}else location.hash="#report"}
 function hubClick(e){
-  const b=e.target.closest("[data-hub]");if(!b)return;const k=b.dataset.hub;mgrUntil=Math.max(mgrUntil,Date.now()+5*60000);closeX();
+  const b=e.target.closest("[data-hub]");if(!b)return;const k=b.dataset.hub;mgrUntil=Math.max(mgrUntil,Date.now()+MGR_GRACE);closeX();
   ({mode:openModePicker,rday:()=>hubReport("day"),rweek:()=>hubReport("week"),rmonth:()=>hubReport("month"),allord:openAllOrders,hours:openHours,
     menu:openMenuEd,hh:()=>settingsAt("hhOn"),pmenu:()=>pickPrinter(to=>printJob(to,"menu","Menu & prices",menuLines(),"full"),"Print the menu with prices"),
     staff:openManage,mpin:()=>askPin("New manager PIN","Choose a new 4-digit PIN",async v=>{try{await mgrStore.put("main",{pin:await hashPin(v,"manager")})}catch(_){return true}closePad();toast("Manager PIN changed");return true}),
@@ -4215,7 +4215,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261111121600";
+const APP_BUILD="20261111123322";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
