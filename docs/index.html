@@ -950,6 +950,7 @@ body.mode-waiter #vKitchen,body.mode-waiter #vBar,body.mode-waiter #vReport{disp
     <div class="sh-foot">
       <button class="btn dng" id="shClear">Cancel booking</button>
       <button class="btn dng" id="shNoShow">🚫 No-show</button>
+      <button class="btn dng" id="shWalkOut">🚶 Walked out</button>
       <button class="btn sec" id="shSplit">Split tables</button>
       <button class="btn sec" id="shMail">✉ Emails</button>
       <button class="btn sec" id="shOrder">🍽 Order</button>
@@ -1196,7 +1197,7 @@ function groupsFromOldTables(t){
 function cleanBooking(b){
   const guests=Array.isArray(b.guests)?b.guests.slice(0,40).map(g=>({name:str(g&&g.name,60),phone:str(g&&g.phone,30)})):[];
   return {time:str(b.time,5),notes:str(b.notes,200),guests,email:str(b.email,80),size:Math.max(0,Math.min(60,Math.floor(+b.size)||0)),walkin:!!b.walkin,
-    status:["confirmed","noshow","cancelled"].includes(b.status)?b.status:"pending",sentOwner:+b.sentOwner||0,sentCustomer:+b.sentCustomer||0,reminded:+b.reminded||0};
+    status:["confirmed","noshow","cancelled","walkout"].includes(b.status)?b.status:"pending",sentOwner:+b.sentOwner||0,sentCustomer:+b.sentCustomer||0,reminded:+b.reminded||0};
 }
 function sanitize(d){
   const s=defaultState();
@@ -1563,7 +1564,7 @@ function openSheet(id){
   $("shNote").innerHTML=guests.filter(x=>x.name.trim()).length>cap?`<div class="note">More guests than seats — join another table or remove some names.</div>`:"";
   $("shSplit").style.display=g.length>1?"":"none";
   showReg("shReg",(guests[0]||{}).phone,b&&b.email);
-  $("shClear").style.display=b?"":"none";$("shNoShow").style.display=b&&!b.walkin&&!activeFor(g).length?"":"none";
+  $("shClear").style.display=b&&!b.walkin?"":"none";$("shNoShow").style.display=b&&!b.walkin&&!activeFor(g).length?"":"none";$("shWalkOut").style.display=b&&b.walkin&&!activeFor(g).length?"":"none";
   updateCount();
   $("sheetOv").classList.add("show");
 }
@@ -1605,17 +1606,19 @@ function endBooking(L,kind){
   const bk=state.bookings[L];if(!bk)return;const g=groupFor(L);
   state.done=(state.done||[]).concat([Object.assign({},bk,{status:kind,label:gname(g),paidAt:Date.now()})]).slice(-300);
   delete state.bookings[L];save();render();
-  toast(kind==="noshow"?`${gname(g)} marked no-show · table free`:`Booking cancelled · ${gname(g)} free`);
+  toast(kind==="noshow"?`${gname(g)} marked no-show · table free`:kind==="walkout"?`🚶 ${gname(g)} walked out · table free`:`Booking cancelled · ${gname(g)} free`);
 }
 function askEnd(L,kind){
   if(readOnly){toast("View only");return}
   const bk=state.bookings[L];if(!bk)return;const who=(bk.guests[0]&&bk.guests[0].name)||"this booking";
-  ask(kind==="noshow"?`${who} didn't turn up?`:bk.walkin?"Free the table?":`Cancel ${who}'s booking?`,
-      kind==="noshow"?"Marks it as a no-show and frees the table. It's kept in the day report.":bk.walkin?"The walk-in left without ordering — the table goes back to free.":"Frees the table. The booking is kept in the records as cancelled.",
+  if(kind==="cancelled"&&bk.walkin)kind="walkout";
+  ask(kind==="noshow"?`${who} didn't turn up?`:kind==="walkout"?`${gname(groupFor(L))} walked out?`:`Cancel ${who}'s booking?`,
+      kind==="noshow"?"Marks it as a no-show and frees the table. It's kept in the day report.":kind==="walkout"?"They sat down but left without ordering. The table goes back to free and it's counted as a walk-out in the day report.":"Frees the table. The booking is kept in the records as cancelled.",
       ()=>{if($("ordOv").classList.contains("show"))closeOrder();if($("sheetOv").classList.contains("show"))closeSheet();endBooking(L,kind)});
 }
 $("oStrip").addEventListener("click",e=>{const b=e.target.closest("[data-end]");if(!b||!ord)return;askEnd(leadOf(curGroup()),b.dataset.end)});
 $("shNoShow").onclick=()=>{askEnd(leadOf(groupFor(sheetGroup[0])),"noshow")};
+$("shWalkOut").onclick=()=>{askEnd(leadOf(groupFor(sheetGroup[0])),"walkout")};
 $("shClear").onclick=()=>askEnd(leadOf(groupFor(sheetGroup[0])),"cancelled");
 $("shSplit").onclick=()=>{
   if(readOnly){toast("View only");return}
@@ -2168,7 +2171,7 @@ function renderOrder(){
   {const waiting=!ord.pickup&&b&&!b.walkin&&!ordTickets().length;const lead=b&&b.guests[0]&&b.guests[0].name;
    const bal=(!ord.pickup&&b&&isAlg(b.notes)?`<div class="ostrip alg"><b>⚠ Booking note: ${esc(b.notes)}</b></div>`:"")+(!ord.pickup&&b?profStrip(b):"");
    $("oStrip").innerHTML=bal+(waiting?`<div class="ostrip"><b>⏳ Waiting for ${esc(lead||"guests")}${b.time?" · "+esc(b.time):""}</b><button class="ns" data-end="noshow">🚫 No-show</button><button class="cx" data-end="cancelled">Cancel booking</button></div>`:"")+
-     (!ord.pickup&&b&&b.walkin&&!ordTickets().length&&!cart().length?`<div class="ostrip"><b>🪑 Walk-in · nothing ordered yet</b><button class="cx" data-end="cancelled">✕ Free the table</button></div>`:"");}
+     (!ord.pickup&&b&&b.walkin&&!ordTickets().length&&!cart().length?`<div class="ostrip"><b>🪑 Walk-in · nothing ordered yet</b><button class="cx" data-end="walkout">🚶 Walked out</button></div>`:"");}
   document.querySelector('#ordOv .otabs [data-t="booking"]').style.display=ord.pickup?"none":"";
   document.querySelectorAll("#ordOv .otabs button").forEach(x=>x.classList.toggle("on",x.dataset.t===ord.tab));
   const act=ordTickets();document.querySelector('#ordOv .otabs [data-t="sent"]').textContent=act.length?`Orders & bill (${act.length})`:"Orders & bill";
@@ -2785,8 +2788,8 @@ function buildReport(){
   shifts().forEach(x=>{const st=Math.max(x.in,ds),en=Math.min(x.out||Date.now(),de);if(en<=st)return;
     let ms=en-st;x.breaks.forEach(b=>{const bs=Math.max(b.s,st),be=Math.min(b.e||en,en);if(be>bs)ms-=be-bs});staffH[x.staff]=(staffH[x.staff]||0)+Math.max(0,ms)});
   const labour=Object.values(staffH).reduce((a,x)=>a+x,0);
-  const bk=Object.values(state.bookings).concat(state.done||[]);const bGuests=bk.reduce((a,b)=>a+partyOf(b),0),bConf=bk.filter(b=>b.status==="confirmed").length,noShows=bk.filter(b=>b.status==="noshow").length,cancels=bk.filter(b=>b.status==="cancelled").length;
-  return {voids,voidTotal:voids.reduce((a,x)=>a+x.v,0),byW,noShows,cancels,discTotal,discBy,discN:discTk.length,all,sales,paidAmt:card+cash,card,cash,openAmt,openTables,covers,items,cats,hours,itemsSold,served,avgKitchen,slowest,staffH,names,labour,bk,bGuests,bConf};
+  const bk=Object.values(state.bookings).concat(state.done||[]);const bGuests=bk.reduce((a,b)=>a+partyOf(b),0),bConf=bk.filter(b=>b.status==="confirmed").length,noShows=bk.filter(b=>b.status==="noshow").length,cancels=bk.filter(b=>b.status==="cancelled").length,walkouts=bk.filter(b=>b.status==="walkout").length;
+  return {voids,voidTotal:voids.reduce((a,x)=>a+x.v,0),byW,noShows,cancels,walkouts,discTotal,discBy,discN:discTk.length,all,sales,paidAmt:card+cash,card,cash,openAmt,openTables,covers,items,cats,hours,itemsSold,served,avgKitchen,slowest,staffH,names,labour,bk,bGuests,bConf};
 }
 const mins=ms=>Math.round(ms/60000)+" min";
 function hbars(rows,fmt){const max=Math.max(...rows.map(r=>r[1]),1);
@@ -2825,7 +2828,7 @@ function renderReport(){
     <div class="rcard"><h3>BOOKINGS &amp; KITCHEN</h3>
       <div class="rrow"><span>Bookings</span><b>${R.bk.length}</b></div><div class="rrow"><span>Guests booked</span><b>${R.bGuests}</b></div>
       <div class="rrow"><span>Confirmed / pending</span><b>${R.bConf} / ${R.bk.length-R.bConf}</b></div>
-      <div class="rrow"><span>🚫 No-shows / cancelled</span><b>${R.noShows} / ${R.cancels}</b></div>
+      <div class="rrow"><span>🚫 No-shows / cancelled</span><b>${R.noShows} / ${R.cancels}</b></div><div class="rrow"><span>🚶 Walk-outs (left without ordering)</span><b>${R.walkouts}</b></div>
       <div class="rrow"><span>Pickup orders</span><b>${new Set(R.all.filter(t=>t.pickup&&!t.walk).map(t=>t.pno)).size}</b></div>
       <div class="rrow"><span>Orders served</span><b>${R.served.length}</b></div>
       <div class="rrow"><span>Slowest order</span><b>${R.slowest?esc(R.slowest.label)+" · "+mins(R.slowest.tSrv-R.slowest.createdAt):"—"}</b></div></div>
@@ -2841,7 +2844,7 @@ function reportText(){
   t+=`\nBest sellers:\n`+top.map(([n,x],i)=>`${i+1}. ${n} — ${x.q} (${money(x.v)})`).join("\n");
   t+=`\n\nSales by section:\n`+Object.entries(R.cats).sort((a,b)=>b[1]-a[1]).map(([c,v])=>`  ${c}: ${money(v)}`).join("\n");
   t+=`\n\nStaff hours:\n`+(Object.entries(R.staffH).map(([id,ms])=>`  ${R.names[id]||"Unknown"}: ${hm(ms)}`).join("\n")||"  none")+`\n  Total: ${hm(R.labour)}`;
-  t+=`\n\nBookings: ${R.bk.length} (${R.bGuests} guests, ${R.bConf} confirmed, ${R.noShows} no-shows, ${R.cancels} cancelled)\n`;
+  t+=`\n\nBookings: ${R.bk.length} (${R.bGuests} guests, ${R.bConf} confirmed, ${R.noShows} no-shows, ${R.cancels} cancelled, ${R.walkouts} walk-outs)\n`;
   return t;
 }
 $("report").addEventListener("click",e=>{
@@ -3695,7 +3698,7 @@ function reportLines(){
   const w=Object.entries(R.byW).sort((a,b)=>b[1]-a[1]);if(w.length){L.push(PL.t("SALES BY WAITER","l",1));w.forEach(([k,v])=>L.push(PL.lr(k,money(v))));L.push(PL.rule())}
   if(R.voids.length){L.push(PL.t("VOIDS","l",1));R.voids.forEach(x=>L.push(PL.lr(`${x.q}x ${x.n} (${x.r||"-"})`,money(x.v))));L.push(PL.rule())}
   const sh=Object.entries(R.staffH);L.push(PL.t("STAFF HOURS","l",1));sh.forEach(([id,ms])=>L.push(PL.lr(R.names[id]||"Unknown",hm(ms))));L.push(PL.lr("Total",hm(R.labour)),PL.rule());
-  L.push(PL.lr("Bookings",`${R.bk.length} (${R.bGuests} guests)`),PL.lr("No-shows / cancelled",`${R.noShows} / ${R.cancels}`),PL.rule());
+  L.push(PL.lr("Bookings",`${R.bk.length} (${R.bGuests} guests)`),PL.lr("No-shows / cancelled",`${R.noShows} / ${R.cancels}`),PL.lr("Walk-outs",String(R.walkouts)),PL.rule());
   L.push(PL.t("CASH-UP","l",1),PL.lr("Cash expected",money(R.cash)),PL.gap(),PL.t("Counted: £__________"),PL.gap(),PL.t("Signed: ____________"),PL.rule("="),PL.t("TRATTORIA 57","c",1),PL.t("Italian Kitchen & Bar","c"));
   return L;
 }
@@ -3865,8 +3868,8 @@ function subscribe(){
     if(snap.metadata.hasPendingWrites)return;
     if(!snap.exists)return; // empty day: keep default layout until someone acts
     const s=sanitize(clone(snap.data()));
-    if(dragging||sheetGroup){pendingSnap=s;return}
-    state=s;saveLocal();render();
+    if((dragging||sheetGroup)&&view!=="guest"){pendingSnap=s;return}
+    state=s;saveLocal();render();if(view==="guest")renderGuest();if(typeof syncCalls==="function")syncCalls();
   },err=>{clearTimeout(loadTimer);setStatus("local",err&&err.code==="revoked"?"Offline":"This device")});
 }
 
@@ -3951,7 +3954,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261111085304";
+const APP_BUILD="20261111090105";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
