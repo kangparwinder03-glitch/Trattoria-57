@@ -191,6 +191,15 @@ footer{display:flex;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bo
 input,select,textarea{font:inherit;font-size:16px;border:1.5px solid #ddd0bb;border-radius:10px;padding:9px 10px;background:#fff;color:var(--ink);width:100%;min-width:0}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--pine);box-shadow:0 0 0 3px rgba(91,107,47,.18)}
 textarea{resize:vertical;min-height:44px}
+.hubg{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.hubg button{border:1.5px solid var(--parch2);background:#fffaf0;border-radius:14px;padding:14px 10px;min-height:86px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--ink);text-align:center}
+.hubg button b{font-size:14px;line-height:1.2}.hubg .ic{font-size:24px;line-height:1}
+.hubg button:active{transform:scale(.97);background:#f4ecd9}.hubg button.dng{border-color:#e2b3a5;background:#fdf1ec}
+.hubtab{width:100%;display:flex;align-items:center;gap:10px;border:1.5px solid var(--olive-dk);background:#eef3e6;border-radius:14px;padding:14px;margin-bottom:14px;color:var(--ink);font-size:15px}
+.hubtab b{margin-right:auto}.hubtab em{font-style:normal;font-weight:800;color:var(--olive-dk)}
+.hubbtn{background:var(--olive-dk)!important;color:#fff!important;border-color:var(--olive-dk)!important;font-weight:800}
+.hubflash{outline:3px solid var(--wine);outline-offset:4px;border-radius:8px;transition:outline-color .4s}
+.rback{margin:0 8px 10px 0;min-height:40px}
 .gl-title{display:flex;justify-content:space-between;margin:4px 0 8px}
 .gl-title em{font-style:normal;color:var(--wine)}
 .guest{display:grid;grid-template-columns:28px 1fr 1fr;gap:8px;align-items:center;margin-bottom:8px}
@@ -887,8 +896,8 @@ body.mode-waiter #vKitchen,body.mode-waiter #vBar,body.mode-waiter #vReport{disp
       <button id="zoomOut" title="Zoom out">−</button>
       <button id="fitBtn" title="Fit to screen">⤢</button>
       <button id="turnBtn" title="Turn the plan">⟲</button>
-      <button id="resetBtn" title="Reset layout">↺</button>
-      <button id="setBtn" title="Settings">⚙</button>
+      <button id="resetBtn" title="Reset layout" hidden>↺</button>
+      <button id="setBtn" title="Manager">⭐</button>
     </div>
   </div>
 
@@ -921,7 +930,7 @@ body.mode-waiter #vKitchen,body.mode-waiter #vBar,body.mode-waiter #vReport{disp
   <section id="report"><div class="rwrap" id="repBody"></div></section>
 
   <section id="staff">
-    <div class="sbar"><h2>STAFF</h2><span class="clock" id="sClock"></span><button id="sHours">Hours</button><button id="sGuestsBtn">👥 Guests</button><button id="sMenuBtn">🍽 Menu</button><button id="sManage">Manage staff</button></div>
+    <div class="sbar"><h2>STAFF</h2><span class="clock" id="sClock"></span><button id="sHubBtn" class="hubbtn">⭐ Manager</button><span hidden><button id="sHours"></button><button id="sGuestsBtn"></button><button id="sMenuBtn"></button><button id="sManage"></button></span></div>
     <div id="sGrid"></div>
   </section>
 
@@ -1711,7 +1720,7 @@ function readHH(){return cleanHH({on:$("hhOn").checked,from:$("hhFrom").value,to
   days:[...$("hhDays").querySelectorAll("input:checked")].map(i=>+i.value),cats:[...$("hhCats").querySelectorAll("input:checked")].map(i=>i.value)})}
 document.addEventListener("click",e=>{if(e.target.closest("#sDevMode")){const ov=document.querySelector(".overlay.show");if(ov)ov.classList.remove("show");openModePicker()}});
 function openSettings(){$("sPick").value=settings.pickupPct;$("sOwner").value=settings.ownerEmail;$("sAuto").checked=settings.auto;$("sIg").value=settings.ig||"";$("sReview").value=settings.review||"";$("sTa").value=settings.ta||"";fillHH();{const m=MODES[devMode];$("sDevModeLbl").textContent=m?m.icon+" "+m.name:"⭐ Manager (everything)"}$("sRcp").value=rcpPrinter();$("sAutoRc").checked=settings.autoRc!==false;$("sFb").value=settings.fb||"";$("setOv").classList.add("show")}
-$("setBtn").onclick=()=>mgrCheck(openSettings,"Settings are for managers");
+$("setBtn").onclick=()=>openHubGated();
 $("setClose").onclick=()=>$("setOv").classList.remove("show");
 $("setOv").addEventListener("pointerdown",e=>{if(e.target===$("setOv"))$("setOv").classList.remove("show")});
 $("setSave").onclick=async()=>{
@@ -2867,7 +2876,7 @@ function reportText(){
 // ---------- weekly & monthly reports ----------
 let repMode=(()=>{try{const v=localStorage.getItem("t57-repmode");return v==="week"||v==="month"?v:"day"}catch(_){return "day"}})();
 const perCache={};
-function repModeBar(){return `<div class="rmode">${[["day","Day"],["week","Week"],["month","Month"]].map(([k,t])=>`<button data-rm="${k}" class="${repMode===k?"on":""}">${t}</button>`).join("")}</div>`}
+function repModeBar(){return `${allowedView("report")?"":`<button class="rback" data-rback>← Back to ${esc(MODES[devMode].views[0])}</button> `}<div class="rmode">${[["day","Day"],["week","Week"],["month","Month"]].map(([k,t])=>`<button data-rm="${k}" class="${repMode===k?"on":""}">${t}</button>`).join("")}</div>`}
 function periodRange(kind,k){
   if(kind==="week"){const d=new Date(k+"T12:00:00");const back=(d.getDay()+6)%7;const s=addDays(k,-back),e=addDays(s,6);
     const days=[];for(let i=0;i<7;i++)days.push(addDays(s,i));return {kind,s,e,days,prevS:addDays(s,-7),prevE:addDays(s,-1)}}
@@ -3064,6 +3073,7 @@ function periodPdf(Pd){
 }
 $("report").addEventListener("click",e=>{
   {const m=e.target.closest("[data-rm]");if(m){repMode=m.dataset.rm;try{localStorage.setItem("t57-repmode",repMode)}catch(_){}renderReport();return}}
+  if(e.target.closest("[data-rback]")){repUnlockUntil=0;location.hash="#"+MODES[devMode].views[0];return}
   {const m=e.target.closest("[data-pmove]");if(m){movePeriod(+m.dataset.pmove);return}}
   if(e.target.id==="perPdf"){withPeriod(Pd=>offerPdf(periodPdf(Pd),`Trattoria57_${Pd.kind==="week"?"Weekly":"Monthly"}_Report_${Pd.s}.pdf`));return}
   if(e.target.id==="perThermal"){withPeriod(Pd=>pickPrinter(to=>printJob(to,"report",(Pd.kind==="week"?"Weekly":"Monthly")+" report "+Pd.s,periodLines(Pd),"full")));return}
@@ -3982,7 +3992,7 @@ const allowedView=v=>{const m=MODES[devMode];return v==="guest"||!m||!m.views||m
 function applyMode(){
   Object.keys(MODES).forEach(k=>document.body.classList.toggle("mode-"+k,devMode===k));
   let c=$("modeChip");const m=MODES[devMode]||MODES.manager,locked=!!m.views;
-  if(!c){c=document.createElement("button");c.id="modeChip";c.className="modechip";c.onclick=()=>managerGate(openModePicker,"Changing what this tablet is for needs a manager");$("status").before(c)}
+  if(!c){c=document.createElement("button");c.id="modeChip";c.className="modechip";c.onclick=()=>openHubGated();$("status").before(c)}
   c.classList.toggle("mgr",!locked);c.textContent=locked?`🔒 ${m.name} tablet`:"⭐ Manager tablet"}
 function openModePicker(){
   openX("devmode","This tablet is for…","Each tablet only shows what that job needs. Changing it later needs the manager PIN.",e=>{
@@ -3992,10 +4002,40 @@ function openModePicker(){
     toast(`${m?m.icon+" "+m.name:"⭐ Manager"} tablet`)});
   $("xBody").innerHTML=`<div class="dmgrid">${Object.entries(MODES).map(([k,m])=>`<button data-dm="${k}" class="${devMode===k||(!devMode&&k==="manager")?"on":""}"><b>${m.icon} ${m.name}</b><small>${m.desc}</small></button>`).join("")}</div>`;
   $("xFoot").innerHTML=`<button class="btn sec" data-xdone style="max-width:none">Cancel</button>`}
+// ---------- Manager hub: everything a manager does, in one place ----------
+const HUB=[
+  ["📊 Reports & money",[["rday","📅","Day report"],["rweek","📈","Weekly report"],["rmonth","🗓","Monthly report"],["allord","📋","All orders"],["hours","⏱","Staff hours"]]],
+  ["🍽 Menu & prices",[["menu","✏️","Edit menu & prices"],["hh","🍹","Happy hour"],["pmenu","🖨","Print the menu"]]],
+  ["👥 People",[["staff","🧑‍🍳","Staff & their PINs"],["mpin","🔑","Change manager PIN"],["guests","👤","Guest profiles"]]],
+  ["⚙ Restaurant",[["settings","✉️","Emails & pickup discount"],["links","⭐","Review & social links"],["rcp","🧾","Receipts & printing"],["qr","📱","Table QR codes & labels"],["reset","↺","Reset floor layout"]]],
+];
+function openHub(){
+  const m=MODES[devMode]||MODES.manager;
+  openX("hub","⭐ Manager","Everything for managers in one place",hubClick);
+  $("xBody").innerHTML=`<button class="hubtab" data-hub="mode"><span>📱 This tablet is for</span><b>${m.icon} ${esc(m.name)}</b><em>Change</em></button>`+
+    HUB.map(([g,items])=>`<div class="gl-title"><span>${g}</span></div><div class="hubg">${items.map(([k,ic,t])=>`<button data-hub="${k}"><span class="ic">${ic}</span><b>${t}</b></button>`).join("")}</div>`).join("")+
+    `<div class="gl-title"><span>🎓 Training</span></div><div class="hubg"><button data-hub="train"><span class="ic">${TRAIN?"✅":"🎓"}</span><b>${TRAIN?"Switch this tablet back to LIVE":"Switch this tablet to TRAINING"}</b></button>${TRAIN?"":`<button data-hub="golive" class="dng"><span class="ic">🚀</span><b>Go live — delete test data</b></button>`}</div>`;
+  $("xFoot").innerHTML=`<button class="btn sec" data-xdone style="max-width:none">Close</button>`;
+}
+function settingsAt(id){openSettings();setTimeout(()=>{const el=$(id);if(el){const f=el.closest(".fld")||el.closest("div")||el;f.scrollIntoView({block:"center",behavior:"smooth"});f.classList.add("hubflash");setTimeout(()=>f.classList.remove("hubflash"),1600)}},250)}
+function hubReport(mode){repUnlockUntil=Date.now()+15*60000;repMode=mode;try{localStorage.setItem("t57-repmode",mode)}catch(_){}
+  if(location.hash==="#report"){route();renderReport()}else location.hash="#report"}
+function hubClick(e){
+  const b=e.target.closest("[data-hub]");if(!b)return;const k=b.dataset.hub;mgrUntil=Math.max(mgrUntil,Date.now()+5*60000);closeX();
+  ({mode:openModePicker,rday:()=>hubReport("day"),rweek:()=>hubReport("week"),rmonth:()=>hubReport("month"),allord:openAllOrders,hours:openHours,
+    menu:openMenuEd,hh:()=>settingsAt("hhOn"),pmenu:()=>pickPrinter(to=>printJob(to,"menu","Menu & prices",menuLines(),"full"),"Print the menu with prices"),
+    staff:openManage,mpin:()=>askPin("New manager PIN","Choose a new 4-digit PIN",async v=>{try{await mgrStore.put("main",{pin:await hashPin(v,"manager")})}catch(_){return true}closePad();toast("Manager PIN changed");return true}),
+    guests:openGuests,settings:()=>settingsAt("sOwner"),links:()=>settingsAt("sReview"),rcp:()=>settingsAt("sRcp"),qr:()=>{openSettings();$("setQr").click()},
+    reset:()=>$("resetBtn").click(),
+    train:()=>ask(TRAIN?"Back to live on this device?":"Switch this device to training?",TRAIN?"Real orders and bookings will show again.":"Practice freely: nothing you do will touch real orders, bookings or reports. Printouts are marked TRAINING. Other devices stay live.",()=>setTraining(!TRAIN)),
+    golive:goLive})[k]();
+}
+const openHubGated=()=>mgrCheck(openHub,"The manager area needs the manager PIN");
+$("sHubBtn").onclick=openHubGated;
 function route(){
   guestId=guestFromHash(location.hash);
   view=guestId?"guest":({"#kitchen":"kitchen","#bar":"bar","#staff":"staff","#report":"report"})[location.hash]||"floor";
-  if(!allowedView(view)){const first=MODES[devMode].views[0];if(location.hash!=="#"+first){location.hash="#"+first;return}}
+  if(!allowedView(view)&&!(view==="report"&&Date.now()<repUnlockUntil)){const first=MODES[devMode].views[0];if(location.hash!=="#"+first){location.hash="#"+first;return}}
   document.body.classList.toggle("g",view==="guest");if(view==="guest"){gCat=null;renderGuest()}
   document.body.classList.toggle("bv",view==="bar");$("vBar").classList.toggle("on",view==="bar");
   document.body.classList.toggle("k",view==="kitchen");document.body.classList.toggle("s",view==="staff");document.body.classList.toggle("r",view==="report");
@@ -4175,7 +4215,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261111111344";
+const APP_BUILD="20261111121600";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
