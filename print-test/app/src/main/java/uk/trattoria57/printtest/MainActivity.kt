@@ -137,6 +137,13 @@ class MainActivity : Activity() {
             if (picker.selectedItemPosition < 0) { Hub.say("Pick a printer first.", false); return@button }
             EscPos.hasCutter = cutBox.isChecked
             val b = make(cols, if (logoBox.isChecked) Logo.forPaper(this, cols) else Logos.NONE); Thread { Bt.print(this, b, t) }.start() }, full)
+        // updates: the app keeps itself up to date (needs "Install unknown apps" allowed once)
+        root.addView(label("Updates", 16f, true))
+        root.addView(label("Version " + Updater.installed(this) + " · updates install by themselves between 3am and 3pm", 13f, false))
+        if (Build.VERSION.SDK_INT >= 26 && !packageManager.canRequestPackageInstalls())
+            root.addView(button("🔓  Allow automatic updates (one time)", 15f) {
+                startActivity(Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, android.net.Uri.parse("package:$packageName"))) }, full)
+        root.addView(button("⬇  Check for update now", 15f) { Hub.say("Checking for updates…", true); Updater.check(this, true) }, full)
         test("🖨  Test slip") { c, l -> Samples.test(c, l) }
         test("🍝  Sample kitchen ticket") { c, l -> Samples.kitchenTicket(c, l) }
         test("🍸  Sample bar ticket") { c, l -> Samples.barTicket(c, l) }

@@ -27,4 +27,5 @@ jobs:
         run: |
           cp print-test/app/build/outputs/apk/debug/app-debug.apk T57-Print-Test.apk
           gh release delete print-test-latest --yes --cleanup-tag || true
-          gh release create print-test-latest T57-Print-Test.apk --title "T57 Print Test (latest)" --notes "Latest build of the Trattoria 57 thermal printer test app. Download T57-Print-Test.apk on the Android tablet and install it."
+          echo "${GITHUB_RUN_NUMBER}" > version.txt
+          gh release create print-test-latest T57-Print-Test.apk version.txt --title "T57 Print Test (latest)" --notes "Latest build of the Trattoria 57 thermal printer test app. Download T57-Print-Test.apk on the Android tablet and install it."

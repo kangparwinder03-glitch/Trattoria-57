@@ -32,6 +32,7 @@ class PrintService : Service() {
     private var worker: Thread? = null
     private var wake: PowerManager.WakeLock? = null
     private var lastBeat = 0L
+    private var lastUpd = System.currentTimeMillis() - 3540_000L   // first check ~1 min after start
     private val prefs by lazy { getSharedPreferences("t57", Context.MODE_PRIVATE) }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -79,6 +80,8 @@ class PrintService : Service() {
                     .put("paper", if (prefs.getInt("cols", 32) >= 48) "80mm" else "58mm").put("dev", Build.MODEL ?: ""))
                 lastBeat = System.currentTimeMillis()
             } catch (_: Exception) {}
+            // self-update: check once an hour (only between 3am and 3pm, never during service)
+            if (System.currentTimeMillis() - lastUpd > 3600_000L) { lastUpd = System.currentTimeMillis(); Updater.check(this, false) }
             try { Thread.sleep(3000) } catch (_: InterruptedException) { break }
         }
     }
