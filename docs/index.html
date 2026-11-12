@@ -4164,7 +4164,11 @@ function alexaSay(list){
   const names=[...new Set(sayFor.map(t=>t.pickup?(t.walk?"bar walk-up ":"pickup ")+t.pno:t.label))];
   const speech=(TRAIN?"Training. ":"")+(c.speech||"New order, {table}").replace("{table}",names.join(" and "));
   let u="https://api-v3.voicemonkey.io/announce?token="+encodeURIComponent(c.token)+"&device="+encodeURIComponent(c.device)+"&speech="+encodeURIComponent(speech)+"&chime="+encodeURIComponent("soundbank://soundlibrary/home/amzn_sfx_doorbell_chime_01");
-  if(c.show)u+="&text_display="+encodeURIComponent(c.show.replace("{table}",names.join(", ")))+"&display_seconds=20";
+  if(c.show){ // Echo Show screen: table, order number and the dishes
+    const nos=[...new Set(sayFor.map(t=>t.no).filter(Boolean))].map(n=>"#"+n).join(" & ");
+    const dishes=sayFor.flatMap(t=>t.items.filter(x=>!x.v).map(x=>x.q+" × "+x.n.replace(/ · .*/,""))).slice(0,6).join("\n");
+    const txt=(TRAIN?"TRAINING\n":"")+"NEW ORDER  "+nos+"\n"+names.join(" + ")+(dishes?"\n\n"+dishes:"");
+    u+="&text_display="+encodeURIComponent(txt)+"&text_display_size=34&text_display_bg_colour="+encodeURIComponent("#3e4a22")+"&display_seconds=60";}
   try{fetch(u,{mode:"no-cors"}).catch(()=>{})}catch(_){}
 }
 async function openAlexa(){
@@ -4172,7 +4176,7 @@ async function openAlexa(){
   let c={};try{const sn=await base.doc("alexa/main").get();c=(sn.exists&&sn.data())||{}}catch(_){}
   openX("alexa","🔊 Kitchen Alexa","An Echo in the kitchen says “New order, Table 4” when a ticket prints",async e=>{
     const v=()=>({on:$("axOn").checked,token:$("axTok").value.trim(),device:$("axDev").value.trim(),speech:$("axSay").value.trim()||"New order, {table}",
-      show:$("axShow").checked?"NEW ORDER\n{table}":"",kitchen:true,bar:$("axBar").checked,from:"web",readyKey:$("axKey").value});
+      show:$("axShow").checked?"1":"",kitchen:true,bar:$("axBar").checked,from:"web",readyKey:$("axKey").value});
     if(e.target.closest("[data-axtest]")){const x=v();if(!x.token||!x.device){toast("Add the token and speaker ID first");return}
       const u="https://api-v3.voicemonkey.io/announce?token="+encodeURIComponent(x.token)+"&device="+encodeURIComponent(x.device)+"&speech="+encodeURIComponent(x.speech.replace("{table}","Table 4"))+"&chime="+encodeURIComponent("soundbank://soundlibrary/home/amzn_sfx_doorbell_chime_01");
       try{await fetch(u,{mode:"no-cors"});toast("Sent — the Echo should speak in a few seconds")}catch(_){toast("Couldn't reach Voice Monkey")}return}
@@ -4184,7 +4188,7 @@ async function openAlexa(){
     <div class="fld" style="margin-bottom:10px"><label for="axTok">Voice Monkey API token <small>(Voice Monkey → Settings → API Credentials)</small></label><input id="axTok" type="password" autocomplete="off" value="${esc(c.token||"")}"></div>
     <div class="fld" style="margin-bottom:10px"><label for="axDev">Speaker ID <small>(Voice Monkey → Speakers → your kitchen speaker)</small></label><input id="axDev" autocomplete="off" value="${esc(c.device||"")}"></div>
     <div class="fld" style="margin-bottom:10px"><label for="axSay">What Alexa says <small>({table} becomes the table)</small></label><input id="axSay" value="${esc(c.speech||"New order, {table}")}"></div>
-    <label style="display:flex;gap:10px;align-items:center;font-size:15px;margin-bottom:8px"><input type="checkbox" id="axShow" style="width:20px;height:20px" ${c.show?"checked":""}> Echo Show: also show “NEW ORDER / Table 4” on screen</label>
+    <label style="display:flex;gap:10px;align-items:center;font-size:15px;margin-bottom:8px"><input type="checkbox" id="axShow" style="width:20px;height:20px" ${c.show?"checked":""}> Echo Show: show the table, order number and dishes on screen (for 1 minute)</label>
     <label style="display:flex;gap:10px;align-items:center;font-size:15px;margin-bottom:8px"><input type="checkbox" id="axBar" style="width:20px;height:20px" ${c.bar?"checked":""}> Also announce bar orders</label>
     <p class="trial">The tablet or phone that sends the order tells Alexa straight away — no printer needed. The token is kept in your locked database — customers can't see it.</p>
     <div class="gl-title"><span>🔔 “Alexa, food ready” → every tablet</span></div>
@@ -4382,7 +4386,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261112222639";
+const APP_BUILD="20261112222830";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
