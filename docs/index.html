@@ -212,6 +212,7 @@ textarea{resize:vertical;min-height:44px}
 .loginbox input{min-height:52px;font-size:18px;border-radius:12px;border:1.5px solid #d9cba8;padding:0 14px}
 .loginbox .btn{min-height:54px;font-size:18px;max-width:none}.lgerr{color:#a3322a;font-weight:700;min-height:18px}
 .barfold{display:block;width:100%;margin:6px 0 12px;padding:12px;border:1.5px dashed #c9a87a;border-radius:14px;background:#fbf4e6;color:#7a5a32;font-weight:700;font-size:14px}
+.catrow button.spc{border-color:#c79a2b!important;background:#fff6dc}.catrow button.spc.on{background:#c79a2b!important;color:#fff!important}
 .hubg{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:14px}
 .hubg button{border:1.5px solid var(--parch2);background:#fffaf0;border-radius:14px;padding:14px 10px;min-height:86px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--ink);text-align:center}
 .hubg button b{font-size:14px;line-height:1.2}.hubg .ic{font-size:24px;line-height:1}
@@ -1843,6 +1844,7 @@ const MENU=[
 ["Mixers",[["Tonic",2.50,""],["Slimline Tonic",2.50,""],["Coke (mixer)",0.90,""],["Lemonade (mixer)",0.90,""],["Soda (mixer)",0.50,""]]],
 ["Shots",[["Baby Guinness",3.90,""],["Tequila",3.50,""],["Jäger",3.50,""],["Disaronno shot",3.50,""],["Tia Maria",3.50,""],["Limoncello",3.00,""],["Sambuca",3.00,""],["Baileys",3.00,""]]],
 ["Hot Drinks",[["Liqueur Coffee",7.30,""],["Espresso",3.50,""],["Latte",3.50,""],["Flat White",3.50,""],["Cappuccino",3.50,""],["White Coffee",3.10,""],["Americano",3.00,""],["Black Coffee",2.50,""],["Tea",2.80,""],["Milk",2.00,"Glass"]]],
+["Specials",[]],
 ["Starters",[
 ["Antipasto Misto",11.90,"Mixed hors d'oeuvres, parmesan & olives"],["Polpette della Casa",9.00,"Homemade meatballs, tomato, garlic, white sauce & mozzarella"],
 ["Cocktail di Gamberetti",9.00,"Prawn cocktail"],["Melone Fresco",6.50,"Fresh melon with seasonal fruit"],["Melone & Prosciutto",9.50,"Melon & Parma ham"],
@@ -1902,6 +1904,10 @@ const MENU=[
 
 // ---------- orders & kitchen ----------
 const CATS=MENU.map(c=>c[0]);
+// "Specials" only shows when there's something on it (add them in ⭐ Manager → Edit menu & prices → Specials)
+const catHas=k=>{const c=MENU.find(x=>x[0]===k);return !!(c&&c[1].length)};
+const showCat=k=>k!=="Specials"||catHas(k);
+const firstFood=()=>CATS.find(k=>!BAR_CATS.has(k)&&catHas(k))||CATS.find(k=>!BAR_CATS.has(k));
 const ITEMS={};MENU.forEach(([cat,list])=>list.forEach(([n,p,d])=>{ITEMS[n]={n,p,d,cat,station:BAR_CATS.has(cat)?"bar":"kitchen"}}));
 // ---- menu edits (manager): price changes, new items, removed items — stored once, synced to every device ----
 const BASE_MENU=JSON.parse(JSON.stringify(MENU));
@@ -2259,7 +2265,7 @@ function newPickupNo(){const used=new Set(tickets.filter(t=>t.pickup).map(t=>t.p
   if(!pool.length)for(let i=100;i<=999;i++)if(!used.has(i))pool.push(i);return pool[Math.floor(Math.random()*pool.length)]}
 function openPickup(pno,tab){
   const p=pno||newPickupNo();const ex=tickets.find(t=>t.pickup&&t.pno===p);
-  ord={pickup:true,pno:p,lead:"P"+p,tab:tab||"menu",cat:CATS.find(k=>!BAR_CATS.has(k))||CATS[0],review:false,pname:ex?ex.pname:"",pphone:ex?ex.pphone:"",walk:!!(ex&&ex.walk),pat:ex?ex.pat||"":""};
+  ord={pickup:true,pno:p,lead:"P"+p,tab:tab||"menu",cat:firstFood(),review:false,pname:ex?ex.pname:"",pphone:ex?ex.pphone:"",walk:!!(ex&&ex.walk),pat:ex?ex.pat||"":""};
   sheetGroup=null;$("ordOv").classList.add("show");renderOrder();
 }
 function cart(){return carts[ord.lead]||(carts[ord.lead]=[])}
@@ -2274,7 +2280,7 @@ document.querySelector("#ordOv .otabs").addEventListener("click",e=>{
 $("oCats").addEventListener("click",e=>{const bt=e.target.closest("button");if(!bt)return;
   if(bt.dataset.side){const d=bt.dataset.side==="drinks";if(BAR_CATS.has(ord.cat)===d)return;
     ord[BAR_CATS.has(ord.cat)?"lastDrink":"lastFood"]=ord.cat;
-    ord.pop=null;ord.cat=(d?ord.lastDrink:ord.lastFood)||CATS.find(k=>BAR_CATS.has(k)===d);renderOrder();$("oBody").scrollTop=0;return}
+    ord.pop=null;ord.cat=(d?ord.lastDrink:ord.lastFood)||(d?CATS.find(k=>BAR_CATS.has(k)):firstFood());renderOrder();$("oBody").scrollTop=0;return}
   ord.pop=null;ord.q="";ord.cat=bt.dataset.c;renderOrder();$("oBody").scrollTop=0});
 $("oCats").addEventListener("input",e=>{if(e.target.id!=="mSearch"||!ord)return;ord.q=e.target.value;ord.pop=null;const pos=e.target.selectionStart;renderOrder();
   const i=$("mSearch");if(i){i.focus();try{i.setSelectionRange(pos,pos)}catch(_){}}$("oBody").scrollTop=0});
@@ -2303,8 +2309,8 @@ function renderOrder(){
     cats.style.display="";
     const drinks=BAR_CATS.has(ord.cat),cnt=d=>c.filter(x=>BAR_CATS.has(ITEMS[x.n].cat)===d).reduce((a,x)=>a+x.q,0);
     cats.innerHTML=`<div class="msearch"><input id="mSearch" type="search" placeholder="🔎 Search the menu, e.g. peroni, diavola" value="${esc(ord.q||"")}" autocomplete="off">${ord.q?`<button data-mq>✕</button>`:""}</div>`+(hhActive()?`<div class="hhbar">🍹 Happy hour until ${settings.hh.to} · ${settings.hh.pct}% off ${settings.hh.cats.length>3?"drinks":settings.hh.cats.join(", ")}</div>`:"")+tabChips(drinks)+`<div class="sidetog">${ord.barMode?"":`<button data-side="food" class="${drinks?"":"on"}">🍝 Food${cnt(false)?` <b>${cnt(false)}</b>`:""}</button>`}<button data-side="drinks" class="${drinks?"on":""}">🍸 Drinks${cnt(true)?` <b>${cnt(true)}</b>`:""}</button></div>
-      <div class="catrow">${CATS.filter(k=>BAR_CATS.has(k)===drinks).map(k=>{const n=c.filter(x=>ITEMS[x.n].cat===k).reduce((a,x)=>a+x.q,0);
-      return `<button data-c="${esc(k)}" class="${k===ord.cat?"on":""}">${esc(k)}${n?" · "+n:""}</button>`}).join("")}</div>`;
+      <div class="catrow">${CATS.filter(k=>BAR_CATS.has(k)===drinks&&showCat(k)).map(k=>{const n=c.filter(x=>ITEMS[x.n].cat===k).reduce((a,x)=>a+x.q,0);
+      return `<button data-c="${esc(k)}" class="${k===ord.cat?"on":""}${k==="Specials"?" spc":""}">${k==="Specials"?"⭐ ":""}${esc(k)}${n?" · "+n:""}</button>`}).join("")}</div>`;
     const qq=(ord.q||"").trim().toLowerCase();
     const list=qq?MENU.flatMap(([k,l])=>l.map(x=>[x[0],x[1],k+(x[2]?" · "+x[2]:"")])).filter(([n,p,d])=>(n+" "+d).toLowerCase().includes(qq)).slice(0,60):MENU.find(m=>m[0]===ord.cat)[1];
     body.innerHTML=list.map(([n,p,d])=>{const q=c.filter(x=>x.n===n).reduce((a,x)=>a+x.q,0);
@@ -3230,8 +3236,8 @@ function renderGuest(){
     h=`<div class="gwrap"><div class="gcard"><h3>Benvenuti!</h3><p>Please let a member of our team seat you first — then you can order straight from your phone using this page.</p></div></div>`;
   }else{
     const c=gCartList();
-    if(!gCat)gCat=CATS[0];
-    h=`<div class="gcats">${CATS.map(k=>`<button data-gc="${esc(k)}" class="${k===gCat?"on":""}">${BAR_CATS.has(k)?"🍷 ":""}${esc(k)}</button>`).join("")}</div><div class="gwrap">`;
+    if(!gCat||!showCat(gCat))gCat=CATS.find(showCat);
+    h=`<div class="gcats">${CATS.filter(showCat).map(k=>`<button data-gc="${esc(k)}" class="${k===gCat?"on":""}">${BAR_CATS.has(k)?"🍷 ":k==="Specials"?"⭐ ":""}${esc(k)}</button>`).join("")}</div><div class="gwrap">`;
     if(mine.length)h+=`<div class="gcard"><h3>Your orders</h3>${mine.map(t=>{const [cl,tx]=stTxt(t);return `<div class="gord"><span>${t.items.map(x=>`${x.q}× ${esc(x.n)}`).join(", ")}</span><span class="gst ${cl}">${tx}</span></div>`}).join("")}</div>`;
     const list=MENU.find(m=>m[0]===gCat)[1];
     h+=`<div class="gsec"><h4>${esc(gCat.toUpperCase())}</h4>${list.map(([n,p,d])=>{const q=c.filter(x=>x.n===n).reduce((a,x)=>a+x.q,0);
@@ -3601,6 +3607,7 @@ function renderMenuEd(){
     return `<div class="merow${off?" off":""}"><span class="men"><b>${esc(r.n)}</b>${r.custom?`<i class="mnew">new</i>`:""}${off?`<i class="moff">off the menu</i>`:""}<input class="med" data-med="${i}" maxlength="80" value="${esc(meDraft.desc[r.n]!=null?meDraft.desc[r.n]:r.d0||"")}" placeholder="Description (optional)"></span>
       <label class="mep${chg?" chg":""}">£<input type="number" step="0.05" min="0" max="999" inputmode="decimal" data-mep="${i}" value="${p.toFixed(2)}"></label>
       <button class="btn sec meh" data-mehide="${i}">${off?"↩ Put back":"Remove"}</button>${r.custom?`<button class="btn dng meh" data-medel="${i}" title="Delete for good">🗑</button>`:""}</div>`}).join("")}</div>
+    ${meCat==="Specials"?`<div class="mehint" style="background:#fff6dc;border:1px solid #c79a2b;border-radius:10px;padding:8px 10px;margin:6px 0;font-size:14px">⭐ Add today's or this week's specials here. They show on the tablets and the QR menu straight away and go to the kitchen with the mains. When a special is finished, tap <b>Remove</b> on it. The Specials tab hides itself when it's empty.</div>`:""}
     <div class="meadd"><b>+ Add to ${esc(meCat)}</b><div class="meaddrow"><input id="meN" maxlength="60" placeholder="Name, e.g. Pizza Tartufo"><label class="mep">£<input id="meP" type="number" step="0.05" min="0" max="999" inputmode="decimal" placeholder="0.00"></label></div>
       <input id="meD" maxlength="80" placeholder="Description (optional)"><button class="btn sec" data-meadd style="max-width:none;width:100%;margin-top:6px">Add item</button></div>`;
   $("xFoot").innerHTML=`<button class="btn sec" data-mecancel>Cancel</button>${canThermal()&&!meDirty?`<button class="btn sec" data-meprint>🖨 Print menu</button>`:""}<button class="btn pri" data-mesave>${meDirty?"💾 Save menu":"Save menu"}</button>`}
@@ -4417,7 +4424,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261112232301";
+const APP_BUILD="20261112234402";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
