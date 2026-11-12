@@ -1176,31 +1176,30 @@ const FW=2000, FH=1460, W=100, H=84;
 // ---- Trattoria 57 floor plan (from the owner's sketch). x,y = top-left in floor units ----
 // chairs: tb = top+bottom, lr = left+right, round = all round, sofa = bench seat (no chairs)
 const PLAN=[
- // bar area (from the owner's 2nd sketch, with seat counts) — tables enlarged, bar area made shallower
+ // bar area — owner's sketch of 12 Nov 2026: 1,2,3 by the door; row 7,6,5 + long 4 along the partition; 8 and 9 at the back
  {name:"B1",zone:"bar",x:1740,y:466,w:105,h:90,seats:2,ch:"tb",join:1},
- {name:"B2",zone:"bar",x:1510,y:466,w:105,h:90,seats:2,ch:"tb",join:1},
+ {name:"B2",zone:"bar",x:1560,y:466,w:105,h:90,seats:2,ch:"tb",join:1},
  {name:"B3",zone:"bar",x:1330,y:376,w:100,h:190,seats:2,ch:"lr",join:0},
- {name:"B4",zone:"bar",x:540,y:460,w:220,h:100,seats:4,ch:"tb",join:1},
- {name:"B5",zone:"bar",x:244,y:466,w:105,h:90,seats:2,ch:"tb",join:1},
- {name:"B6",zone:"bar",x:390,y:466,w:105,h:90,seats:2,ch:"tb",join:1},
- {name:"B7",zone:"bar",x:300,y:70,w:135,h:240,seats:4,ch:"lr",join:0},
- {name:"B8",zone:"bar",x:650,y:70,w:135,h:240,seats:4,ch:"lr",join:0},
- // restaurant (now the bigger area)
- {name:"1",zone:"din",x:292,y:672,w:125,h:105,seats:2,ch:"tb",join:1},
- {name:"2",zone:"din",x:497,y:672,w:125,h:105,seats:2,ch:"tb",join:1},
- {name:"3",zone:"din",x:702,y:672,w:125,h:105,seats:2,ch:"tb",join:1},
- {name:"4",zone:"din",x:1320,y:666,w:150,h:150,seats:4,ch:"round",join:1},
- {name:"5",zone:"din",x:1545,y:666,w:150,h:150,seats:4,ch:"round",join:1},
- {name:"6",zone:"din",x:1770,y:666,w:150,h:150,seats:4,ch:"round",join:1},
- {name:"7",zone:"din",x:352,y:1086,w:105,h:90,seats:2,ch:"tb",join:1},
- {name:"8",zone:"din",x:560,y:1086,w:105,h:90,seats:2,ch:"tb",join:1},
- {name:"9",zone:"din",x:768,y:1086,w:105,h:90,seats:2,ch:"tb",join:1},
- {name:"10",zone:"din",x:976,y:1086,w:105,h:90,seats:2,ch:"tb",join:1},
- {name:"11",zone:"din",x:1184,y:1086,w:105,h:90,seats:2,ch:"tb",join:1},
- {name:"12",zone:"din",x:1500,y:1010,w:160,h:160,seats:4,ch:"round",join:1},
- {name:"13",zone:"din",x:1760,y:1010,w:160,h:160,seats:4,ch:"round",join:1},
- {name:"14",zone:"din",x:80,y:1104,w:120,h:100,seats:4,ch:"lr",join:1},
- {name:"15",zone:"din",x:80,y:1276,w:120,h:100,seats:4,ch:"lr",join:1},
+ {name:"B4",zone:"bar",x:640,y:460,w:220,h:100,seats:4,ch:"tb",join:1},
+ {name:"B5",zone:"bar",x:480,y:466,w:105,h:90,seats:2,ch:"tb",join:1},
+ {name:"B6",zone:"bar",x:340,y:466,w:105,h:90,seats:2,ch:"tb",join:1},
+ {name:"B7",zone:"bar",x:200,y:466,w:105,h:90,seats:2,ch:"tb",join:1},
+ {name:"B8",zone:"bar",x:300,y:70,w:135,h:240,seats:4,ch:"lr",join:0},
+ {name:"B9",zone:"bar",x:650,y:70,w:135,h:240,seats:4,ch:"lr",join:0},
+ // restaurant
+ {name:"1",zone:"din",x:250,y:670,w:170,h:105,seats:4,ch:"tb",join:1},
+ {name:"2",zone:"din",x:540,y:670,w:125,h:105,seats:2,ch:"tb",join:1},
+ {name:"3",zone:"din",x:1080,y:662,w:150,h:150,seats:4,ch:"round",join:1},
+ {name:"4",zone:"din",x:1300,y:662,w:150,h:150,seats:4,ch:"round",join:1},
+ {name:"5",zone:"din",x:1520,y:662,w:150,h:150,seats:4,ch:"round",join:1},
+ {name:"6",zone:"din",x:1740,y:662,w:150,h:150,seats:4,ch:"round",join:1},
+ {name:"7",zone:"din",x:1770,y:1010,w:160,h:160,seats:4,ch:"round",join:1},
+ {name:"8",zone:"din",x:1545,y:1010,w:160,h:160,seats:4,ch:"round",join:1},
+ {name:"9",zone:"din",x:1235,y:1020,w:120,h:170,seats:4,ch:"lr",join:1},
+ {name:"10",zone:"din",x:900,y:1080,w:170,h:110,seats:6,ch:"tb",join:1},
+ {name:"11",zone:"din",x:620,y:1080,w:170,h:110,seats:6,ch:"tb",join:1},
+ {name:"12",zone:"din",x:80,y:1276,w:120,h:100,seats:4,ch:"lr",join:1},
+ {name:"13",zone:"din",x:80,y:1104,w:120,h:100,seats:4,ch:"lr",join:1},
 ];
 const N=PLAN.length;
 const T={};PLAN.forEach((p,i)=>T[i+1]=Object.assign({id:i+1},p));
@@ -4310,7 +4309,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261112171404";
+const APP_BUILD="20261112173954";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
