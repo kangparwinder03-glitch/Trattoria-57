@@ -1981,7 +1981,7 @@ function updPrinters(){let el=$("prnLights");const st=Object.keys(printers);
     toast(["kitchen","bar","till"].filter(k=>printers[k]).map(k=>{const p=printers[k],[c,t]=prnState(p);return `${prName(k)}: ${t}`}).join(" · "),5000)}}
   el.innerHTML="🖨 "+["kitchen","bar","till"].filter(k=>printers[k]).map(k=>{const [c,t]=prnState(printers[k]);return `<span class="pd ${c}" title="${prName(k)}: ${esc(t)}"><i></i>${prName(k)}</span>`}).join("")}
 function prnState(p){const age=Date.now()-(+p.at||0);
-  if(p.off)return ["red","printing switched off"];if(age>60000)return ["red","not heard from for "+Math.round(age/60000)+" min — check the printer tablet"];
+  if(p.off)return ["red","printing switched off"];if(p.down&&Date.now()-(+p.at||0)<=60000)return ["red",p.msg||"printer off or out of range"];if(age>60000)return ["red","not heard from for "+Math.round(age/60000)+" min — check the printer tablet"];
   if(p.ok===false)return ["amber",p.msg||"last print failed — check paper / power"];return ["green","printing OK"]}
 function subscribePrinters(){const base=db&&db.base?db.base:db;if(!base)return;
   base.collection("printers").onSnapshot(sn=>{printers={};sn.docs.forEach(d=>{printers[d.id]=d.data()||{}});updPrinters()},()=>{})}
@@ -4310,7 +4310,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261111231429";
+const APP_BUILD="20261112140755";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){

@@ -74,10 +74,16 @@ class PrintService : Service() {
         while (running) {
             try { poll(); Hub.net("Connected · checked ${SimpleDateFormat("HH:mm:ss", Locale.UK).format(Date())}", true) }
             catch (e: Exception) { Hub.net("⚠ Can't reach orders (${e.message ?: "no internet"}) — retrying", false) }
+            // every minute without a print, check the printer is really on (so the light goes red if it's switched off)
+            if (System.currentTimeMillis() - Bt.lastContact > 60_000) {
+                val was = Bt.down
+                Bt.probe(this)
+                if (Bt.down != was) { lastBeat = 0; Hub.say(if (Bt.down) "⚠ Can't reach the printer — is it on and charged?" else "🖨 Printer back on", !Bt.down) }
+            }
             // heartbeat: the website shows a green / red light for this printer
             if (System.currentTimeMillis() - lastBeat > 15000) try {
                 val st = prefs.getString("station", "kitchen") ?: "kitchen"
-                Cloud.merge("printers", st, org.json.JSONObject().put("at", System.currentTimeMillis()).put("ok", Bt.lastOk).put("msg", Bt.lastMsg).put("off", false)
+                Cloud.merge("printers", st, org.json.JSONObject().put("at", System.currentTimeMillis()).put("ok", Bt.lastOk).put("msg", Bt.lastMsg).put("off", false).put("down", Bt.down)
                     .put("paper", if (prefs.getInt("cols", 32) >= 48) "80mm" else "58mm").put("dev", Build.MODEL ?: ""))
                 lastBeat = System.currentTimeMillis()
             } catch (_: Exception) {}
