@@ -796,8 +796,8 @@ body.training{padding-top:30px}
 .wsel{margin-left:auto;text-align:right;font-size:14px;color:#3f5f86;line-height:1.3}.wsel b{font-size:24px}
 .ostrip.pat{background:#eef3f9;border-color:#3f5f86}.ostrip.pat b{color:#2e3d52}
 .patb{background:#3f5f86;color:#fff;border-radius:6px;padding:1px 6px}
-#kitchen.handsoff .tk button,#kitchen.handsoff .tk .prog,#kitchen.handsoff .heldbar button,#kitchen.handsoff .kseg,#kitchen.handsoff [data-onetap],#kitchen.handsoff .ksum{display:none!important}
-#kitchen.handsoff .tk{cursor:default}
+.station.handsoff .tk button,.station.handsoff .tk .prog,.station.handsoff .heldbar button,.station.handsoff .kseg,.station.handsoff [data-onetap],.station.handsoff .ksum{display:none!important}
+.station.handsoff .tk{cursor:default}
 .heldbar{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:#fff6e6;border:1px dashed #d9b04a;border-radius:12px;padding:10px 12px;margin-bottom:10px;font-size:15px}
 .heldt{display:inline-flex;gap:8px;align-items:center;background:#fff;border:1px solid #ecd9a6;border-radius:10px;padding:4px 6px 4px 10px;font-weight:700}
 .heldt button,.firebtn{background:#c0501b!important;color:#fff!important;border:0!important;border-radius:8px;padding:6px 10px;font-weight:800}
@@ -2090,7 +2090,7 @@ function updSnd(){
 const loudOn={};["kitchen","bar","floor"].forEach(st=>{try{loudOn[st]=localStorage.getItem("t57-loud-"+st)!=="0"}catch(e){loudOn[st]=true}});
 let nagT=null,nagStopT=null;
 // kitchen is hands-off: no buttons for the chefs — orders show, ring for 10 seconds, and drop off the screen by themselves
-const HANDS_OFF={kitchen:true},HANDS_OFF_MIN=45;
+const HANDS_OFF={kitchen:true,bar:true},HANDS_OFF_MINS={kitchen:45,bar:30};
 function newOrderAlert(st){
   if(!loudOn[st]){chime("neworder");return}
   chime("alarm");
@@ -2473,7 +2473,7 @@ function renderStation(st){
   const root=$(st);if(!root)return;const q=c=>root.querySelector(c);root.classList.toggle("handsoff",!!HANDS_OFF[st]);if(HANDS_OFF[st])kFilter[st]="todo";
   const held=tickets.filter(t=>stOf(t)===st&&t.wait&&!t.closed&&!t.rejected&&t.items.some(x=>!x.v));
   const mine=tickets.filter(t=>stOf(t)===st&&!t.hold&&!t.rejected&&!t.wait);
-  const todo=mine.filter(t=>t.status!=="served"&&!(HANDS_OFF[st]&&(t.closed||Date.now()-t.createdAt>HANDS_OFF_MIN*60000))).sort((a,b)=>a.createdAt-b.createdAt);
+  const todo=mine.filter(t=>t.status!=="served"&&!(HANDS_OFF[st]&&(t.closed||Date.now()-t.createdAt>HANDS_OFF_MINS[st]*60000))).sort((a,b)=>a.createdAt-b.createdAt);
   const served=mine.filter(t=>t.status==="served").sort((a,b)=>b.updatedAt-a.updatedAt).slice(0,30);
   q(".n-todo").textContent=todo.length;q(".n-served").textContent=served.length;
   {const no=[...outSet].filter(n=>ITEMS[n]&&ITEMS[n].station===st).length;q(".n-out").textContent=no?" · "+no:""}
@@ -4382,7 +4382,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261112222524";
+const APP_BUILD="20261112222639";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
