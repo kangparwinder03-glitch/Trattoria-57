@@ -1859,7 +1859,12 @@ const MENU=[
 ["Extra Vegetables (pizza)",1.50,""],["Extra Meat (pizza)",2.00,""],["Extra Fish (pizza)",2.50,""],["Gluten free pizza base",2.00,""]]],
 ["Children",[
 ["Kids Pizza or Pasta",8.90,"Includes ice cream"],["Kids Chicken Nuggets & Fries",8.90,"Includes ice cream"],["Kids Fish Fingers & Fries",8.90,"Includes ice cream"],
-["Kids Mozzarella Sticks & Fries",8.90,"Includes ice cream"],["Kids Chicken Strips & Fries",8.90,"Includes ice cream"]]]
+["Kids Mozzarella Sticks & Fries",8.90,"Includes ice cream"],["Kids Chicken Strips & Fries",8.90,"Includes ice cream"]]],
+["Desserts",[
+["Tiramisù",7.50,""],["Sticky Toffee Pudding",7.50,""],["Lemon Sorbet",6.90,""],["Coppa",6.90,""],
+["Chocolate Cake",6.90,""],["Cheesecake",6.90,""],["Profiteroles",6.90,""],
+["Ice Cream · 2 scoops",3.00,"Add the flavours in a note"],["Ice Cream · 3 scoops",4.50,"Add the flavours in a note"],["Sorbet · 3 scoops",5.50,""],
+["Affogato",4.50,"Vanilla ice cream served with a shot of espresso"],["Affogato with a spirit",6.90,"Add the spirit in a note"]]]
 ];
 
 // ---------- orders & kitchen ----------
@@ -4319,7 +4324,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261112174921";
+const APP_BUILD="20261112180156";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
