@@ -1637,7 +1637,7 @@ function openSheet(id){
   $("shNote").innerHTML=guests.filter(x=>x.name.trim()).length>cap?`<div class="note">More guests than seats — join another table or remove some names.</div>`:"";
   $("shSplit").style.display=g.length>1?"":"none";
   showReg("shReg",(guests[0]||{}).phone,b&&b.email);
-  $("shClear").style.display=b&&!b.walkin?"":"none";$("shNoShow").style.display=b&&!b.walkin&&!activeFor(g).length?"":"none";$("shWalkOut").style.display=b&&b.walkin&&!activeFor(g).length?"":"none";
+  $("shClear").style.display=b&&!b.walkin&&!activeFor(g).length?"":"none";$("shNoShow").style.display=b&&!b.walkin&&!activeFor(g).length?"":"none";$("shWalkOut").style.display=b&&b.walkin&&!activeFor(g).length?"":"none";
   updateCount();
   $("sheetOv").classList.add("show");
 }
@@ -1678,12 +1678,13 @@ $("shWalk").onclick=()=>{
 function endBooking(L,kind){
   const bk=state.bookings[L];if(!bk)return;const g=groupFor(L);
   state.done=(state.done||[]).concat([Object.assign({},bk,{status:kind,label:gname(g),paidAt:Date.now()})]).slice(-300);
-  delete state.bookings[L];save();render();
+  delete state.bookings[L];delete carts[L];delete cartOwner[L];save();render();
   toast(kind==="noshow"?`${gname(g)} marked no-show · table free`:kind==="walkout"?`🚶 ${gname(g)} walked out · table free`:`Booking cancelled · ${gname(g)} free`);
 }
 function askEnd(L,kind){
   if(readOnly){toast("View only");return}
   const bk=state.bookings[L];if(!bk)return;const who=(bk.guests[0]&&bk.guests[0].name)||"this booking";
+  if(activeFor(groupFor(L)).length){toast("This table still has orders — take payment, or delete the orders (manager) first",4500);return}
   if(kind==="cancelled"&&bk.walkin)kind="walkout";
   ask(kind==="noshow"?`${who} didn't turn up?`:kind==="walkout"?`${gname(groupFor(L))} walked out?`:`Cancel ${who}'s booking?`,
       kind==="noshow"?"Marks it as a no-show and frees the table. It's kept in the day report.":kind==="walkout"?"They sat down but left without ordering. The table goes back to free and it's counted as a walk-out in the day report.":"Frees the table. The booking is kept in the records as cancelled.",
@@ -1894,6 +1895,8 @@ const ST_BTN={new:"Mark received",received:"Start preparing",preparing:"Mark ser
 let tickets=[];            // tickets for the shown date
 let ticketUnsub=null;
 const carts={};           // draft orders per table group (by lead id)
+const cartOwner={};       // which party a draft belongs to (so the next party at that table never inherits it)
+const partyKey=L=>{const b=state.bookings[L];return b?[b.time,b.walkin?1:0,(b.guests[0]&&b.guests[0].name)||""].join("|"):"free"};
 let ord=null;             // {lead, tab, cat, review}
 let outSet=new Set();     // out-of-stock item names
 let waiter=null;try{const w=JSON.parse(localStorage.getItem("t57-waiter")||"null");if(w&&w.id)waiter={id:str(w.id,40),name:str(w.name,40)}}catch(e){}
@@ -2214,6 +2217,7 @@ function ticketsChanged(){
 function openOrder(id,tab){
   const g=groupFor(id),L=leadOf(g);
   ackGroup(g);
+  {const k=partyKey(L);if(carts[L]&&carts[L].length&&cartOwner[L]&&cartOwner[L]!==k){delete carts[L];toast("Cleared items a previous party never sent")}cartOwner[L]=k}
   ord={lead:L,tab:tab||"menu",cat:CATS[0],review:false};
   sheetGroup=g;render();
   $("ordOv").classList.add("show");renderOrder();
@@ -3908,7 +3912,7 @@ async function finishBill(pay){
   if(isP){for(const id in flashes)if(flashes[id].pno===pno)delete flashes[id];renderAlerts();toast(`Pickup #${pno} paid · ${how}`);closeOrder();ticketsChanged();return}
   const L=leadOf(g),bk=state.bookings[L];
   if(bk)recordVisit(bk,B,gname(g));
-  if(bk){state.done=(state.done||[]).concat([Object.assign({},bk,{label:gname(g),paidAt:now})]).slice(-300);delete state.bookings[L];save()}
+  if(bk){state.done=(state.done||[]).concat([Object.assign({},bk,{label:gname(g),paidAt:now})]).slice(-300);delete state.bookings[L];delete carts[L];delete cartOwner[L];save()}
   gIdx=null;toast(`Paid · ${how} · table is free again`);closeOrder();ticketsChanged();
 }
 
@@ -4331,7 +4335,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261112184550";
+const APP_BUILD="20261112195459";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
