@@ -1,0 +1,59 @@
+name: Reset all data (one-off)
+
+# Backs everything up, then deletes orders/bookings/etc on the LIVE and TRAINING sides.
+# Keeps staff, PINs, menu, settings, Alexa and printer names. Run by hand only.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type RESET to confirm'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.confirm == 'RESET' }}
+    steps:
+      - name: Back up, then reset
+        env:
+          T57_EMAIL: ${{ secrets.T57_EMAIL }}
+          T57_PASSWORD: ${{ secrets.T57_PASSWORD }}
+        run: |
+          python3 - <<'PY'
+          import json, os, gzip, urllib.request, collections, time
+          BASE = "https://uzrkewizkqdnqpovwune.supabase.co"
+          KEY = "sb_publishable_Hix2EgA_xpjxMYFvmarVIQ_Hj0qx3YM"
+          def call(url, data=None, headers={}, method=None):
+              req = urllib.request.Request(BASE + url, data=json.dumps(data).encode() if data is not None else None, method=method,
+                                           headers={"apikey": KEY, "Content-Type": "application/json", **headers})
+              with urllib.request.urlopen(req, timeout=120) as r:
+                  b = r.read(); return json.loads(b) if b else None
+          tok = call("/auth/v1/token?grant_type=password", {"email": os.environ["T57_EMAIL"], "password": os.environ["T57_PASSWORD"]})["access_token"]
+          A = {"Authorization": "Bearer " + tok}
+          rows = []
+          while True:
+              part = call(f"/rest/v1/t57_docs?select=coll,id,data,updated_at&order=coll.asc,id.asc&offset={len(rows)}&limit=1000", headers=A)
+              rows += part
+              if len(part) < 1000: break
+          with gzip.open("before-reset.json.gz", "wt", encoding="utf-8") as f: json.dump({"made": time.time(), "rows": rows}, f)
+          print("Backed up", len(rows), "records")
+          colls = ["tickets", "plan23", "printjobs", "calls", "shifts", "stock", "guests"]
+          colls += ["train_" + c for c in colls]
+          gone = call("/rest/v1/t57_docs?coll=in.(" + ",".join(colls) + ")&select=coll", headers={**A, "Prefer": "return=representation"}, method="DELETE") or []
+          n = collections.Counter(r["coll"] for r in gone)
+          call("/rest/v1/rpc/t57_merge", {"c": "settings", "i": "live", "patch": {"since": int(time.time() * 1000)}}, headers=A)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as s:
+              s.write(f"### Reset done — {len(gone)} records deleted (backup of {len(rows)} saved)\n\n| What | Deleted |\n|---|---|\n")
+              for k, v in sorted(n.items()): s.write(f"| {k} | {v} |\n")
+          print("Deleted", dict(n))
+          PY
+          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -in before-reset.json.gz -out t57-before-reset.json.gz.enc -pass env:T57_PASSWORD
+          rm before-reset.json.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: t57-backup-before-reset
+          path: t57-before-reset.json.gz.enc
+          retention-days: 90
