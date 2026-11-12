@@ -4128,7 +4128,7 @@ const HUB=[
   ["📊 Reports & money",[["rday","📅","Day report"],["rweek","📈","Weekly report"],["rmonth","🗓","Monthly report"],["allord","📋","All orders"],["hours","⏱","Staff hours"]]],
   ["🍽 Menu & prices",[["menu","✏️","Edit menu & prices"],["hh","🍹","Happy hour"],["pmenu","🖨","Print the menu"]]],
   ["👥 People",[["staff","🧑‍🍳","Staff & their PINs"],["mpin","🔑","Change manager PIN"],["guests","👤","Guest profiles"]]],
-  ["⚙ Restaurant",[["settings","✉️","Emails & pickup discount"],["links","⭐","Review & social links"],["rcp","🧾","Receipts & printing"],["qr","📱","Table QR codes & labels"],["reset","↺","Reset floor layout"],["signin","🔐","Tablet sign-in"]]],
+  ["⚙ Restaurant",[["settings","✉️","Emails & pickup discount"],["links","⭐","Review & social links"],["rcp","🧾","Receipts & printing"],["qr","📱","Table QR codes & labels"],["reset","↺","Reset floor layout"],["signin","🔐","Tablet sign-in"],["alexa","🔊","Kitchen Alexa"]]],
 ];
 function openHub(){
   const m=MODES[devMode]||MODES.manager;
@@ -4149,7 +4149,28 @@ function hubClick(e){
     guests:openGuests,settings:()=>settingsAt("sOwner"),links:()=>settingsAt("sReview"),rcp:()=>settingsAt("sRcp"),qr:()=>{openSettings();$("setQr").click()},
     reset:()=>$("resetBtn").click(),
     train:()=>ask(TRAIN?"Back to live on this device?":"Switch this device to training?",TRAIN?"Real orders and bookings will show again.":"Practice freely: nothing you do will touch real orders, bookings or reports. Printouts are marked TRAINING. Other devices stay live.",()=>setTraining(!TRAIN)),
-    golive:goLive,signin:openSignIn})[k]();
+    golive:goLive,signin:openSignIn,alexa:openAlexa})[k]();
+}
+// ---- Kitchen Alexa (Voice Monkey): the kitchen printer app makes an Echo say "New order, Table 4" ----
+async function openAlexa(){
+  const base=db&&db.base?db.base:db;if(!base||db.guest){toast("Needs the internet");return}
+  let c={};try{const sn=await base.doc("alexa/main").get();c=(sn.exists&&sn.data())||{}}catch(_){}
+  openX("alexa","🔊 Kitchen Alexa","An Echo in the kitchen says “New order, Table 4” when a ticket prints",async e=>{
+    const v=()=>({on:$("axOn").checked,token:$("axTok").value.trim(),device:$("axDev").value.trim(),speech:$("axSay").value.trim()||"New order, {table}",
+      show:$("axShow").checked?"NEW ORDER\n{table}":"",kitchen:true,bar:$("axBar").checked});
+    if(e.target.closest("[data-axtest]")){const x=v();if(!x.token||!x.device){toast("Add the token and speaker ID first");return}
+      const u="https://api-v3.voicemonkey.io/announce?token="+encodeURIComponent(x.token)+"&device="+encodeURIComponent(x.device)+"&speech="+encodeURIComponent(x.speech.replace("{table}","Table 4"))+"&chime="+encodeURIComponent("soundbank://soundlibrary/home/amzn_sfx_doorbell_chime_01");
+      try{await fetch(u,{mode:"no-cors"});toast("Sent — the Echo should speak in a few seconds")}catch(_){toast("Couldn't reach Voice Monkey")}return}
+    if(e.target.closest("[data-axsave]")){try{await base.doc("alexa/main").set(v());closeX();toast("🔊 Kitchen Alexa saved — the kitchen printer picks it up within a minute")}catch(_){toast("Couldn't save — check the internet")}}
+  });
+  $("xBody").innerHTML=`<label style="display:flex;gap:10px;align-items:center;font-size:16px;margin-bottom:12px"><input type="checkbox" id="axOn" style="width:22px;height:22px" ${c.on?"checked":""}> <b>Switch on</b></label>
+    <div class="fld" style="margin-bottom:10px"><label for="axTok">Voice Monkey API token <small>(Voice Monkey → Settings → API Credentials)</small></label><input id="axTok" type="password" autocomplete="off" value="${esc(c.token||"")}"></div>
+    <div class="fld" style="margin-bottom:10px"><label for="axDev">Speaker ID <small>(Voice Monkey → Speakers → your kitchen speaker)</small></label><input id="axDev" autocomplete="off" value="${esc(c.device||"")}"></div>
+    <div class="fld" style="margin-bottom:10px"><label for="axSay">What Alexa says <small>({table} becomes the table)</small></label><input id="axSay" value="${esc(c.speech||"New order, {table}")}"></div>
+    <label style="display:flex;gap:10px;align-items:center;font-size:15px;margin-bottom:8px"><input type="checkbox" id="axShow" style="width:20px;height:20px" ${c.show?"checked":""}> Echo Show: also show “NEW ORDER / Table 4” on screen</label>
+    <label style="display:flex;gap:10px;align-items:center;font-size:15px;margin-bottom:8px"><input type="checkbox" id="axBar" style="width:20px;height:20px" ${c.bar?"checked":""}> Also announce bar orders</label>
+    <p class="trial">The kitchen tablet's printer app does the announcing, so it needs the latest printer app. The token is kept in your locked database — customers can't see it.</p>`;
+  $("xFoot").innerHTML=`<button class="btn sec" data-axtest>🔊 Test</button><button class="btn pri" data-axsave>Save</button>`;
 }
 const openHubGated=()=>mgrCheck(openHub,"The manager area needs the manager PIN");
 $("sHubBtn").onclick=openHubGated;
@@ -4337,7 +4358,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261112195718";
+const APP_BUILD="20261112212648";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){

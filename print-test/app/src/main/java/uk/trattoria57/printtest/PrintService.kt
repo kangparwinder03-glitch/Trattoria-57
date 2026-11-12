@@ -121,6 +121,7 @@ class PrintService : Service() {
                 if (!Bt.print(this, bytes, (if (training) "TRAINING " else "") + "$label · order #${d.optInt("no")}" + if (copies > 1) " (x$copies)" else "")) return
                 Hub.say(ready, true)
                 markDone(done, coll, id, st)
+                Alexa.announce(label, st, training)
             }
         }
         // bills, receipts and reports sent from the website to this printer
