@@ -100,6 +100,12 @@ class MainActivity : Activity() {
         picker = Spinner(this); root.addView(picker, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
         root.addView(button("Refresh printer list", 15f) { loadDevices() })
         root.addView(button("🏷  Name this printer", 15f) { namePrinter() })
+        root.addView(button("🔊  Test Alexa (like a real order)", 15f) {
+            Hub.say("🔊 Asking Alexa…", true)
+            Thread { val r = Alexa.send("Table 4", prefs.getString("station", "kitchen") ?: "kitchen", false, fresh = true)
+                runOnUiThread { Hub.say(r, r.startsWith("🔊")); Hub.log(r)
+                    android.app.AlertDialog.Builder(this).setTitle("Test Alexa").setMessage(r).setPositiveButton("OK", null).show() } }.start()
+        })
         val wGroup = RadioGroup(this).apply { orientation = RadioGroup.HORIZONTAL }
         wGroup.addView(RadioButton(this).apply { text = "58mm paper  "; id = 58 })
         wGroup.addView(RadioButton(this).apply { text = "80mm paper"; id = 80 })
