@@ -2550,15 +2550,15 @@ setInterval(()=>{if(view==="kitchen"||view==="bar")renderKitchen()},30000);
 // generic collection store: shared db when available, else this browser
 const stores={};
 function useColl(name,onChange,query){
-  const st=stores[name]={docs:{},onChange,query,unsub:null};
+  const st=stores[name]={docs:{},onChange,query,unsub:null,loaded:false};
   const lkey=LK+"c-"+name;
   st.loadLocal=()=>{try{st.docs=JSON.parse(localStorage.getItem(lkey)||"{}")||{}}catch(e){st.docs={}}};
   st.saveLocal=()=>{try{localStorage.setItem(lkey,JSON.stringify(st.docs))}catch(e){}};
   st.start=()=>{
     if(st.unsub){st.unsub();st.unsub=null}
-    if(!db){st.loadLocal();onChange();return}
+    if(!db){st.loadLocal();st.loaded=true;onChange();return}
     let q=db.collection(name);if(query)q=query(q);
-    st.unsub=q.onSnapshot(sn=>{const m={};sn.docs.forEach(d=>m[d.id]=d.data());st.docs=m;onChange()},()=>{});
+    st.unsub=q.onSnapshot(sn=>{const m={};sn.docs.forEach(d=>m[d.id]=d.data());st.docs=m;st.loaded=true;onChange()},()=>{});
   };
   addEventListener("storage",e=>{if(!db&&e.key===lkey){st.loadLocal();onChange()}});
   st.put=async(id,data)=>{st.docs[id]=data;if(!db){st.saveLocal();onChange();return}
@@ -2657,6 +2657,10 @@ function showClockActions(p){
 // ---- manager gate ----
 async function managerGate(then,why){
   const cfg=mgrStore.docs.main;
+  if(cfg&&cfg.pin){try{localStorage.setItem("t57-hasMgrPin","1")}catch(_){}}
+  // never offer "Create manager PIN" before the real one has loaded (it would replace it)
+  if((!cfg||!cfg.pin)&&db&&!mgrStore.loaded){toast("Still loading the manager PIN — try again in a moment");return}
+  if((!cfg||!cfg.pin)&&!db&&(()=>{try{return localStorage.getItem("t57-hasMgrPin")==="1"}catch(_){return false}})()){toast("Can't check the manager PIN offline — reconnect and try again");return}
   if(!cfg||!cfg.pin){
     askPin("Create manager PIN","Choose a 4-digit PIN for managers",async v=>{
       const v1=v;padVal="";padRender("Confirm manager PIN","Enter it again",4);
@@ -4413,7 +4417,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261112225128";
+const APP_BUILD="20261112232301";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
