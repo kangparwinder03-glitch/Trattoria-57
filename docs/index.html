@@ -1200,8 +1200,11 @@ const PLAN=[
  {name:"7",zone:"din",x:1770,y:1010,w:160,h:160,seats:4,ch:"round",join:1},
  {name:"8",zone:"din",x:1545,y:1010,w:160,h:160,seats:4,ch:"round",join:1},
  {name:"9",zone:"din",x:1235,y:1020,w:120,h:170,seats:4,ch:"lr",join:1},
- {name:"10",zone:"din",x:900,y:1080,w:170,h:110,seats:6,ch:"tb",join:1},
- {name:"11",zone:"din",x:620,y:1080,w:170,h:110,seats:6,ch:"tb",join:1},
+ // 10 and 11 are each a 4-seater + a 2-seater: joined as one table of 6 by default, can be split
+ {name:"10A",zone:"din",x:880,y:1080,w:115,h:110,seats:4,ch:"tb",join:1},
+ {name:"10B",zone:"din",x:1035,y:1080,w:80,h:110,seats:2,ch:"tb",join:1},
+ {name:"11A",zone:"din",x:590,y:1080,w:115,h:110,seats:4,ch:"tb",join:1},
+ {name:"11B",zone:"din",x:745,y:1080,w:80,h:110,seats:2,ch:"tb",join:1},
  {name:"12",zone:"din",x:80,y:1276,w:120,h:100,seats:4,ch:"lr",join:1},
  {name:"13",zone:"din",x:80,y:1104,w:120,h:100,seats:4,ch:"lr",join:1},
 ];
@@ -1213,7 +1216,7 @@ const WALLS=[[160,4,1822,14],[146,4,14,1056],[1968,4,14,380],[1968,560,14,702],[
 const tname=id=>T[id]?T[id].name:"?";
 const idOf=n=>{for(const k in T)if(T[k].name===n)return +k;return 0};
 // tables that are really one table made of two halves: joined every morning, and named as one when joined
-const PAIRS=[{ids:[idOf("1A"),idOf("1B")],name:"1"}].filter(p=>p.ids.every(Boolean));
+const PAIRS=[{ids:[idOf("1A"),idOf("1B")],name:"1"},{ids:[idOf("10A"),idOf("10B")],name:"10"},{ids:[idOf("11A"),idOf("11B")],name:"11"}].filter(p=>p.ids.every(Boolean));
 const pairName=g=>{if(g.length!==2)return "";const s=g.slice().sort((a,b)=>a-b);const p=PAIRS.find(p=>p.ids[0]===s[0]&&p.ids[1]===s[1]);return p?p.name:""};
 const DEFAULT_GROUPS=()=>PAIRS.map(p=>p.ids.slice());
 const isBar=id=>T[id]&&T[id].zone==="bar";
@@ -4231,7 +4234,7 @@ $("areaBar").addEventListener("click",e=>{
 $("tilesView").addEventListener("click",e=>{const t=e.target.closest(".tile");if(!t)return;
   if(t.dataset.p){openPickup(+t.dataset.p,"sent");return}tableTap(+t.dataset.t)});
 $("resetBtn").onclick=()=>{if(readOnly){toast("View only");return}if(Date.now()>=mgrUntil){mgrCheck(()=>$("resetBtn").click(),"Resetting the layout needs a manager");return}
-  ask("Reset the layout?","All joined tables split back to their own spots (table 1 goes back to one table of 4). Bookings stay on their first table.",()=>{
+  ask("Reset the layout?","All joined tables split back to their own spots (tables 1, 10 and 11 go back to one table each). Bookings stay on their first table.",()=>{
     const all=new Set();for(let i=1;i<=N;i++)all.add(i);commit(DEFAULT_GROUPS(),all);toast("Layout reset")})};
 $("hideHint").onclick=()=>{$("hint").style.display="none";try{localStorage.setItem("t57-3d-hint","0")}catch(e){}};
 try{if(localStorage.getItem("t57-3d-hint")==="0")$("hint").style.display="none"}catch(e){}
@@ -4370,7 +4373,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261112221935";
+const APP_BUILD="20261112222418";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
