@@ -2340,7 +2340,7 @@ function ago(ms){const m=Math.max(0,Math.round((Date.now()-ms)/60000));return m<
 async function qrDecision(bt){
   const t=tickets.find(x=>x.id===bt.dataset.id);if(!t)return;
   if(readOnly){toast("View only");return}
-  if(bt.dataset.f==="qrok"){await patchTicket(t,{hold:false,createdAt:Date.now()});toast(stOf(t)==="bar"?"Approved → bar":"Approved → kitchen");ticketsChanged()}
+  if(bt.dataset.f==="qrok"){await patchTicket(t,{hold:false,createdAt:Date.now()});alexaSay([Object.assign({},t,{hold:false})]);toast(stOf(t)==="bar"?"Approved → bar":"Approved → kitchen");ticketsChanged()}
   else ask("Reject this QR order?","It won't be made or charged. Let the table know.",async()=>{await patchTicket(t,{hold:false,closed:true,rejected:true});toast("QR order rejected");ticketsChanged()});
 }
 // ---- discounts ----
@@ -2391,7 +2391,7 @@ $("oBody").addEventListener("click",e=>{
   if(e.target.closest('[data-f="tprint"]')){const B=billOf(ordTickets());printJob(rcpPrinter(),"bill","Bill "+(ord.pickup?"Pickup "+ord.pno:gname(curGroup())),billLines(B),"full",...qrPair());return}
   if(e.target.closest('[data-f="rpdf"]')){const B=billOf(ordTickets());offerPdf(receiptPdf(B),`Trattoria57_Receipt_${ord.pickup?"Pickup"+ord.pno:gname(curGroup()).replace(/[^A-Za-z0-9+]/g,"")}_${dateKey}.pdf`);return}
   const qa=e.target.closest('[data-f="qrall"]');if(qa&&ord){if(readOnly){toast("View only");return}
-    (async()=>{const list=ordTickets().filter(t=>t.hold);for(const t of list)await patchTicket(t,{hold:false,createdAt:Date.now()});toast(`Approved ${list.length} → kitchen/bar`);ticketsChanged()})();return}
+    (async()=>{const list=ordTickets().filter(t=>t.hold);for(const t of list)await patchTicket(t,{hold:false,createdAt:Date.now()});alexaSay(list.map(t=>Object.assign({},t,{hold:false})));toast(`Approved ${list.length} → kitchen/bar`);ticketsChanged()})();return}
   const qb=e.target.closest('[data-f="qrok"],[data-f="qrno"]');if(qb){qrDecision(qb);return}
   if(!ord)return;const c=cart();
   const pq=e.target.closest("[data-pq]");if(pq&&ord.pop){const L=popLine();if(!L)return;const t=pq.dataset.pq,i=L.pc.indexOf(t);
@@ -2445,7 +2445,7 @@ $("oFoot").addEventListener("click",async e=>{
     bt.disabled=true;
     const cartCopy=JSON.parse(JSON.stringify(c)),noteCopy=ord.note,leadNow=ord.lead;
     try{for(const t of made){await putTicket(t);if(!tickets.find(x=>x.id===t.id))tickets.push(t)}
-      showUndo(made.map(t=>t.id),cartCopy,noteCopy,leadNow);
+      showUndo(made.map(t=>t.id),cartCopy,noteCopy,leadNow);alexaSay(made);
       carts[ord.lead]=[];ord.note="";ord.review=false;ord.tab="sent";
       toast(pace?"Starters → kitchen · mains on hold — tap 🔥 Fire mains when ready":(ord.pickup?`Pickup #${ord.pno}: `:"")+(parts.length>1?"food → kitchen · drinks → bar":parts[0][0]==="bar"?"sent to bar":"sent to kitchen"));ticketsChanged()}
     catch(err){bt.disabled=false;toast(err&&err.code==="invalid_argument"?"View only — can't send orders":"Couldn't send — try again")}
@@ -3659,6 +3659,7 @@ setInterval(()=>{if(typeof view==="undefined"||view==="guest"||readOnly)return;c
 async function fireMains(ids){if(readOnly){toast("View only");return}
   const list=tickets.filter(t=>ids.includes(t.id)&&t.wait);if(!list.length)return;
   for(const t of list)await patchTicket(t,{wait:false,createdAt:Date.now(),firedAt:Date.now(),firedBy:waiter?waiter.name:""});
+  alexaSay(list.map(t=>Object.assign({},t,{wait:false})));
   toast("🔥 Mains fired — "+list.map(t=>t.label).join(", "));ticketsChanged()}
 document.addEventListener("click",e=>{const b=e.target.closest(".heldbar [data-fire]");if(b){e.stopPropagation();fireMains([b.dataset.fire])}},true);
 // ---- table timers: how long a table has been sat, and how long the kitchen has had their oldest dish ----
@@ -4151,13 +4152,24 @@ function hubClick(e){
     train:()=>ask(TRAIN?"Back to live on this device?":"Switch this device to training?",TRAIN?"Real orders and bookings will show again.":"Practice freely: nothing you do will touch real orders, bookings or reports. Printouts are marked TRAINING. Other devices stay live.",()=>setTraining(!TRAIN)),
     golive:goLive,signin:openSignIn,alexa:openAlexa})[k]();
 }
-// ---- Kitchen Alexa (Voice Monkey): the kitchen printer app makes an Echo say "New order, Table 4" ----
+// ---- Kitchen Alexa (Voice Monkey): the tablet/phone that sends the order makes the kitchen Echo say "New order, Table 4" ----
+let alexaCfg=null;
+function subscribeAlexa(){const base=db&&db.base?db.base:db;if(!base||db.guest)return;try{base.doc("alexa/main").onSnapshot(sn=>{alexaCfg=sn.exists?sn.data():null},()=>{})}catch(_){}}
+function alexaSay(list){
+  const c=alexaCfg;if(!c||!c.on||!c.token||!c.device)return;
+  const sayFor=list.filter(t=>t&&!t.hold&&!t.wait&&!t.rejected&&(stOf(t)==="kitchen"?c.kitchen!==false:!!c.bar));if(!sayFor.length)return;
+  const names=[...new Set(sayFor.map(t=>t.pickup?(t.walk?"bar walk-up ":"pickup ")+t.pno:t.label))];
+  const speech=(TRAIN?"Training. ":"")+(c.speech||"New order, {table}").replace("{table}",names.join(" and "));
+  let u="https://api-v3.voicemonkey.io/announce?token="+encodeURIComponent(c.token)+"&device="+encodeURIComponent(c.device)+"&speech="+encodeURIComponent(speech)+"&chime="+encodeURIComponent("soundbank://soundlibrary/home/amzn_sfx_doorbell_chime_01");
+  if(c.show)u+="&text_display="+encodeURIComponent(c.show.replace("{table}",names.join(", ")))+"&display_seconds=20";
+  try{fetch(u,{mode:"no-cors"}).catch(()=>{})}catch(_){}
+}
 async function openAlexa(){
   const base=db&&db.base?db.base:db;if(!base||db.guest){toast("Needs the internet");return}
   let c={};try{const sn=await base.doc("alexa/main").get();c=(sn.exists&&sn.data())||{}}catch(_){}
   openX("alexa","🔊 Kitchen Alexa","An Echo in the kitchen says “New order, Table 4” when a ticket prints",async e=>{
     const v=()=>({on:$("axOn").checked,token:$("axTok").value.trim(),device:$("axDev").value.trim(),speech:$("axSay").value.trim()||"New order, {table}",
-      show:$("axShow").checked?"NEW ORDER\n{table}":"",kitchen:true,bar:$("axBar").checked});
+      show:$("axShow").checked?"NEW ORDER\n{table}":"",kitchen:true,bar:$("axBar").checked,from:"web"});
     if(e.target.closest("[data-axtest]")){const x=v();if(!x.token||!x.device){toast("Add the token and speaker ID first");return}
       const u="https://api-v3.voicemonkey.io/announce?token="+encodeURIComponent(x.token)+"&device="+encodeURIComponent(x.device)+"&speech="+encodeURIComponent(x.speech.replace("{table}","Table 4"))+"&chime="+encodeURIComponent("soundbank://soundlibrary/home/amzn_sfx_doorbell_chime_01");
       try{await fetch(u,{mode:"no-cors"});toast("Sent — the Echo should speak in a few seconds")}catch(_){toast("Couldn't reach Voice Monkey")}return}
@@ -4169,7 +4181,7 @@ async function openAlexa(){
     <div class="fld" style="margin-bottom:10px"><label for="axSay">What Alexa says <small>({table} becomes the table)</small></label><input id="axSay" value="${esc(c.speech||"New order, {table}")}"></div>
     <label style="display:flex;gap:10px;align-items:center;font-size:15px;margin-bottom:8px"><input type="checkbox" id="axShow" style="width:20px;height:20px" ${c.show?"checked":""}> Echo Show: also show “NEW ORDER / Table 4” on screen</label>
     <label style="display:flex;gap:10px;align-items:center;font-size:15px;margin-bottom:8px"><input type="checkbox" id="axBar" style="width:20px;height:20px" ${c.bar?"checked":""}> Also announce bar orders</label>
-    <p class="trial">The kitchen tablet's printer app does the announcing, so it needs the latest printer app. The token is kept in your locked database — customers can't see it.</p>`;
+    <p class="trial">The tablet or phone that sends the order tells Alexa straight away — no printer needed. The token is kept in your locked database — customers can't see it.</p>`;
   $("xFoot").innerHTML=`<button class="btn sec" data-axtest>🔊 Test</button><button class="btn pri" data-axsave>Save</button>`;
 }
 const openHubGated=()=>mgrCheck(openHub,"The manager area needs the manager PIN");
@@ -4358,7 +4370,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261112212648";
+const APP_BUILD="20261112221935";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
@@ -4439,7 +4451,7 @@ async function bootSupa(lib){
   if(view==="guest"){startDb(makeGuestDb(sbc));return}
   setStatus("local","Not signed in");showLogin(()=>startDb(makeSupaDb(sbc)),false);
 }
-function startDb(d){db=TRAIN?nsDb(d):d;subscribeLive();subscribePrinters();subscribe();subscribeSettings();subscribeTickets();startStaffStores();gIdx=null}
+function startDb(d){db=TRAIN?nsDb(d):d;subscribeLive();subscribePrinters();subscribeAlexa();subscribe();subscribeSettings();subscribeTickets();startStaffStores();gIdx=null}
 if(window.claude&&typeof window.claude.use==="function"){
   window.claude.use("db").then(d=>{if(!d){setStatus("local","This device");return}startDb(d)}).catch(()=>setStatus("local","This device"));
 }else if(SUPA_URL&&location.protocol.startsWith("http")){

@@ -20,6 +20,7 @@ object Alexa {
             }
         } catch (e: Exception) { return "🔇 Alexa: couldn't read the settings (${e.message ?: "no internet"}) — is this printer app signed in?" }
         val c = cfg ?: return "🔇 Alexa: no settings saved yet — on the website go to ⭐ Manager → Kitchen Alexa and tap SAVE"
+        if (c.optString("from") == "web" && !fresh) return "🔊 Alexa is announced by the tablet that sends the order"
         if (!c.optBoolean("on")) return "🔇 Alexa is switched off (⭐ Manager → Kitchen Alexa → Switch on → Save)"
         if (!c.optBoolean(station, station == "kitchen")) return "🔇 Alexa isn't set to announce ${PrintService.stationName(station)} orders"
         val token = c.optString("token"); val device = c.optString("device")
