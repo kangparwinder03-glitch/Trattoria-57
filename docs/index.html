@@ -1799,7 +1799,10 @@ const MENU=[
 ["Soft Drinks",[["Coke · Pint",4.80,""],["Coke · Regular",2.40,""],["Diet Coke · Pint",4.80,""],["Diet Coke · Regular",2.40,""],["Lemonade · Pint",4.80,""],["Lemonade · Regular",2.40,""],["Lime Cordial · Pint",3.00,""],["Lime Cordial · Regular",1.50,""],["Blackcurrant Cordial · Pint",3.00,""],["Blackcurrant Cordial · Regular",1.50,""],["Orange Cordial · Pint",3.00,""],["Orange Cordial · Regular",1.50,""],["Mineral Water",3.50,"Still or sparkling"],["J2O Orange & Passion Fruit",3.00,""],["J2O Apple & Mango",3.00,""],["J2O Apple & Raspberry",3.00,""],["Fanta",3.00,""],["Appletiser",3.00,""],["Apple Juice",2.80,""],["Fresh Orange",2.80,""],["Ginger Ale",2.50,""]]],
 ["Beer & Cider",[["Peroni · Pint",6.00,""],["Peroni · Half",3.00,""],["Peroni · Bottle",4.20,""],["Gluten Free Peroni · Bottle",4.20,""],["Peroni 0.0% · Bottle",3.90,"Alcohol free"],
  ["Moretti · Bottle",4.20,""],["Magners Cider · Bottle",5.90,""],["Fruity Cider · Bottle",5.50,""],["Black Sheep Bitter · Bottle",4.90,""]]],
-["Wine",[["Trebbiano (white) · 250ml",7.80,""],["Trebbiano (white) · 125ml",3.90,""],["Rosata Veneto Blush (rosé) · 250ml",7.80,""],["Rosata Veneto Blush (rosé) · 125ml",3.90,""],
+["Wine",[["House Red · 1 Ltr",24.90,"Montepulciano d'Abruzzo"],["House Red · 1/2 Ltr",12.50,"Montepulciano d'Abruzzo"],
+ ["House White · 1 Ltr",24.90,"Pinot Grigio, medium dry"],["House White · 1/2 Ltr",12.50,"Pinot Grigio, medium dry"],
+ ["House Rosé · 1 Ltr",24.90,"Blush, medium dry"],["House Rosé · 1/2 Ltr",12.50,"Blush, medium dry"],
+ ["Trebbiano (white) · 250ml",7.80,""],["Trebbiano (white) · 125ml",3.90,""],["Rosata Veneto Blush (rosé) · 250ml",7.80,""],["Rosata Veneto Blush (rosé) · 125ml",3.90,""],
  ["Montepulciano d'Abruzzo (red) · 250ml",7.80,""],["Montepulciano d'Abruzzo (red) · 125ml",3.90,""],["Add lemonade to wine",0.80,"Spritzer"],["Add soda to wine",0.50,""]]],
 ["Prosecco & Spritz",[["Small White Prosecco",7.90,""],["Small Rosé Prosecco",7.90,""],["Aperol Spritz",8.90,""]]],
 ["Spirits",[["Famous Grouse · Single",4.20,""],["Famous Grouse · Double",7.90,""],["Jameson · Single",4.00,""],["Jameson · Double",7.90,""],["Bells · Single",3.90,""],["Bells · Double",7.60,""],["Spiced Rum · Single",3.90,""],["Spiced Rum · Double",7.10,""],["Captain Morgan's · Single",3.90,""],["Captain Morgan's · Double",7.10,""],["Smirnoff · Single",3.80,""],["Smirnoff · Double",7.00,""],["Gordon's · Single",3.80,""],["Gordon's · Double",7.40,""],["Bacardi · Single",3.80,""],["Bacardi · Double",7.00,""],["Lamb's · Single",3.80,""],["Lamb's · Double",7.00,""],["Southern Comfort · Single",3.80,""],["Southern Comfort · Double",7.00,""],["Jack Daniel's · Single",3.80,""],["Jack Daniel's · Double",7.00,""],["Archers · Single",3.50,""],["Archers · Double",6.50,""],["Malibu · Single",3.50,""],["Malibu · Double",6.50,""],["Martini · Single",3.50,""],["Martini · Double",6.50,""],["Disaronno · Single",3.50,""],["Disaronno · Double",6.59,""]]],
@@ -4316,7 +4319,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261112174337";
+const APP_BUILD="20261112174921";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
