@@ -211,6 +211,7 @@ textarea{resize:vertical;min-height:44px}
 .loginbox img{align-self:center;border-radius:16px}.loginbox h2{margin:0;font-family:Georgia,serif;font-size:24px}.loginbox p{margin:0;color:#6d6448;font-size:14px}
 .loginbox input{min-height:52px;font-size:18px;border-radius:12px;border:1.5px solid #d9cba8;padding:0 14px}
 .loginbox .btn{min-height:54px;font-size:18px;max-width:none}.lgerr{color:#a3322a;font-weight:700;min-height:18px}
+.barfold{display:block;width:100%;margin:6px 0 12px;padding:12px;border:1.5px dashed #c9a87a;border-radius:14px;background:#fbf4e6;color:#7a5a32;font-weight:700;font-size:14px}
 .hubg{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:14px}
 .hubg button{border:1.5px solid var(--parch2);background:#fffaf0;border-radius:14px;padding:14px 10px;min-height:86px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--ink);text-align:center}
 .hubg button b{font-size:14px;line-height:1.2}.hubg .ic{font-size:24px;line-height:1}
@@ -922,7 +923,7 @@ body.mode-waiter #vKitchen,body.mode-waiter #vBar,body.mode-waiter #vReport{disp
 
     <div class="alertbar" id="alertBar"></div><div class="stage-snd"><button class="sndbtn" data-snd>🔔 Sound on</button><button class="sndbtn vib" data-vib>📳 Buzz on</button> <button class="sndbtn ld" id="loudFloor"></button> <button class="sndbtn" id="listBtn" style="color:var(--ink)">📋 Open tables · <span id="listN">0</span></button> <button class="sndbtn" id="waiterBtn" style="color:var(--ink)">👤 Log in</button></div>
     <div class="datebanner" id="dateBanner"></div>
-    <div class="areabar" id="areaBar"><div class="aseg"><button data-area="all">All</button><button data-area="bar">Bar</button><button data-area="din">Restaurant</button></div><button class="mbtn" id="modeBtn">▦ Tiles</button></div>
+    <div class="areabar" id="areaBar"><div class="aseg"><button data-area="auto" title="Bar shows itself when someone sits there">Auto</button><button data-area="all">All</button><button data-area="bar">Bar</button><button data-area="din">Restaurant</button></div><button class="mbtn" id="modeBtn">▦ Tiles</button></div>
     <div id="tilesView"></div>
     <div class="hint" id="hint"><button id="hideHint" aria-label="Hide tips">×</button>
       <b>Drag</b> a table onto another to join them.<br>
@@ -1010,6 +1011,7 @@ body.mode-waiter #vKitchen,body.mode-waiter #vBar,body.mode-waiter #vReport{disp
       <button class="btn dng" id="shNoShow">🚫 No-show</button>
       <button class="btn dng" id="shWalkOut">🚶 Walked out</button>
       <button class="btn sec" id="shSplit">Split tables</button>
+      <button class="btn sec" id="shJoin">🔗 Join a table</button>
       <button class="btn sec" id="shMail">✉ Emails</button>
       <button class="btn sec" id="shOrder">🍽 Order</button>
       <button class="btn sec" id="shWalk">🚶 Walk-in · seat now</button>
@@ -1219,10 +1221,14 @@ const idOf=n=>{for(const k in T)if(T[k].name===n)return +k;return 0};
 const PAIRS=[{ids:[idOf("1A"),idOf("1B")],name:"1"},{ids:[idOf("10A"),idOf("10B")],name:"10"},{ids:[idOf("11A"),idOf("11B")],name:"11"}].filter(p=>p.ids.every(Boolean));
 const pairName=g=>{if(g.length!==2)return "";const s=g.slice().sort((a,b)=>a-b);const p=PAIRS.find(p=>p.ids[0]===s[0]&&p.ids[1]===s[1]);return p?p.name:""};
 const DEFAULT_GROUPS=()=>PAIRS.map(p=>p.ids.slice());
+// table names for a group, with a whole pair written as its own number (1A+1B+2 → 1+2)
+function groupNames(g){const ids=g.slice().sort((a,b)=>a-b),used=new Set(),out=[];
+  for(const id of ids){if(used.has(id))continue;const p=PAIRS.find(p=>p.ids.includes(id)&&p.ids.every(i=>ids.includes(i)));
+    if(p){p.ids.forEach(i=>used.add(i));out.push(p.name)}else{used.add(id);out.push(tname(id))}}return out}
 const isBar=id=>T[id]&&T[id].zone==="bar";
 function tlabel(id){const n=tname(id);return isBar(id)?"Bar "+n.slice(1):"Table "+n}
-function gname(g){const ids=g.slice().sort((a,b)=>a-b),pn=pairName(ids);return pn?"Table "+pn:g.length>1?ids.map(tname).join("+"):tlabel(ids[0])}
-function gnameLong(g){const ids=g.slice().sort((a,b)=>a-b),pn=pairName(ids);return pn?"Table "+pn:g.length>1?"Tables "+ids.map(tname).join(" + "):tlabel(ids[0])}
+function gname(g){const ids=g.slice().sort((a,b)=>a-b),pn=pairName(ids);return pn?"Table "+pn:g.length>1?groupNames(ids).join("+"):tlabel(ids[0])}
+function gnameLong(g){const ids=g.slice().sort((a,b)=>a-b),pn=pairName(ids);return pn?"Table "+pn:g.length>1?"Tables "+groupNames(ids).join(" + "):tlabel(ids[0])}
 const seatsOf=g=>g.reduce((a,id)=>a+(T[id]?T[id].seats:0),0);
 const TOTAL_SEATS=PLAN.reduce((a,p)=>a+p.seats,0);
 // footprint of a table incl. chairs
@@ -1363,14 +1369,17 @@ function kEff(){return kFit*zoom}
 const AREAS={all:{x:0,y:0,w:2000,h:1460},bar:{x:140,y:0,w:1850,h:615},din:{x:0,y:585,w:2000,h:875}};
 const TRAIN=(()=>{try{return localStorage.getItem("t57-train")==="1"&&!/^#table-/.test(location.hash)}catch(e){return false}})();
 const LK=TRAIN?"t57-tr-":"t57-";
-let area="all";try{area=localStorage.getItem("t57-area")||"all";if(!AREAS[area])area="all"}catch(e){}
+let area="auto";try{area=localStorage.getItem("t57-area")||"auto";if(area!=="auto"&&!AREAS[area])area="auto"}catch(e){}
+// "Auto": show only the restaurant until someone is sat at (or ordering for) a bar table, then show everything
+function barBusy(){try{return unitsOf(state.groups).some(g=>T[g[0]].zone==="bar"&&(state.bookings[leadOf(g)]||activeFor(g).length))}catch(e){return false}}
+const effArea=()=>area!=="auto"?area:(barBusy()?"all":"din");let lastEa=null;
 let autoRot=false;
 function fit(){
   const r=stage.getBoundingClientRect();
   // short landscape (Galaxy Tab A11 etc.): buttons sit in a column on the left, so the plan can use the full height
   const wideShort=r.width>r.height&&matchMedia("(orientation:landscape) and (max-height:640px)").matches;
   const sideL=wideShort?((document.querySelector(".stage-snd")||{}).offsetWidth||150)+24:8,sideR=66;   // keep clear of the zoom/3D buttons on the right
-  const A=AREAS[area],top=wideShort?44:58,bot=wideShort?10:58,availW=Math.max(120,r.width-sideL-sideR),availH=Math.max(120,r.height-top-bot);
+  const A=AREAS[lastEa=effArea()],top=wideShort?44:58,bot=wideShort?10:58,availW=Math.max(120,r.width-sideL-sideR),availH=Math.max(120,r.height-top-bot);
   const kOf=ro=>{const dw=ro?A.h:A.w,dh=ro?A.w:A.h;return view3d?Math.min(availW/(dw*1.12),availH/(dh*0.8)):Math.min(availW/dw,availH/dh)};
   // turn the plan sideways only when that makes it clearly bigger (upright tablets / phones)
   autoRot=!wideShort&&kOf(true)>kOf(false)*1.08;
@@ -1442,7 +1451,7 @@ function renderTiles(){
   const el=$("tilesView");if(!el||mode!=="tiles")return;
   const sec={bar:[],din:[]};
   for(const g of groupsOf()){
-    const z=T[g[0]].zone;if(area!=="all"&&area!==z)continue;
+    const z=T[g[0]].zone,ea=effArea();if(ea!=="all"&&ea!==z)continue;
     const L=leadOf(g),b=state.bookings[L],act=activeFor(g),os=orderStatus(g),fk=flashFor(g),cap=seatsOf(g);
     const lead=b&&b.guests[0]&&b.guests[0].name;
     let cls="free",tag="",who="Free",meta="Tap to book";
@@ -1452,13 +1461,13 @@ function renderTiles(){
     if(fk==="qr"){cls="qr";tag="📱 QR order"}
     if(fk==="call"){cls="call";const f=Object.values(flashes).find(x=>x.kind==="call"&&x.tables.some(i=>g.includes(i)));tag=f&&f.what==="bill"?"💷 Bill":f&&f.what==="ready"?"🔔 Food ready":"🙋 Waiter"}
     const bill=act.length?money(billOf(act).total):"";
-    sec[z].push({id:g[0],min:Math.min(...g),html:`<button class="tile ${cls}" data-t="${g[0]}"><div class="tn"><b>${esc(pairName(g)||g.slice().sort((a,c)=>a-c).map(tname).join("+"))}</b><span>${cap} seats</span></div>
+    sec[z].push({id:g[0],min:Math.min(...g),html:`<button class="tile ${cls}" data-t="${g[0]}"><div class="tn"><b>${esc(groupNames(g).join("+"))}</b><span>${cap} seats</span></div>
       <div class="who">${esc(who)}</div><div class="meta">${esc(meta)}</div>${(()=>{const tm=tableTimer(act);return tm?`<div class="tmr${tm.late?" late":""}">${tm.txt}</div>`:""})()}${tag||bill?`<div class="tt2">${tag?`<i>${esc(tag)}</i>`:"<span></span>"}<em>${bill}</em></div>`:""}</button>`});
   }
   const picks=typeof pickupRows==="function"?pickupRows():[];
   const part=(title,list)=>list.length?`<div class="tsec"><h4>${title}</h4><div class="tgrid">${list.sort((a,c)=>a.min-c.min).map(x=>x.html).join("")}</div></div>`:"";
   el.innerHTML=(picks.length?`<div class="tsec"><h4>🥡 PICKUPS</h4><div class="tgrid">${picks.map(p=>`<button class="tile pick${p.st==="served"?" ready":""}" data-p="${p.pno}"><div class="tn"><b>#${p.pno}</b><span>pickup</span></div><div class="who">${esc(p.name||"Pickup")}</div><div class="meta">${p.pat?`⏰ <b>for ${esc(p.pat)}</b> · `:""}${p.items} items · ${ago(p.first)}</div><div class="tt2"><i>${p.st==="served"?"🔔 Ready":p.sched?"⏰ Scheduled":p.st==="preparing"?"Cooking":"Sent"}</i><em>${money(p.total)}</em></div></button>`).join("")}</div></div>`:"")+
-    (area!=="din"?part("BAR",sec.bar):"")+(area!=="bar"?part("RESTAURANT",sec.din):"");
+    (effArea()!=="din"?part("BAR",sec.bar):area==="auto"?`<button class="barfold" data-area="all">🍸 Bar tables — nobody there yet · tap to show</button>`:"")+(effArea()!=="bar"?part("RESTAURANT",sec.din):"");
 }
 function applyArea(){
   document.querySelectorAll("#areaBar [data-area]").forEach(b=>b.classList.toggle("on",b.dataset.area===area));
@@ -1467,6 +1476,7 @@ function applyArea(){
   fit();animCam();render();
 }
 function render(){
+  if(lastEa!==null&&effArea()!==lastEa&&typeof dragging!=="undefined"&&!dragging&&!sheetGroup){lastEa=effArea();try{fit();applyCam()}catch(_){}}
   const groups=groupsOf();
   let tHtml="",lHtml="",nb=0,guests=0,usedSeats=0,freeTables=0,pend=0;
   for(const g of groups){
@@ -1478,19 +1488,19 @@ function render(){
       const p=state.tables[id];
       const flushL=ix>0&&Math.abs(state.tables[ord[ix-1]].x+T[ord[ix-1]].w-p.x)<1;
       const flushR=ix<ord.length-1&&Math.abs(p.x+T[id].w-state.tables[ord[ix+1]].x)<1;
-      const cls=["tbl",area!=="all"&&T[id].zone!==area?"dim":"",isBar(id)?"bart":"",fl?"fl-"+fl:"",b?"booked":"",!b&&os?"seated":"",b&&b.status!=="confirmed"?"pending":"",flushL?"jl":"",flushR?"jr":"",sheetGroup&&sheetGroup.includes(id)?"sel":""].join(" ");
+      const cls=["tbl",effArea()!=="all"&&T[id].zone!==effArea()?"dim":"",isBar(id)?"bart":"",fl?"fl-"+fl:"",b?"booked":"",!b&&os?"seated":"",b&&b.status!=="confirmed"?"pending":"",flushL?"jl":"",flushR?"jr":"",sheetGroup&&sheetGroup.includes(id)?"sel":""].join(" ");
       tHtml+=tableHtml(id,p,cls,b?party:0,seat);seat+=T[id].seats;
     });
     const x0=Math.min(...g.map(id=>state.tables[id].x)),x1=Math.max(...g.map(id=>state.tables[id].x+T[id].w));
     const a=T[g[0]],p0=state.tables[g[0]];
     const lead=b&&b.guests[0]&&b.guests[0].name.trim();
-    const short=pairName(g)||g.slice().sort((a,c)=>a-c).map(tname).join("+");
+    const short=groupNames(g).join("+");
     const main=b?(lead||"Booked"):(os?"Seated":short);
     const sub=os&&!b?`£${os.total.toFixed(2)}`:b?`${esc(b.time||"—")} · <span class="${party>cap?"warn":""}">${party}/${cap}</span>`:cap+" seats";
     const top=b||os?short:"";
     let bw=x1-x0,bh=a.h,lx=x0,ly=p0.y;
     if(rot){lx=x0+bw/2-bh/2;ly=p0.y+bh/2-bw/2;[bw,bh]=[bh,bw]}
-    lHtml+=`<div class="glabel${b?" booked":""}${rot?" rot":""}${area!=="all"&&a.zone!==area?" dim":""}" data-g="${g.join(",")}" style="left:${lx}px;top:${ly}px;width:${bw}px;height:${bh}px">
+    lHtml+=`<div class="glabel${b?" booked":""}${rot?" rot":""}${effArea()!=="all"&&a.zone!==effArea()?" dim":""}" data-g="${g.join(",")}" style="left:${lx}px;top:${ly}px;width:${bw}px;height:${bh}px">
       ${top?`<div class="n">${esc(top)}</div>`:""}<div class="m${b||os?"":" big"}">${esc(main)}</div>${sub?`<div class="s">${sub}</div>`:""}${(()=>{const tm=os&&tableTimer(activeFor(g));return tm?`<div class="tmr${tm.late?" late":""}">${tm.txt}</div>`:""})()}${os?`<div class="ord ${os.st}${fl?" flash":""}">${fl==="srv"?"🔔 Ready":fl==="qr"?"📱 QR order":fl==="call"?"🙋 Waiter":ST_LABEL[os.st]}</div>`:b?`<div class="st${b.status==="confirmed"?" c":""}">${b.status==="confirmed"?"✓ Confirmed":"Pending"}</div>`:""}</div>`;
   }
   if(tablesEl._h!==tHtml){tablesEl.innerHTML=tHtml;tablesEl._h=tHtml}if(labelsEl._h!==lHtml){labelsEl.innerHTML=lHtml;labelsEl._h=lHtml}
@@ -1638,7 +1648,7 @@ function openSheet(id){
       <input class="gp" type="tel" inputmode="tel" placeholder="Phone" maxlength="30" value="${esc(gu.phone)}"></div>`}
   $("guestList").innerHTML=h;
   $("shNote").innerHTML=guests.filter(x=>x.name.trim()).length>cap?`<div class="note">More guests than seats — join another table or remove some names.</div>`:"";
-  $("shSplit").style.display=g.length>1?"":"none";
+  $("shSplit").style.display=g.length>1?"":"none";$("shJoin").style.display=T[g[0]].join?"":"none";
   showReg("shReg",(guests[0]||{}).phone,b&&b.email);
   $("shClear").style.display=b&&!b.walkin&&!activeFor(g).length?"":"none";$("shNoShow").style.display=b&&!b.walkin&&!activeFor(g).length?"":"none";$("shWalkOut").style.display=b&&b.walkin&&!activeFor(g).length?"":"none";
   updateCount();
@@ -1697,10 +1707,27 @@ $("oStrip").addEventListener("click",e=>{const b=e.target.closest("[data-end]");
 $("shNoShow").onclick=()=>{askEnd(leadOf(groupFor(sheetGroup[0])),"noshow")};
 $("shWalkOut").onclick=()=>{askEnd(leadOf(groupFor(sheetGroup[0])),"walkout")};
 $("shClear").onclick=()=>askEnd(leadOf(groupFor(sheetGroup[0])),"cancelled");
+$("shJoin").onclick=()=>{
+  if(readOnly){toast("View only");return}
+  const g=groupFor(sheetGroup[0]),L=leadOf(g),z=T[L].zone,hp=homePos(L);
+  const free=unitsOf(state.groups).filter(o=>!o.some(i=>g.includes(i))&&T[o[0]].zone===z&&o.every(i=>T[i].join)&&!state.bookings[leadOf(o)]&&!activeFor(o).length)
+    .map(o=>{const p=homePos(leadOf(o));return {o,d:Math.hypot(p.x-hp.x,p.y-hp.y)}}).sort((a,b)=>a.d-b.d).slice(0,8);
+  if(!free.length){toast("No free tables nearby to join");return}
+  closeSheet();
+  openX("join","🔗 Join "+gname(g)+" with…","Nearest free tables first",ev=>{const b=ev.target.closest("[data-jn]");if(!b)return;
+    const o=b.dataset.jn.split(",").map(Number);closeX();
+    const ng=state.groups.filter(x=>!x.some(i=>g.includes(i)||o.includes(i))).concat([g.concat(o)]);
+    if(commit(ng,new Set(o)))toast(gname(g.concat(o))+" joined · "+seatsOf(g.concat(o))+" seats")});
+  $("xBody").innerHTML=`<div class="hubg">${free.map(({o})=>`<button data-jn="${o.join(",")}"><span class="ic">${T[o[0]].ch==="round"?"⭕":"▭"}</span><b>${esc(gname(o))}</b><small>${seatsOf(o)} seats</small></button>`).join("")}</div>`;
+  $("xFoot").innerHTML=`<button class="btn sec" data-xdone style="max-width:none">Cancel</button>`;
+};
 $("shSplit").onclick=()=>{
   if(readOnly){toast("View only");return}
-  const g=groupFor(sheetGroup[0]);const moved=new Set(g.slice(1));
-  const ng=state.groups.filter(x=>!x.includes(g[0]));
+  const g=groupFor(sheetGroup[0]);
+  // a joined group that contains a whole pair (e.g. 1+2) splits back to "Table 1" + "Table 2"; a lone pair splits into its halves
+  const keep=pairName(g)?[]:PAIRS.filter(p=>p.ids.every(i=>g.includes(i))).map(p=>p.ids.slice());
+  const stay=new Set(keep.flat().concat([leadOf(g)]));const moved=new Set(g.filter(i=>!stay.has(i)||(keep.length&&!keep.some(k=>k.includes(i))&&i!==leadOf(g))));
+  const ng=state.groups.filter(x=>!x.includes(g[0])).concat(keep);
   closeSheet();if(commit(ng,moved))toast("Tables split — back in their places");
 };
 
@@ -4244,7 +4271,7 @@ $("turnBtn").onclick=()=>{const want=!rot;try{localStorage.setItem("t57-rot",wan
 $("areaBar").addEventListener("click",e=>{
   const a=e.target.closest("[data-area]");if(a){area=a.dataset.area;try{localStorage.setItem("t57-area",area)}catch(_){}applyArea();return}
   if(e.target.closest("#modeBtn")){mode=mode==="tiles"?"map":"tiles";try{localStorage.setItem("t57-mode",mode)}catch(_){}applyArea()}});
-$("tilesView").addEventListener("click",e=>{const t=e.target.closest(".tile");if(!t)return;
+$("tilesView").addEventListener("click",e=>{if(e.target.closest(".barfold")){area="all";try{localStorage.setItem("t57-area",area)}catch(_){}applyArea();return}const t=e.target.closest(".tile");if(!t)return;
   if(t.dataset.p){openPickup(+t.dataset.p,"sent");return}tableTap(+t.dataset.t)});
 $("resetBtn").onclick=()=>{if(readOnly){toast("View only");return}if(Date.now()>=mgrUntil){mgrCheck(()=>$("resetBtn").click(),"Resetting the layout needs a manager");return}
   ask("Reset the layout?","All joined tables split back to their own spots (tables 1, 10 and 11 go back to one table each). Bookings stay on their first table.",()=>{
@@ -4386,7 +4413,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261112222843";
+const APP_BUILD="20261112225128";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
