@@ -1450,7 +1450,7 @@ function renderTiles(){
     else if(act.length){cls="seated";who="Seated";tag=os?ST_LABEL[os.st]:"Ordering"}
     if(fk==="srv"){cls="ready";tag="🔔 Ready"}
     if(fk==="qr"){cls="qr";tag="📱 QR order"}
-    if(fk==="call"){cls="call";const f=Object.values(flashes).find(x=>x.kind==="call"&&x.tables.some(i=>g.includes(i)));tag=f&&f.what==="bill"?"💷 Bill":"🙋 Waiter"}
+    if(fk==="call"){cls="call";const f=Object.values(flashes).find(x=>x.kind==="call"&&x.tables.some(i=>g.includes(i)));tag=f&&f.what==="bill"?"💷 Bill":f&&f.what==="ready"?"🔔 Food ready":"🙋 Waiter"}
     const bill=act.length?money(billOf(act).total):"";
     sec[z].push({id:g[0],min:Math.min(...g),html:`<button class="tile ${cls}" data-t="${g[0]}"><div class="tn"><b>${esc(pairName(g)||g.slice().sort((a,c)=>a-c).map(tname).join("+"))}</b><span>${cap} seats</span></div>
       <div class="who">${esc(who)}</div><div class="meta">${esc(meta)}</div>${(()=>{const tm=tableTimer(act);return tm?`<div class="tmr${tm.late?" late":""}">${tm.txt}</div>`:""})()}${tag||bill?`<div class="tt2">${tag?`<i>${esc(tag)}</i>`:"<span></span>"}<em>${bill}</em></div>`:""}</button>`});
@@ -2146,7 +2146,7 @@ function flashFor(g){
 }
 function alertText(f){
   if(f.kind==="qr")return "📱 "+esc(f.label)+" — new QR order, tap to check";
-  if(f.kind==="call")return (f.what==="bill"?"💷 ":"🙋 ")+esc(f.label)+(f.what==="bill"?" — asking for the bill ✓":" — needs a waiter ✓");
+  if(f.kind==="call")return (f.what==="bill"?"💷 ":f.what==="ready"?"🔔 ":"🙋 ")+esc(f.label)+(f.what==="bill"?" — asking for the bill ✓":f.what==="ready"?" — food ready, take it out ✓":" — needs a waiter ✓");
   if(f.pno&&f.kind==="srv")return "🥡 Pickup #"+f.pno+(f.st==="bar"?" — drinks ready for collection ✓":" — ready for collection ✓");
   if(f.pno)return "🥡 Pickup #"+f.pno+(f.st==="bar"?" — drinks being made ✓":" — food preparing ✓");
   if(f.kind==="srv")return (f.st==="bar"?"🍷 ":"🔔 ")+esc(f.label)+(f.st==="bar"?" — drinks ready ✓":" — food ready ✓");
@@ -3177,9 +3177,9 @@ const callStore=useColl("calls",()=>{syncCalls();if(view==="guest")renderGuest()
 function syncCalls(){
   const live=new Set();
   Object.entries(callStore.docs).forEach(([id,c])=>{if(!c||c.done||!(+c.at>Date.now()-CALL_WINDOW))return;
-    const tid=+c.table;if(!T[tid])return;const g=groupFor(tid);live.add("call-"+id);
-    if(!flashes["call-"+id]){flashes["call-"+id]={kind:"call",until:0,tables:g,label:gname(g),what:c.what==="bill"?"bill":"waiter",cid:id};
-      if(stInit&&view!=="kitchen"&&view!=="bar"&&view!=="guest")chime("srv")}});
+    const tid=+c.table||(c.tname?guestFromHash("#table-"+String(c.tname).toLowerCase().replace(/\s+/g,"")):0);if(!T[tid])return;const g=groupFor(tid);live.add("call-"+id);
+    if(!flashes["call-"+id]){const what=c.what==="bill"?"bill":c.what==="ready"?"ready":"waiter";flashes["call-"+id]={kind:"call",until:0,tables:g,label:gname(g),what,cid:id};
+      if(stInit&&view!=="kitchen"&&view!=="bar"&&view!=="guest"){chime("srv");if(what==="ready"){try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch(_){}toast("🔔 "+gname(g)+" — food ready",6000)}}}});
   for(const id in flashes)if(id.startsWith("call-")&&!live.has(id))delete flashes[id];
   renderAlerts();if(!dragging&&view==="floor")render();
 }
@@ -3270,7 +3270,7 @@ function openTables(){
     const first=act.length?Math.min(...act.map(t=>t.createdAt)):0;
     const tags=[];
     if(held.length)tags.push(["hold","📱 QR to check"]);
-    const fk=flashFor(g);if(fk==="call"){const f=Object.values(flashes).find(x=>x.kind==="call"&&x.tables.some(i=>g.includes(i)));tags.push(["call",f&&f.what==="bill"?"💷 Bill":"🙋 Waiter"])}
+    const fk=flashFor(g);if(fk==="call"){const f=Object.values(flashes).find(x=>x.kind==="call"&&x.tables.some(i=>g.includes(i)));tags.push(["call",f&&f.what==="bill"?"💷 Bill":f&&f.what==="ready"?"🔔 Food ready":"🙋 Waiter"])}
     for(const st of ["kitchen","bar"]){const mine=live.filter(t=>stOf(t)===st);if(!mine.length)continue;
       let s3="served";for(const k of ["new","received","preparing"])if(mine.some(t=>t.status===k)){s3=k;break}
       tags.push([s3,(st==="bar"?"Bar: ":"Food: ")+(s3==="new"?"sent":s3==="preparing"?(st==="bar"?"making":"cooking"):s3)])}
@@ -4172,10 +4172,12 @@ async function openAlexa(){
   let c={};try{const sn=await base.doc("alexa/main").get();c=(sn.exists&&sn.data())||{}}catch(_){}
   openX("alexa","🔊 Kitchen Alexa","An Echo in the kitchen says “New order, Table 4” when a ticket prints",async e=>{
     const v=()=>({on:$("axOn").checked,token:$("axTok").value.trim(),device:$("axDev").value.trim(),speech:$("axSay").value.trim()||"New order, {table}",
-      show:$("axShow").checked?"NEW ORDER\n{table}":"",kitchen:true,bar:$("axBar").checked,from:"web"});
+      show:$("axShow").checked?"NEW ORDER\n{table}":"",kitchen:true,bar:$("axBar").checked,from:"web",readyKey:$("axKey").value});
     if(e.target.closest("[data-axtest]")){const x=v();if(!x.token||!x.device){toast("Add the token and speaker ID first");return}
       const u="https://api-v3.voicemonkey.io/announce?token="+encodeURIComponent(x.token)+"&device="+encodeURIComponent(x.device)+"&speech="+encodeURIComponent(x.speech.replace("{table}","Table 4"))+"&chime="+encodeURIComponent("soundbank://soundlibrary/home/amzn_sfx_doorbell_chime_01");
       try{await fetch(u,{mode:"no-cors"});toast("Sent — the Echo should speak in a few seconds")}catch(_){toast("Couldn't reach Voice Monkey")}return}
+    if(e.target.closest("[data-axkey]")){const a=new Uint8Array(12);crypto.getRandomValues(a);$("axKey").value=[...a].map(x=>x.toString(16).padStart(2,"0")).join("");axUrl();toast("New secret code — tap Save, then put the new link in Voice Monkey");return}
+    if(e.target.closest("[data-axcopy]")){copyText($("axUrl").textContent,"Link copied");return}
     if(e.target.closest("[data-axsave]")){try{await base.doc("alexa/main").set(v());closeX();toast("🔊 Kitchen Alexa saved — the kitchen printer picks it up within a minute")}catch(_){toast("Couldn't save — check the internet")}}
   });
   $("xBody").innerHTML=`<label style="display:flex;gap:10px;align-items:center;font-size:16px;margin-bottom:12px"><input type="checkbox" id="axOn" style="width:22px;height:22px" ${c.on?"checked":""}> <b>Switch on</b></label>
@@ -4184,8 +4186,15 @@ async function openAlexa(){
     <div class="fld" style="margin-bottom:10px"><label for="axSay">What Alexa says <small>({table} becomes the table)</small></label><input id="axSay" value="${esc(c.speech||"New order, {table}")}"></div>
     <label style="display:flex;gap:10px;align-items:center;font-size:15px;margin-bottom:8px"><input type="checkbox" id="axShow" style="width:20px;height:20px" ${c.show?"checked":""}> Echo Show: also show “NEW ORDER / Table 4” on screen</label>
     <label style="display:flex;gap:10px;align-items:center;font-size:15px;margin-bottom:8px"><input type="checkbox" id="axBar" style="width:20px;height:20px" ${c.bar?"checked":""}> Also announce bar orders</label>
-    <p class="trial">The tablet or phone that sends the order tells Alexa straight away — no printer needed. The token is kept in your locked database — customers can't see it.</p>`;
+    <p class="trial">The tablet or phone that sends the order tells Alexa straight away — no printer needed. The token is kept in your locked database — customers can't see it.</p>
+    <div class="gl-title"><span>🔔 “Alexa, food ready” → every tablet</span></div>
+    <p class="trial">Needs Voice Monkey Hobby + the small Supabase function. Use this link in the Voice Monkey Flow's <b>Web Request</b> (method GET), with your table-number variable at the end.</p>
+    <input type="hidden" id="axKey" value="${esc(c.readyKey||"")}">
+    <div id="axUrl" style="font:13px ui-monospace,monospace;background:#f3ecdc;border-radius:10px;padding:10px;word-break:break-all;margin-bottom:8px"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sec" data-axcopy style="max-width:none">📋 Copy link</button><button class="btn sec" data-axkey style="max-width:none">🔑 ${c.readyKey?"New secret code":"Make secret code"}</button></div>`;
+  window.axUrl=()=>{const k=$("axKey").value;$("axUrl").textContent=k?SUPA_URL+"/functions/v1/t57-ready?k="+k+"&t={TABLE}":"Tap “Make secret code” first."};axUrl();
   $("xFoot").innerHTML=`<button class="btn sec" data-axtest>🔊 Test</button><button class="btn pri" data-axsave>Save</button>`;
+  $("xBody").scrollTop=0;
 }
 const openHubGated=()=>mgrCheck(openHub,"The manager area needs the manager PIN");
 $("sHubBtn").onclick=openHubGated;
@@ -4373,7 +4382,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261112222418";
+const APP_BUILD="20261112222524";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
