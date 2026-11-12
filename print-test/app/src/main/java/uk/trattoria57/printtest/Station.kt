@@ -89,6 +89,7 @@ object Format {
 
     fun ticket(t: JSONObject, cols: Int, lg: Logos, copy: Int = 1, copies: Int = 1, training: Boolean = false, big: Boolean = false): ByteArray = EscPos(cols).apply {
         val bar = t.optString("station") == "bar"
+        if (!bar) heavy()   // kitchen: all text bold and extra dark
         if (lg.small != null) image(lg.small).feed(1) else align(1).bold(true).line("TRATTORIA 57").bold(false)
         align(1).bold(true).line(if (bar) "*** BAR ***" else "*** KITCHEN ***")
         if (training) line("** TRAINING - NOT REAL **")

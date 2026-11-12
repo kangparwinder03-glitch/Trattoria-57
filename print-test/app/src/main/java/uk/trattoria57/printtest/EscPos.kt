@@ -21,7 +21,11 @@ class EscPos(val cols: Int) {
     }.toByteArray()
 
     fun align(a: Int): EscPos = raw(0x1B, 0x61, a)          // 0 left, 1 centre, 2 right
-    fun bold(on: Boolean): EscPos = raw(0x1B, 0x45, if (on) 1 else 0)
+    /** When set (kitchen tickets), every line prints bold — bold(false) can't switch it off. */
+    var allBold = false
+    fun bold(on: Boolean): EscPos = raw(0x1B, 0x45, if (on || allBold) 1 else 0)
+    /** Everything bold + double-strike: thicker, darker print. */
+    fun heavy(): EscPos { allBold = true; return raw(0x1B, 0x45, 1).raw(0x1B, 0x47, 1) }
     fun size(w: Int, h: Int): EscPos = raw(0x1D, 0x21, ((w - 1) shl 4) or (h - 1))
     fun text(s: String): EscPos { out.write(enc(s)); return this }
     fun line(s: String = ""): EscPos = text(s).raw(0x0A)
