@@ -1187,7 +1187,9 @@ const PLAN=[
  {name:"B8",zone:"bar",x:300,y:70,w:135,h:240,seats:4,ch:"lr",join:0},
  {name:"B9",zone:"bar",x:650,y:70,w:135,h:240,seats:4,ch:"lr",join:0},
  // restaurant
- {name:"1",zone:"din",x:250,y:670,w:170,h:105,seats:4,ch:"tb",join:1},
+ // table 1 is two 2-seaters (1A + 1B): joined as "Table 1" by default, can be split for two couples
+ {name:"1A",zone:"din",x:226,y:670,w:95,h:105,seats:2,ch:"tb",join:1},
+ {name:"1B",zone:"din",x:372,y:670,w:95,h:105,seats:2,ch:"tb",join:1},
  {name:"2",zone:"din",x:540,y:670,w:125,h:105,seats:2,ch:"tb",join:1},
  {name:"3",zone:"din",x:1080,y:662,w:150,h:150,seats:4,ch:"round",join:1},
  {name:"4",zone:"din",x:1300,y:662,w:150,h:150,seats:4,ch:"round",join:1},
@@ -1207,10 +1209,15 @@ const ZONES=[{x:160,y:18,w:1808,h:582},{x:160,y:600,w:1808,h:648},{x:16,y:1060,w
 const WALLS=[[160,4,1822,14],[146,4,14,1056],[1968,4,14,380],[1968,560,14,702],[320,1248,1662,14],
   [2,1046,158,14],[2,1046,14,408],[2,1440,332,14],[320,1248,14,206],[224,600,800,16]];
 const tname=id=>T[id]?T[id].name:"?";
+const idOf=n=>{for(const k in T)if(T[k].name===n)return +k;return 0};
+// tables that are really one table made of two halves: joined every morning, and named as one when joined
+const PAIRS=[{ids:[idOf("1A"),idOf("1B")],name:"1"}].filter(p=>p.ids.every(Boolean));
+const pairName=g=>{if(g.length!==2)return "";const s=g.slice().sort((a,b)=>a-b);const p=PAIRS.find(p=>p.ids[0]===s[0]&&p.ids[1]===s[1]);return p?p.name:""};
+const DEFAULT_GROUPS=()=>PAIRS.map(p=>p.ids.slice());
 const isBar=id=>T[id]&&T[id].zone==="bar";
 function tlabel(id){const n=tname(id);return isBar(id)?"Bar "+n.slice(1):"Table "+n}
-function gname(g){const ids=g.slice().sort((a,b)=>a-b);return g.length>1?ids.map(tname).join("+"):tlabel(ids[0])}
-function gnameLong(g){const ids=g.slice().sort((a,b)=>a-b);return g.length>1?"Tables "+ids.map(tname).join(" + "):tlabel(ids[0])}
+function gname(g){const ids=g.slice().sort((a,b)=>a-b),pn=pairName(ids);return pn?"Table "+pn:g.length>1?ids.map(tname).join("+"):tlabel(ids[0])}
+function gnameLong(g){const ids=g.slice().sort((a,b)=>a-b),pn=pairName(ids);return pn?"Table "+pn:g.length>1?"Tables "+ids.map(tname).join(" + "):tlabel(ids[0])}
 const seatsOf=g=>g.reduce((a,id)=>a+(T[id]?T[id].seats:0),0);
 const TOTAL_SEATS=PLAN.reduce((a,p)=>a+p.seats,0);
 // footprint of a table incl. chairs
@@ -1233,7 +1240,7 @@ let dragging=null, sheetGroup=null;
 
 function todayKey(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
 function homePos(id){return {x:T[id].x,y:T[id].y}}
-function defaultState(){return {groups:[],tables:layoutFrom([]).tables,bookings:{},done:[]}}
+function defaultState(){const g=DEFAULT_GROUPS();return {groups:g,tables:layoutFrom(g).tables,bookings:{},done:[]}}
 function clone(o){return JSON.parse(JSON.stringify(o))}
 function str(v,max){return typeof v==="string"?v.slice(0,max):""}
 function cleanGroups(gs){
@@ -1259,7 +1266,7 @@ function sanitize(d){
   if(d&&typeof d==="object"){
     let gs=Array.isArray(d.groups)?cleanGroups(d.groups):null;
     if(!gs&&d.tables&&typeof d.tables==="object"){const ok=[...Array(N)].every((_,k)=>d.tables[k+1]&&isFinite(d.tables[k+1].x)&&isFinite(d.tables[k+1].y));gs=ok?groupsFromOldTables(d.tables):[]}
-    gs=gs||[];const L=layoutFrom(gs);if(!L.ok)gs=[];
+    gs=gs||DEFAULT_GROUPS();const L=layoutFrom(gs);if(!L.ok)gs=[];
     s.groups=gs;s.tables=layoutFrom(gs).tables;
     if(d.bookings&&typeof d.bookings==="object")for(const k in d.bookings){
       const id=+k;if(!(id>=1&&id<=N))continue;const b=d.bookings[k];if(!b||typeof b!=="object")continue;
@@ -1440,7 +1447,7 @@ function renderTiles(){
     if(fk==="qr"){cls="qr";tag="📱 QR order"}
     if(fk==="call"){cls="call";const f=Object.values(flashes).find(x=>x.kind==="call"&&x.tables.some(i=>g.includes(i)));tag=f&&f.what==="bill"?"💷 Bill":"🙋 Waiter"}
     const bill=act.length?money(billOf(act).total):"";
-    sec[z].push({id:g[0],min:Math.min(...g),html:`<button class="tile ${cls}" data-t="${g[0]}"><div class="tn"><b>${esc(g.slice().sort((a,c)=>a-c).map(tname).join("+"))}</b><span>${cap} seats</span></div>
+    sec[z].push({id:g[0],min:Math.min(...g),html:`<button class="tile ${cls}" data-t="${g[0]}"><div class="tn"><b>${esc(pairName(g)||g.slice().sort((a,c)=>a-c).map(tname).join("+"))}</b><span>${cap} seats</span></div>
       <div class="who">${esc(who)}</div><div class="meta">${esc(meta)}</div>${(()=>{const tm=tableTimer(act);return tm?`<div class="tmr${tm.late?" late":""}">${tm.txt}</div>`:""})()}${tag||bill?`<div class="tt2">${tag?`<i>${esc(tag)}</i>`:"<span></span>"}<em>${bill}</em></div>`:""}</button>`});
   }
   const picks=typeof pickupRows==="function"?pickupRows():[];
@@ -1472,7 +1479,7 @@ function render(){
     const x0=Math.min(...g.map(id=>state.tables[id].x)),x1=Math.max(...g.map(id=>state.tables[id].x+T[id].w));
     const a=T[g[0]],p0=state.tables[g[0]];
     const lead=b&&b.guests[0]&&b.guests[0].name.trim();
-    const short=g.slice().sort((a,c)=>a-c).map(tname).join("+");
+    const short=pairName(g)||g.slice().sort((a,c)=>a-c).map(tname).join("+");
     const main=b?(lead||"Booked"):(os?"Seated":short);
     const sub=os&&!b?`£${os.total.toFixed(2)}`:b?`${esc(b.time||"—")} · <span class="${party>cap?"warn":""}">${party}/${cap}</span>`:cap+" seats";
     const top=b||os?short:"";
@@ -3156,7 +3163,7 @@ function syncCalls(){
 }
 function doneCall(cid){const c=callStore.docs[cid];if(c)callStore.put(cid,Object.assign({},c,{done:true})).catch(()=>{})}
 function guestFromHash(h){const m=/^#table-([a-z0-9]+)$/i.exec(h||"");if(!m)return null;const k=m[1].toLowerCase();
-  for(let i=1;i<=N;i++)if(tname(i).toLowerCase()===k)return i;return null}
+  for(let i=1;i<=N;i++)if(tname(i).toLowerCase()===k)return i;const p=PAIRS.find(p=>p.name.toLowerCase()===k);return p?p.ids[0]:null}
 const tableHash=id=>"table-"+tname(id).toLowerCase();
 function gCartList(){return gCart[guestId]||(gCart[guestId]=[])}
 function renderGuest(){
@@ -4170,8 +4177,8 @@ $("areaBar").addEventListener("click",e=>{
 $("tilesView").addEventListener("click",e=>{const t=e.target.closest(".tile");if(!t)return;
   if(t.dataset.p){openPickup(+t.dataset.p,"sent");return}tableTap(+t.dataset.t)});
 $("resetBtn").onclick=()=>{if(readOnly){toast("View only");return}if(Date.now()>=mgrUntil){mgrCheck(()=>$("resetBtn").click(),"Resetting the layout needs a manager");return}
-  ask("Reset the layout?","All joined tables split back to their own spots. Bookings stay on their first table.",()=>{
-    const all=new Set();for(let i=1;i<=N;i++)all.add(i);commit([],all);toast("Layout reset")})};
+  ask("Reset the layout?","All joined tables split back to their own spots (table 1 goes back to one table of 4). Bookings stay on their first table.",()=>{
+    const all=new Set();for(let i=1;i<=N;i++)all.add(i);commit(DEFAULT_GROUPS(),all);toast("Layout reset")})};
 $("hideHint").onclick=()=>{$("hint").style.display="none";try{localStorage.setItem("t57-3d-hint","0")}catch(e){}};
 try{if(localStorage.getItem("t57-3d-hint")==="0")$("hint").style.display="none"}catch(e){}
 addEventListener("resize",()=>{fit();applyCam()});
@@ -4309,7 +4316,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261112173954";
+const APP_BUILD="20261112174337";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
