@@ -37,6 +37,7 @@ class MainActivity : Activity() {
     private lateinit var cGroup: RadioGroup
     private lateinit var copiesLabel: TextView
     private lateinit var cutBox: CheckBox
+    private lateinit var bigBox: CheckBox
     private var cols = 32
     private var station = "kitchen"
     private val prefs by lazy { getSharedPreferences("t57", Context.MODE_PRIVATE) }
@@ -113,6 +114,8 @@ class MainActivity : Activity() {
         root.addView(cGroup)
         cutBox = CheckBox(this).apply { text = "This printer has an auto-cutter"; textSize = 16f }
         root.addView(cutBox)
+        bigBox = CheckBox(this).apply { text = "EXTRA-LARGE text on order tickets"; textSize = 16f }
+        root.addView(bigBox)
         logoBox = CheckBox(this).apply { text = "Print the Trattoria 57 logo"; textSize = 16f; isChecked = prefs.getBoolean("logo", true)
             setOnCheckedChangeListener { _, on -> prefs.edit().putBoolean("logo", on).apply() } }
         root.addView(logoBox)
@@ -130,6 +133,11 @@ class MainActivity : Activity() {
             cutBox.isChecked = PrintService.cutterFor(prefs, station)
             cutBox.setOnCheckedChangeListener { _, on -> prefs.edit().putBoolean("cutter_$station", on).apply()
                 Hub.log(if (on) "Auto-cut on for the ${PrintService.stationName(station)}" else "No cutter: extra paper fed so you can tear cleanly") }
+            bigBox.visibility = copiesLabel.visibility
+            bigBox.setOnCheckedChangeListener(null)
+            bigBox.isChecked = PrintService.bigFor(prefs, station)
+            bigBox.setOnCheckedChangeListener { _, on -> prefs.edit().putBoolean("big_$station", on).apply()
+                Hub.log(if (on) "${PrintService.stationName(station)} tickets: extra-large text" else "${PrintService.stationName(station)} tickets: normal text") }
             cGroup.setOnCheckedChangeListener(null)
             cGroup.check(100 + PrintService.copiesFor(prefs, station))
             cGroup.setOnCheckedChangeListener { _, id -> prefs.edit().putInt("copies_$station", id - 100).apply(); Hub.log("${PrintService.stationName(station)} tickets now print ${id - 100}x") }

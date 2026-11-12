@@ -87,7 +87,7 @@ object Cloud {
 object Format {
     private val ALG = Regex("allerg|gluten|coeliac|celiac|dairy|lactose|\\bnuts?\\b|peanut|shellfish|prawn|\\begg|sesame|vegan|soya|\\bfish\\b|mustard|celery|anaphyl", RegexOption.IGNORE_CASE)
 
-    fun ticket(t: JSONObject, cols: Int, lg: Logos, copy: Int = 1, copies: Int = 1, training: Boolean = false): ByteArray = EscPos(cols).apply {
+    fun ticket(t: JSONObject, cols: Int, lg: Logos, copy: Int = 1, copies: Int = 1, training: Boolean = false, big: Boolean = false): ByteArray = EscPos(cols).apply {
         val bar = t.optString("station") == "bar"
         if (lg.small != null) image(lg.small).feed(1) else align(1).bold(true).line("TRATTORIA 57").bold(false)
         align(1).bold(true).line(if (bar) "*** BAR ***" else "*** KITCHEN ***")
@@ -115,21 +115,32 @@ object Format {
             val x = items.getJSONObject(i); if (x.optBoolean("v")) continue
             val q = x.optInt("q", 1); val amt = q * x.optDouble("p", 0.0); total += amt
             val name = "$q x ${x.optString("n")}"; val price = money(amt)
-            bold(true).size(1, 2)
-            if (name.length + price.length + 1 > cols) line(name).lr("", price) else lr(name, price)
-            size(1, 1).bold(false)
             val guest = x.optString("g")
-            if (guest.isNotBlank()) line("   for: $guest")
             val note = x.optString("note")
-            if (note.isNotBlank()) {
-                if (ALG.containsMatchIn(note)) { alg = true; bold(true).line("   > !! $note").bold(false) } else line("   > $note")
+            if (big) {
+                // extra-large: dish name double width + double height (the printer wraps long names), price small underneath
+                bold(true).size(2, 2).line(name).size(1, 1).bold(false)
+                lr(if (guest.isNotBlank()) "   for: $guest" else "", price)
+                if (note.isNotBlank()) {
+                    if (ALG.containsMatchIn(note)) alg = true
+                    bold(true).size(1, 2).line((if (ALG.containsMatchIn(note)) " > !! " else " > ") + note).size(1, 1).bold(false)
+                }
+                feed(1)
+            } else {
+                bold(true).size(1, 2)
+                if (name.length + price.length + 1 > cols) line(name).lr("", price) else lr(name, price)
+                size(1, 1).bold(false)
+                if (guest.isNotBlank()) line("   for: $guest")
+                if (note.isNotBlank()) {
+                    if (ALG.containsMatchIn(note)) { alg = true; bold(true).line("   > !! $note").bold(false) } else line("   > $note")
+                }
             }
         }
         rule()
         bold(true).lr("TOTAL", money(total)).bold(false)
         rule()
         val tn = t.optString("note")
-        if (tn.isNotBlank()) { bold(true).line("NOTE: $tn").bold(false); rule() }
+        if (tn.isNotBlank()) { bold(true); if (big) size(1, 2); line("NOTE: $tn").size(1, 1).bold(false); rule() }
         if (alg) align(1).bold(true).size(1, 2).line("!! ALLERGY - CHECK NOTES !!").size(1, 1).bold(false).align(0)
         feed(4); cut()
     }.bytes()

@@ -25,6 +25,7 @@ class PrintService : Service() {
         @Volatile var running = false
         fun stationName(st: String) = when (st) { "bar" -> "BAR"; "till" -> "TILL"; else -> "KITCHEN" }
         fun cutterFor(prefs: android.content.SharedPreferences, st: String) = prefs.getBoolean("cutter_$st", st == "kitchen")
+        fun bigFor(prefs: android.content.SharedPreferences, st: String) = prefs.getBoolean("big_$st", st == "kitchen")
         fun copiesFor(prefs: android.content.SharedPreferences, st: String) =
             prefs.getInt("copies_$st", if (st == "kitchen") 2 else 1).coerceIn(1, 3)
     }
@@ -116,7 +117,7 @@ class PrintService : Service() {
                 EscPos.hasCutter = cutterFor(prefs, st)
                 val copies = copiesFor(prefs, st)
                 val lg = logos(cols)
-                val bytes = (1..copies).map { Format.ticket(d, cols, lg, it, copies, training) }.reduce { a, b -> a + b }
+                val bytes = (1..copies).map { Format.ticket(d, cols, lg, it, copies, training, bigFor(prefs, prefs.getString("station", "kitchen") ?: "kitchen")) }.reduce { a, b -> a + b }
                 if (!Bt.print(this, bytes, (if (training) "TRAINING " else "") + "$label · order #${d.optInt("no")}" + if (copies > 1) " (x$copies)" else "")) return
                 Hub.say(ready, true)
                 markDone(done, coll, id, st)
