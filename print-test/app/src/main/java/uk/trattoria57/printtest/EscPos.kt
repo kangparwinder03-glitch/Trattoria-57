@@ -38,6 +38,16 @@ class EscPos(val cols: Int) {
         return line(l + " ".repeat(cols - l.length - right.length) + right)
     }
 
+    /** A solid black bar across the whole paper (thick divider between courses). */
+    fun bar(dots: Int = 10): EscPos {
+        val bpr = (if (cols >= 48) 576 else 384) / 8
+        align(0).raw(0x1D, 0x76, 0x30, 0x00, bpr and 0xFF, bpr shr 8, dots and 0xFF, dots shr 8)
+        repeat(bpr * dots) { out.write(0xFF) }
+        return this
+    }
+    /** White-on-black text (course headings). */
+    fun reverse(on: Boolean): EscPos = raw(0x1D, 0x42, if (on) 1 else 0)
+
     /** Prints a black & white picture (the logo), centred on the paper. Sent in bands so cheap printers keep up. */
     fun image(m: Mono?): EscPos {
         if (m == null) return this

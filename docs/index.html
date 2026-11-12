@@ -1904,7 +1904,7 @@ let mgrUntil=0;const MGR_GRACE=30000;   // after the manager PIN, other manager 
 const money=n=>"£"+n.toFixed(2);
 function cleanTicket(id,d){
   if(!d||typeof d!=="object")return null;
-  const items=Array.isArray(d.items)?d.items.slice(0,80).map(x=>({n:str(x&&x.n,80),q:Math.max(1,Math.min(99,Math.floor(+(x&&x.q))||1)),p:Math.max(0,+(x&&x.p)||0),note:str(x&&x.note,120),v:!!(x&&x.v),vr:str(x&&x.vr,40),vb:str(x&&x.vb,40),g:str(x&&x.g,20)})):[];
+  const items=Array.isArray(d.items)?d.items.slice(0,80).map(x=>({n:str(x&&x.n,80),q:Math.max(1,Math.min(99,Math.floor(+(x&&x.q))||1)),p:Math.max(0,+(x&&x.p)||0),note:str(x&&x.note,120),v:!!(x&&x.v),vr:str(x&&x.vr,40),vb:str(x&&x.vb,40),g:str(x&&x.g,20),c:/^[smd]$/.test(x&&x.c)?x.c:""})):[];
   const tables=Array.isArray(d.tables)?d.tables.map(Number).filter(i=>i>=1&&i<=N):[];
   return {id,date:str(d.date,10),tables,label:str(d.label,30),items,note:str(d.note,200),
     status:FLOW.includes(d.status)?d.status:"new",createdAt:+d.createdAt||0,updatedAt:+d.updatedAt||0,closed:!!d.closed,no:+d.no||0,station:d.station==="bar"?"bar":"kitchen",hold:!!d.hold,qr:!!d.qr,rejected:!!d.rejected,disc:cleanDisc(d.disc),discAmt:Math.max(0,+d.discAmt||0),wait:!!d.wait,printed:+d.printed||0,pickup:!!d.pickup,walk:!!d.walk,pno:Math.max(0,Math.floor(+d.pno)||0),pname:str(d.pname,40),pphone:str(d.pphone,30),pat:/^\d\d:\d\d$/.test(d.pat||"")?d.pat:"",fireAt:+d.fireAt||0,covers:Math.max(0,Math.min(99,Math.floor(+d.covers)||0)),paid:['card','cash','split'].includes(d.paid)?d.paid:'',by:str(d.by,40),byName:str(d.byName,40),pays:cleanPays(d.pays),idisc:cleanIdisc(d.idisc),discBy:cleanNumMap(d.discBy),paidAt:+d.paidAt||0,tRec:+d.tRec||0,tPrep:+d.tPrep||0,tSrv:+d.tSrv||0};
@@ -2437,7 +2437,7 @@ $("oFoot").addEventListener("click",async e=>{
     const pace=!ord.pickup&&ord.holdMains!==false&&courseSplit(c);
     if(pace)parts=[["kitchen",pace.st],["kitchen",pace.mn,true]].concat(parts.filter(p=>p[0]==="bar"));
     const made=parts.map(([st,list,hold])=>{const t={wait:!!hold,id:"t"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)+st[0],date:dateKey,tables:ids,station:st,
-      label:ord.pickup?(ord.walk?"Bar walk-up #":"Pickup #")+ord.pno:gname(g),items:list.map(x=>Object.assign({n:x.n,q:x.q,p:priceOf(x.n),note:(x.note||"").trim()},x.g?{g:x.g}:{})),
+      label:ord.pickup?(ord.walk?"Bar walk-up #":"Pickup #")+ord.pno:gname(g),items:list.map(x=>Object.assign({n:x.n,q:x.q,p:priceOf(x.n),note:(x.note||"").trim(),c:courseOf(x.n)},x.g?{g:x.g}:{})),
       note:[st==="kitchen"?bkAlg:"",(ord.note||"").trim()].filter(Boolean).join(" · ").slice(0,200),status:"new",createdAt:Date.now(),updatedAt:Date.now(),closed:false,no,covers:coversLeft,by:waiter?waiter.id:"",byName:waiter?waiter.name:"",
       pickup:!!ord.pickup,walk:!!(ord.pickup&&ord.walk),pno:ord.pickup?ord.pno:0,pname:ord.pickup?(ord.pname||"").trim():"",pphone:ord.pickup?(ord.pphone||"").trim():""};coversLeft=0;
       if(ord.pickup&&!ord.walk&&ord.pat){t.pat=ord.pat;const fa=patFireAt(ord.pat,st);if(fa>Date.now()){t.wait=true;t.fireAt=fa}}
@@ -3244,7 +3244,7 @@ $("gCartFoot").addEventListener("click",async e=>{
   const parts=[["kitchen",c.filter(x=>ITEMS[x.n].station!=="bar")],["bar",c.filter(x=>ITEMS[x.n].station==="bar")]].filter(p=>p[1].length);
   b.disabled=true;
   try{for(const [st,list] of parts){const t={id:"q"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)+st[0],date:dateKey,tables:ids,station:st,label:gname(g),
-      items:list.map(x=>({n:x.n,q:x.q,p:priceOf(x.n),note:""})),note:gNote.trim(),status:"new",createdAt:Date.now(),updatedAt:Date.now(),closed:false,no,covers:0,hold:true,qr:true};
+      items:list.map(x=>({n:x.n,q:x.q,p:priceOf(x.n),note:"",c:courseOf(x.n)})),note:gNote.trim(),status:"new",createdAt:Date.now(),updatedAt:Date.now(),closed:false,no,covers:0,hold:true,qr:true};
       await putTicket(t);if(!tickets.find(x=>x.id===t.id))tickets.push(t)}
     gCart[guestId]=[];gNote="";$("gCartOv").classList.remove("show");ticketsChanged();renderGuest();toast("Thank you! Your order has been sent — staff will confirm it shortly.");}
   catch(err){b.disabled=false;toast("Couldn't send — please ask a member of staff")}
@@ -3608,6 +3608,8 @@ function showUndo(ids,cartCopy,note,lead){
 
 // ---- course pacing: starters first, mains held until the waiter (or kitchen) fires them ----
 const STARTER_CATS=new Set(["Starters","Garlic Pizzas"]);
+// course of a dish, printed as STARTERS / MAINS / DESSERTS sections on kitchen tickets
+function courseOf(n){const it=ITEMS[n];if(!it||it.station==="bar")return "";return STARTER_CATS.has(it.cat)?"s":it.cat==="Desserts"?"d":"m"}
 function courseSplit(c){const food=c.filter(x=>ITEMS[x.n].station!=="bar");const st=food.filter(x=>STARTER_CATS.has(ITEMS[x.n].cat)),mn=food.filter(x=>!STARTER_CATS.has(ITEMS[x.n].cat));
   return st.length&&mn.length?{st,mn}:null}
 // ---- scheduled pickups: "ready for 19:30" — the kitchen gets it PICK_LEAD minutes before (drinks 5 min before) ----
@@ -4335,7 +4337,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261112195459";
+const APP_BUILD="20261112195718";
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){

@@ -111,8 +111,25 @@ object Format {
         var alg = ALG.containsMatchIn(t.optString("note"))
         var total = 0.0
         val items = t.optJSONArray("items") ?: JSONArray()
-        for (i in 0 until items.length()) {
-            val x = items.getJSONObject(i); if (x.optBoolean("v")) continue
+        // kitchen: group by course — STARTERS, thick bar, MAINS, thick bar, DESSERTS
+        val order = mutableListOf<Int>()
+        val course = { i: Int -> items.getJSONObject(i).optString("c") }
+        val grouped = !bar && (0 until items.length()).any { course(it).isNotBlank() }
+        if (grouped) { for (c in listOf("s", "m", "", "d")) for (i in 0 until items.length()) if (course(i) == c && !items.getJSONObject(i).optBoolean("v")) order += i }
+        else for (i in 0 until items.length()) if (!items.getJSONObject(i).optBoolean("v")) order += i
+        var lastC: String? = null
+        for (i in order) {
+            val x = items.getJSONObject(i)
+            if (grouped) {
+                val c = x.optString("c").ifBlank { "m" }
+                if (c != lastC) {
+                    if (lastC != null) { feed(1); bar(12); feed(1) }
+                    align(1).bold(true).reverse(true).size(2, 2)
+                        .line(" " + when (c) { "s" -> "STARTERS"; "d" -> "DESSERTS"; else -> "MAINS" } + " ")
+                        .size(1, 1).reverse(false).bold(false).align(0)
+                    lastC = c
+                }
+            }
             val q = x.optInt("q", 1); val amt = q * x.optDouble("p", 0.0); total += amt
             val name = "$q x ${x.optString("n")}"; val price = money(amt)
             val guest = x.optString("g")
