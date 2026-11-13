@@ -2301,6 +2301,9 @@ function openOrder(id,tab){
   {const k=partyKey(L);if(carts[L])carts[L]=carts[L].filter(x=>x&&ITEMS[x.n]);
    if(carts[L]&&carts[L].length&&cartOwner[L]!==k){delete carts[L];toast("Cleared items a previous party never sent")}cartOwner[L]=k}
   ord={lead:L,tab:tab||"menu",cat:CATS[0],review:false,openedAt:Date.now()};
+  {const b=state.bookings[L],seen=new Set(),gs=[];(b&&b.guests||[]).forEach(x=>{const n=str(x&&x.name||"",20).trim();const k=n.toLowerCase();
+     if(n&&!/^(walk-?in|guest|table)\b/i.test(n)&&!seen.has(k)){seen.add(k);gs.push(n)}});
+   if(gs.length>=2)ord.guests=gs}   // 2+ names on the booking: each gets a tab ("Food for: 👤 Anna") so they can pay separately
   sheetGroup=g;render();
   $("ordOv").classList.add("show");renderOrder();
 }
@@ -2471,6 +2474,7 @@ $("oBody").addEventListener("click",e=>{if(ord&&ord.openedAt&&Date.now()-ord.ope
   const rt=e.target.closest("[data-retab]");if(rt&&ord){retab(rt.dataset.retab);return}
   const tp=e.target.closest("[data-tpay]");if(tp&&ord){payTab(tp.dataset.tname,tp.dataset.tpay);return}
   const tpr=e.target.closest("[data-tprint]");if(tpr&&ord){printTab(tpr.dataset.tprint);return}
+  if(e.target.closest("[data-tprintall]")&&ord){printJob(rcpPrinter(),"bill","Bill "+gname(curGroup())+" · per guest",guestSplitLines(ordTickets()),"full",...qrPair());toast("Printing one receipt with each guest's total");return}
   const ldl=e.target.closest("[data-ld]");if(ldl){openItemDisc(ldl.dataset.ld);return}
   const vd=e.target.closest("[data-void]");if(vd){const [tid,xi]=vd.dataset.void.split("|");startVoid(tid,+xi);return}
   const fr=e.target.closest("[data-fire]");if(fr){fireMains(fr.dataset.fire==="all"?ordTickets().filter(t=>t.wait&&!t.closed).map(t=>t.id):[fr.dataset.fire]);return}
@@ -3935,9 +3939,16 @@ function tabsHtml(all){
     return `<div class="tabrow${pd?" paid":""}"><span><b>👤 ${esc(n)}</b><small>${TB.lines.map(l=>l.q+"× "+esc(l.n)).join(", ")}</small></span><b class="amt">${money(TB.total)}</b>
       ${pd?`<em>Paid ${pd.m} ✓</em>`:`<div class="tbtns">${canThermal()?`<button data-tprint="${esc(n)}">🧾</button>`:""}<button class="card" data-tpay="card" data-tname="${esc(n)}">💳</button><button class="cash" data-tpay="cash" data-tname="${esc(n)}">💵</button></div>`}</div>`}).join("");
   const TT=tabBill(all,""),tablePaid=Math.round(B.pays.filter(p=>!p.tab).reduce((a,p)=>a+p.a,0)*100)/100;
-  return `<div class="tabsbox"><div class="gl-title"><span>Separate bills</span><em>${names.filter(n=>tabPaid(B,n)).length}/${names.length} paid</em></div>${rows}
+  return `<div class="tabsbox"><div class="gl-title"><span>Separate bills</span><em>${names.filter(n=>tabPaid(B,n)).length}/${names.length} paid</em></div>${canThermal()?`<button class="btn sec" data-tprintall style="width:100%;margin:4px 0 8px">🧾 One receipt with everyone's own total</button>`:""}${rows}
     <div class="tabrow shared"><span><b>🍽 Table (shared)</b><small>${TT.lines.length?TT.lines.map(l=>l.q+"× "+esc(l.n)).join(", "):"Nothing shared"}</small></span><b class="amt">${money(TT.total)}</b>${canThermal()&&TT.lines.length?`<div class="tbtns"><button data-tprint="">🧾</button></div>`:""}</div>
     <div class="tabnote">${TT.total?`Table bill: pay with the buttons below, or ➗ Split bill to share it evenly.${tablePaid?` ${money(tablePaid)} paid so far.`:""}`:"When every guest has paid, the table clears."}</div></div>`}
+function guestSplitLines(all){
+  const names=tabNames(all).filter(n=>all.some(t=>!t.hold&&t.items.some(x=>!x.v&&x.g===n))),B=billOf(all);
+  const L=[PL.lr(gnameLong(curGroup()),new Date().toLocaleString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})),PL.rule()];
+  const part=(title,TB)=>{if(!TB.lines.length)return;L.push(PL.t(title,"l",1));TB.lines.forEach(l=>L.push(PL.lr(`${l.q} x ${itName(l.n)}`,money(l.q*l.p))));
+    if(TB.itemDisc||TB.disc)L.push(PL.lr("  Discount","-"+money(Math.round((TB.sub-TB.total)*100)/100)));L.push(PL.lr("  Totale "+title,money(TB.total),1),PL.rule())};
+  names.forEach(n=>part(n,tabBill(all,n)));part("Tavolo (shared)",tabBill(all,""));
+  L.push(PL.rule("="),PL.lr("TOTAL",money(B.total),1),PL.rule("="),PL.gap(),PL.t("Grazie! Thank you for","c"),PL.t("dining with us.","c"));return L}
 function printTab(n){const all=ordTickets(),TB=tabBill(all,n);if(!TB.lines.length)return;
   printJob(rcpPrinter(),"bill","Bill "+gname(curGroup())+" · "+(n||"Table"),billLines(TB,n||"Table"),"full",...qrPair());toast("Printing "+(n||"table")+"'s bill")}
 function payTab(n,m){
@@ -4501,7 +4512,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261113225417";const APP_VER=11;   // both stamped by the publish script
+const APP_BUILD="20261113225951";const APP_VER=12;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
