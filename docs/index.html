@@ -1994,8 +1994,11 @@ const ALG_CHIPS=["Nut allergy","Gluten free","Dairy free","Shellfish allergy","E
 const DRINK_CHIPS=["No ice","Ice & lemon","Ice & lime","Slice of orange","Straw","Slimline tonic","Diet mixer","Large glass","Jug","Bottle & glass"];
 // quick options that drop down under a dish/drink the moment it's added
 // items where the customer has to pick one (shown first in the drop-down; the order can't be sent without it)
-const CHOICES={"Mineral Water":["Still","Sparkling"],"Salad":["Mixed","Green","Tomato"],"Kids Pizza or Pasta":["Pizza","Pasta"],"Liqueur Coffee":["Irish","Baileys","Tia Maria","Amaretto"]};
-const needsChoice=x=>CHOICES[x.n]&&!CHOICES[x.n].some(c=>(x.pc||[]).includes(c)||new RegExp("\\b"+c+"\\b","i").test(x.note||""));
+const CHOICES={"Mineral Water":["Still","Sparkling"],"Salad":["Mixed","Green","Tomato"],"Liqueur Coffee":["Irish","Baileys","Tia Maria","Amaretto"]};
+// kids pizza or pasta: choose from every pizza and pasta dish on the menu (follows menu edits)
+Object.defineProperty(CHOICES,"Kids Pizza or Pasta",{enumerable:true,get(){const f=k=>(MENU.find(m=>m[0]===k)||[0,[]])[1].map(x=>x[0]);return [...f("Pizza"),...f("Pasta")]}});
+const reEsc=t=>String(t).replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+const needsChoice=x=>CHOICES[x.n]&&!CHOICES[x.n].some(c=>(x.pc||[]).includes(c)||new RegExp("(^|[^\\w])"+reEsc(c)+"($|[^\\w])","i").test(x.note||""));
 const DONENESS=["Blue","Rare","Medium rare","Medium","Medium well","Well done"];
 function optsFor(n){const it=ITEMS[n];if(!it)return {opts:[],cook:false,alg:false};const c=it.cat;
   if(c==="Hot Drinks")return {opts:["Oat milk","Soya milk","Decaf","Extra shot","Sugar on side","Extra hot"],alg:false};
@@ -4486,7 +4489,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261113183042";const APP_VER=4;   // both stamped by the publish script
+const APP_BUILD="20261113193537";const APP_VER=5;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
