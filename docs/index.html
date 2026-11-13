@@ -2170,7 +2170,8 @@ setTimeout(updBig,0);
 // ---- vibration (phones/tablets with a motor; others just ignore it). Works even when the sound is muted ----
 let vibOn=true;try{vibOn=localStorage.getItem("t57-vib")!=="0"}catch(e){}
 const canVib=!!navigator.vibrate;
-function buzz(p){if(!vibOn||!canVib)return;try{navigator.vibrate(p)}catch(e){}}
+const tapped=()=>!navigator.userActivation||navigator.userActivation.hasBeenActive;
+function buzz(p){if(!vibOn||!canVib||!tapped())return;try{navigator.vibrate(p)}catch(e){}}
 const BUZZ={neworder:[220,90,220],alarm:[450,120,450,120,450],srv:[250,100,250,100,250],prep:[160],qr:[220,90,220],call:[450,120,450]};
 function updVib(){document.querySelectorAll("[data-vib]").forEach(b=>{b.style.display=canVib?"":"none";b.classList.toggle("off",!vibOn);b.textContent=vibOn?"📳 Buzz on":"📴 Buzz off"})}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-vib]");if(!b)return;vibOn=!vibOn;try{localStorage.setItem("t57-vib",vibOn?"1":"0")}catch(_){}
@@ -2239,7 +2240,7 @@ function checkStatusChanges(){
   else if(fire==="qr"){if(view!=="kitchen"&&view!=="bar"&&view!=="guest")chime("neworder")}else if(fire&&view!=="guest")chime(fire);
   renderAlerts();
 }
-setInterval(()=>{const before=Object.keys(flashes).length;flashFor([]);if(Object.keys(flashes).length!==before){renderAlerts();if(!dragging)render()}},2000);
+setInterval(()=>{const before=Object.keys(flashes).length;flashFor([]);if(Object.keys(flashes).length!==before){whenFree(renderAlerts);if(!dragging)whenFree(render)}},2000);
 document.addEventListener("click",e=>{const b=e.target.closest("[data-snd]");if(!b)return;
   if(soundOn&&!audioReady){unlockAudio();setTimeout(()=>chime("prep"),250);return}
   soundOn=!soundOn;try{localStorage.setItem("t57-sound",soundOn?"1":"0")}catch(_){}
@@ -2247,12 +2248,21 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-snd]");if(
 setTimeout(updSnd,0);
 
 let lastNewIds=null;
+// ---- background redraws never happen under a finger ----
+let touching=false;const deferred=new Set();
+document.addEventListener("pointerdown",()=>{touching=true},true);
+const touchEnd=()=>{touching=false;setTimeout(()=>{if(touching||!deferred.size)return;const d=[...deferred];deferred.clear();d.forEach(f=>{try{f()}catch(e){}})},180)};
+document.addEventListener("pointerup",touchEnd,true);document.addEventListener("pointercancel",touchEnd,true);
+function whenFree(f){if(touching){deferred.add(f);return}f()}
+// what this order screen shows from the cloud; if none of it changed, there's nothing to redraw
+function ordSig(){if(!ord)return "";try{return ordTickets().map(t=>t.id+":"+t.status+":"+(t.updatedAt||0)+":"+(t.closed?1:0)+":"+(t.wait?1:0)+":"+(t.printed?1:0)).join("|")+"#"+outbox.length}catch(e){return Math.random()+""}}
+function refreshOrderIfChanged(){if(ord&&$("ordOv").classList.contains("show")&&ordSig()!==ord._sig)renderOrder()}
 function ticketsChanged(){
   checkStatusChanges();
   if(typeof view!=="undefined"&&view==="report")renderReport();
-  if(!dragging)render();
-  renderKitchen();
-  if(ord&&$("ordOv").classList.contains("show"))renderOrder();
+  if(!dragging)whenFree(render);
+  whenFree(renderKitchen);
+  whenFree(refreshOrderIfChanged);
   if(view==="guest")renderGuest();
   const newOnes=tickets.filter(t=>t.status==="new"&&!t.closed);
   [["kBadge","kitchen"],["bBadge","bar"]].forEach(([id,st])=>{const n=newOnes.filter(t=>stOf(t)===st).length,b=$(id);b.textContent=n;b.classList.toggle("show",n>0)});
@@ -2301,7 +2311,7 @@ $("oCats").addEventListener("input",e=>{if(e.target.id!=="mSearch"||!ord)return;
 $("oCats").addEventListener("click",e=>{if(e.target.closest("[data-mq]")&&ord){ord.q="";renderOrder()}});
 function renderOrder(){
   $("ordOv").classList.toggle("barmode",!!(ord&&ord.barMode));   // bar staff: big, bold, full-screen drinks screen
-  if(!ord)return;
+  if(!ord)return;ord._sig=ordSig();
   const g=curGroup(),ids=g.slice().sort((a,b)=>a-b),b=ord.pickup?null:state.bookings[leadOf(g)];
   if(ord.pickup){$("oTitle").innerHTML=ord.walk?`🍸 Bar walk-up <span style="color:var(--wine)">#${ord.pno}</span>`:`🍕 Pickup <span style="color:var(--wine)">#${ord.pno}</span><span class="chip" style="background:#3f5f86">No table</span>`;
     $("oSub").textContent=ord.walk?(ord.pname?ord.pname+" · ":"")+"Served and paid at the bar":(ord.pname?ord.pname+(ord.pphone?" · "+ord.pphone:""):"Collection order")+(ord.pat?" · ⏰ ready for "+ord.pat:" · ASAP")+" · tell the customer their number";}
@@ -2470,7 +2480,7 @@ $("oBody").addEventListener("click",e=>{if(ord&&ord.openedAt&&Date.now()-ord.ope
     else{if(outSet.has(n)){toast(n+" is out of stock");return}if(line)line.q++;else{line=Object.assign({n,q:1,note:""},gg?{g:gg}:{});c.push(line)}
       ord.pop=optsFor(n).opts.length?{n,plain:line,cur:null}:null}
     if(a&&a.dataset.a==="dec")ord.pop=null;
-    renderOrder();if(ord.pop)requestAnimationFrame(()=>{const m=$("oBody").querySelector(".mipop");if(m)try{m.scrollIntoView({block:"nearest",behavior:"smooth"})}catch(e){}});return}
+    renderOrder();if(ord.pop)requestAnimationFrame(()=>{const m=$("oBody").querySelector(".mipop");if(m)try{m.scrollIntoView({block:"nearest"})}catch(e){}});return}
   if(cl&&a){const x=c[+cl.dataset.i];if(a.dataset.a==="inc")x.q++;else{x.q--;if(x.q<=0)c.splice(+cl.dataset.i,1)}renderOrder()}
 });
 $("oCats").addEventListener("click",e=>{const tc=e.target.closest("[data-tab]");if(tc&&ord){e.stopPropagation();tabChip(tc.dataset.tab)}},true);
@@ -2611,8 +2621,8 @@ const staffStore=useColl("staff",renderStaff);
 const SHIFT_WINDOW=60*864e5; // keep ~2 months of shifts live
 const shiftStore=useColl("shifts",renderStaff,q=>q.where("in",">=",Date.now()-SHIFT_WINDOW));
 const mgrStore=useColl("staffcfg",renderStaff);
-const stockStore=useColl("stock",()=>{const d=stockStore.docs.main;outSet=new Set(d&&Array.isArray(d.out)?d.out.filter(n=>ITEMS[n]):[]);
-  if(typeof view==="undefined")return;renderKitchen();if(ord&&$("ordOv").classList.contains("show"))renderOrder();if(view==="guest")renderGuest();if(xKind==="stock")renderStock()});
+const stockStore=useColl("stock",()=>{const d=stockStore.docs.main;const was=[...outSet].sort().join("|");outSet=new Set(d&&Array.isArray(d.out)?d.out.filter(n=>ITEMS[n]):[]);
+  if(typeof view==="undefined")return;if([...outSet].sort().join("|")===was&&xKind!=="stock")return;whenFree(renderKitchen);if(ord&&$("ordOv").classList.contains("show"))whenFree(renderOrder);if(view==="guest")renderGuest();if(xKind==="stock")renderStock()});
 function staffList(){return Object.entries(staffStore.docs).map(([id,d])=>({id,name:str(d.name,40),role:str(d.role,30),pin:str(d.pin,80),active:d.active!==false}))
   .filter(x=>x.active&&x.name).sort((a,b)=>a.name.localeCompare(b.name))}
 function shifts(){return Object.entries(shiftStore.docs).map(([id,d])=>({id,staff:str(d.staff,40),in:+d.in||0,out:+d.out||0,
@@ -3245,7 +3255,7 @@ function syncCalls(){
   Object.entries(callStore.docs).forEach(([id,c])=>{if(!c||c.done||!(+c.at>Date.now()-CALL_WINDOW))return;
     const tid=+c.table||(c.tname?guestFromHash("#table-"+String(c.tname).toLowerCase().replace(/\s+/g,"")):0);if(!T[tid])return;const g=groupFor(tid);live.add("call-"+id);
     if(!flashes["call-"+id]){const what=c.what==="bill"?"bill":c.what==="ready"?"ready":"waiter";flashes["call-"+id]={kind:"call",until:0,tables:g,label:gname(g),what,cid:id};
-      if(stInit&&view!=="kitchen"&&view!=="bar"&&view!=="guest"){chime("srv");if(what==="ready"){try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch(_){}toast("🔔 "+gname(g)+" — food ready",6000)}}}});
+      if(stInit&&view!=="kitchen"&&view!=="bar"&&view!=="guest"){chime("srv");if(what==="ready"){try{navigator.vibrate&&tapped()&&navigator.vibrate([200,100,200])}catch(_){}toast("🔔 "+gname(g)+" — food ready",6000)}}}});
   for(const id in flashes)if(id.startsWith("call-")&&!live.has(id))delete flashes[id];
   renderAlerts();if(!dragging&&view==="floor")render();
 }
@@ -3739,7 +3749,7 @@ function tableTimer(act){if(!act||!act.length)return null;const now=Date.now(),l
   const held=live.filter(t=>t.wait),hm=held.length?Math.round((now-Math.min(...held.map(t=>t.createdAt)))/60000):0;
   const fmt=m=>m>=60?Math.floor(m/60)+"h"+String(m%60).padStart(2,"0"):m+"m";
   return {sat,wait,held:held.length>0,hm,txt:`⏱ ${fmt(sat)}`+(wait?` · 🍳 ${fmt(wait)}`:"")+(held.length?` · ⏸ mains ${fmt(hm)}`:""),late:wait>=25||hm>=30}}
-setInterval(()=>{if(view==="floor"&&!dragging)render()},60000);
+setInterval(()=>{if(view==="floor"&&!dragging)whenFree(render)},60000);
 
 // ---- delete a whole order (or one ticket) — manager only; kept on the day report under Voids ----
 const DEL_REASONS=["Wrong table","Customer left","Duplicate order","Test order","Mistake"];
@@ -4375,7 +4385,7 @@ function subscribe(){
     if(!snap.exists){if(Object.keys(state.bookings||{}).length||(state.done||[]).length){state=defaultState();saveLocal();for(const k in carts)delete carts[k];for(const k in cartOwner)delete cartOwner[k];keepCarts();render()}return}
     const s=sanitize(clone(snap.data()));
     if((dragging||sheetGroup)&&view!=="guest"){pendingSnap=s;return}
-    state=s;saveLocal();render();if(view==="guest")renderGuest();if(typeof syncCalls==="function")syncCalls();
+    state=s;saveLocal();whenFree(render);if(view==="guest")renderGuest();if(typeof syncCalls==="function")syncCalls();
   },err=>{clearTimeout(loadTimer);setStatus("local",err&&err.code==="revoked"?"Offline":"This device")});
 }
 
@@ -4461,7 +4471,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261113210327";const APP_VER=8;   // both stamped by the publish script
+const APP_BUILD="20261113222616";const APP_VER=9;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
