@@ -1461,7 +1461,7 @@ function renderTiles(){
   }
   const picks=typeof pickupRows==="function"?pickupRows():[];
   const part=(title,list)=>list.length?`<div class="tsec"><h4>${title}</h4><div class="tgrid">${list.sort((a,c)=>a.min-c.min).map(x=>x.html).join("")}</div></div>`:"";
-  el.innerHTML=(picks.length?`<div class="tsec"><h4>🥡 PICKUPS</h4><div class="tgrid">${picks.map(p=>`<button class="tile pick${p.st==="served"?" ready":""}" data-p="${p.pno}"><div class="tn"><b>#${p.pno}</b><span>pickup</span></div><div class="who">${esc(p.name||"Pickup")}</div><div class="meta">${p.pat?`⏰ <b>for ${esc(p.pat)}</b> · `:""}${p.items} items · ${ago(p.first)}</div><div class="tt2"><i>${p.st==="served"?"🔔 Ready":p.sched?"⏰ Scheduled":p.st==="preparing"?"Cooking":"Sent"}</i><em>${money(p.total)}</em></div></button>`).join("")}</div></div>`:"")+
+  el.innerHTML=(picks.length?`<div class="tsec"><h4>🍕 PICKUPS</h4><div class="tgrid">${picks.map(p=>`<button class="tile pick${p.st==="served"?" ready":""}" data-p="${p.pno}"><div class="tn"><b>#${p.pno}</b><span>pickup</span></div><div class="who">${esc(p.name||"Pickup")}</div><div class="meta">${p.pat?`⏰ <b>for ${esc(p.pat)}</b> · `:""}${p.items} items · ${ago(p.first)}</div><div class="tt2"><i>${p.st==="served"?"🔔 Ready":p.sched?"⏰ Scheduled":p.st==="preparing"?"Cooking":"Sent"}</i><em>${money(p.total)}</em></div></button>`).join("")}</div></div>`:"")+
     (effArea()!=="din"?part("BAR",sec.bar):area==="auto"?`<button class="barfold" data-area="all">🍸 Bar tables — nobody there yet · tap to show</button>`:"")+(effArea()!=="bar"?part("RESTAURANT",sec.din):"");
 }
 function applyArea(){
@@ -2192,8 +2192,8 @@ function flashFor(g){
 function alertText(f){
   if(f.kind==="qr")return "📱 "+esc(f.label)+" — new QR order, tap to check";
   if(f.kind==="call")return (f.what==="bill"?"💷 ":f.what==="ready"?"🔔 ":"🙋 ")+esc(f.label)+(f.what==="bill"?" — asking for the bill ✓":f.what==="ready"?" — food ready, take it out ✓":" — needs a waiter ✓");
-  if(f.pno&&f.kind==="srv")return "🥡 Pickup #"+f.pno+(f.st==="bar"?" — drinks ready for collection ✓":" — ready for collection ✓");
-  if(f.pno)return "🥡 Pickup #"+f.pno+(f.st==="bar"?" — drinks being made ✓":" — food preparing ✓");
+  if(f.pno&&f.kind==="srv")return "🍕 Pickup #"+f.pno+(f.st==="bar"?" — drinks ready for collection ✓":" — ready for collection ✓");
+  if(f.pno)return "🍕 Pickup #"+f.pno+(f.st==="bar"?" — drinks being made ✓":" — food preparing ✓");
   if(f.kind==="srv")return (f.st==="bar"?"🍷 ":"🔔 ")+esc(f.label)+(f.st==="bar"?" — drinks ready ✓":" — food ready ✓");
   return (f.st==="bar"?"🍸 ":"🍳 ")+esc(f.label)+(f.st==="bar"?" — drinks being made ✓":" — food preparing ✓");
 }
@@ -2303,7 +2303,7 @@ function renderOrder(){
   $("ordOv").classList.toggle("barmode",!!(ord&&ord.barMode));   // bar staff: big, bold, full-screen drinks screen
   if(!ord)return;
   const g=curGroup(),ids=g.slice().sort((a,b)=>a-b),b=ord.pickup?null:state.bookings[leadOf(g)];
-  if(ord.pickup){$("oTitle").innerHTML=ord.walk?`🍸 Bar walk-up <span style="color:var(--wine)">#${ord.pno}</span>`:`🥡 Pickup <span style="color:var(--wine)">#${ord.pno}</span><span class="chip" style="background:#3f5f86">No table</span>`;
+  if(ord.pickup){$("oTitle").innerHTML=ord.walk?`🍸 Bar walk-up <span style="color:var(--wine)">#${ord.pno}</span>`:`🍕 Pickup <span style="color:var(--wine)">#${ord.pno}</span><span class="chip" style="background:#3f5f86">No table</span>`;
     $("oSub").textContent=ord.walk?(ord.pname?ord.pname+" · ":"")+"Served and paid at the bar":(ord.pname?ord.pname+(ord.pphone?" · "+ord.pphone:""):"Collection order")+(ord.pat?" · ⏰ ready for "+ord.pat:" · ASAP")+" · tell the customer their number";}
   else{$("oTitle").innerHTML=esc(gnameLong(g))+`<span class="chip">${seatsOf(g)} seats</span>`;
   const lead=b&&b.guests[0]&&b.guests[0].name;
@@ -2545,14 +2545,14 @@ function renderStation(st){
   const ot=oneTap[st];{const b=q("[data-onetap]");if(b){b.textContent=ot?"⚡ One tap":"☰ 3 steps";b.classList.toggle("on",ot)}}
   q(".ksum").innerHTML=ot?(kFilter[st]==="todo"&&todo.length?`<span class="ks new">${todo.length} waiting</span>`:""):kFilter[st]==="todo"&&todo.length?`<span class="ks new">${cnt("new")} new</span><span class="ks received">${cnt("received")} received</span><span class="ks preparing">${cnt("preparing")} ${st==="bar"?"making":"preparing"}</span>`:"";
   const list=kFilter[st]==="todo"?todo:served,BTN=st==="bar"?B_BTN:K_BTN;
-  q(".klist").innerHTML=(kFilter[st]==="todo"&&held.length?`<div class="heldbar">⏸ <b>On hold</b>${held.sort((a,b)=>(a.fireAt||a.createdAt)-(b.fireAt||b.createdAt)).map(t=>`<span class="heldt">${t.pat?`🥡 #${t.pno}${t.pname?" "+esc(t.pname):""} · <b>for ${esc(t.pat)}</b> · ${t.items.filter(x=>!x.v).reduce((a,x)=>a+x.q,0)} items · comes in at ${timeOf(t.fireAt)}`:`${esc(t.label)} · ${t.items.filter(x=>!x.v).reduce((a,x)=>a+x.q,0)} dishes · ${Math.round((Date.now()-t.createdAt)/60000)}m`}<button data-fire="${t.id}">🔥 ${t.pat?"Start now":"Fire"}</button></span>`).join("")}</div>`:"")+(list.length?list.map(t=>{
+  q(".klist").innerHTML=(kFilter[st]==="todo"&&held.length?`<div class="heldbar">⏸ <b>On hold</b>${held.sort((a,b)=>(a.fireAt||a.createdAt)-(b.fireAt||b.createdAt)).map(t=>`<span class="heldt">${t.pat?`🍕 #${t.pno}${t.pname?" "+esc(t.pname):""} · <b>for ${esc(t.pat)}</b> · ${t.items.filter(x=>!x.v).reduce((a,x)=>a+x.q,0)} items · comes in at ${timeOf(t.fireAt)}`:`${esc(t.label)} · ${t.items.filter(x=>!x.v).reduce((a,x)=>a+x.q,0)} dishes · ${Math.round((Date.now()-t.createdAt)/60000)}m`}<button data-fire="${t.id}">🔥 ${t.pat?"Start now":"Fire"}</button></span>`).join("")}</div>`:"")+(list.length?list.map(t=>{
     const si=FLOW.indexOf(t.status),mins=Math.round((Date.now()-t.createdAt)/60000);
     const lim=st==="bar"?[5,10]:[15,25];
     const late=t.status==="served"?"":mins>=lim[1]?" late":mins>=lim[0]?" slow":"";
     const nb=BTN[t.status];
     const alg=isAlg(t.note)||t.items.some(x=>!x.v&&isAlg(x.note));
     return `<article class="tk ${t.status}${late}${t.pickup?" pick":""}${alg?" alg":""}" data-id="${t.id}">${alg?`<div class="algb">⚠ ALLERGY — read the notes</div>`:""}
-      <div class="th">${t.walk?`<span class="tt" style="color:var(--olive-dk)">🍸 #${t.pno}</span><span class="tag">WALK-UP${t.pname?" · "+esc(t.pname):""}</span>`:t.pickup?`<span class="tt" style="color:#3f5f86">🥡 #${t.pno}</span><span class="tag">PICKUP${t.pname?" · "+esc(t.pname):""}${t.pat?` · <b class="patb">FOR ${esc(t.pat)}</b>`:""}</span>`:`<span class="tt">${esc(t.label)}</span><span class="tag">#${t.no||""}</span>`}
+      <div class="th">${t.walk?`<span class="tt" style="color:var(--olive-dk)">🍸 #${t.pno}</span><span class="tag">WALK-UP${t.pname?" · "+esc(t.pname):""}</span>`:t.pickup?`<span class="tt" style="color:#3f5f86">🍕 #${t.pno}</span><span class="tag">PICKUP${t.pname?" · "+esc(t.pname):""}${t.pat?` · <b class="patb">FOR ${esc(t.pat)}</b>`:""}</span>`:`<span class="tt">${esc(t.label)}</span><span class="tag">#${t.no||""}</span>`}
         <span class="tm">${t.status==="served"?"Served "+timeOf(t.updatedAt):`${timeOf(t.createdAt)} · <b>⏱ ${mins<1?"now":mins+" min"}</b>`}</span></div>
       ${ot?"":`<div class="prog">${KSTEPS.map(([k,l],i)=>`<div class="pg${i<=si?" done":""}${i===si?" cur":""}"><i></i><span>${st==="bar"&&k==="preparing"?"Making":l}</span></div>`).join("")}</div>`}
       <ul>${t.items.map(x=>x.v?`<li class="void"><b>${x.q}</b><span><s>${esc(x.n)}</s><i>VOID — don't make</i></span></li>`:`<li><b>${x.q}</b><span>${esc(x.n)}${x.g?`<em class="kg">· ${esc(x.g)}</em>`:""}${x.note?`<i${isAlg(x.note)?' class="alg"':""}>${isAlg(x.note)?"⚠ ":""}${esc(x.note)}</i>`:""}</span></li>`).join("")}</ul>
@@ -3364,7 +3364,7 @@ function renderList(){
       ${r.tags.length?`<div class="tags">${r.tags.map(([c,t])=>`<span class="tg ${c}">${t}</span>`).join("")}</div>`:""}</div>
       <div class="amt">${r.ordered?money(r.total):"—"}<small>${r.ordered?"bill so far":""}</small></div></div>`};
   $("listBody").innerHTML=(ord.length?`<h4>ORDERED (${ord.length})</h4>`+ord.map(row).join(""):`<div class="empty">No tables have ordered yet.</div>`)+
-    (picks.length?`<h4>🥡 PICKUP ORDERS (${picks.length})</h4>`+picks.map(p=>`<div class="orow${p.st==="served"?" attn":""}" data-p="${p.pno}"><div class="tn2" style="color:#3f5f86">#${p.pno}</div>
+    (picks.length?`<h4>🍕 PICKUP ORDERS (${picks.length})</h4>`+picks.map(p=>`<div class="orow${p.st==="served"?" attn":""}" data-p="${p.pno}"><div class="tn2" style="color:#3f5f86">#${p.pno}</div>
       <div class="who"><b>${esc(p.name||"Pickup")}${p.pat?" · ⏰ for "+esc(p.pat):""}</b>${p.items} items · ordered ${ago(p.first)}<div class="tags"><span class="tg ${p.st}">${p.st==="served"?"Ready to collect":p.sched?"Scheduled":p.st==="preparing"?"Cooking":p.st}</span></div></div>
       <div class="amt">${money(p.total)}<small>to pay</small></div></div>`).join(""):"")+
     (wait.length?`<h4>SEATED OR BOOKED · NO ORDER YET (${wait.length})</h4>`+wait.map(row).join(""):"");
@@ -3604,7 +3604,7 @@ function renderAllOrders(){
   const list=all.filter(t=>aoF==="all"||aoState(t)[0]===aoF);
   $("xBody").innerHTML=`<div class="aofilt">${[["all","All"],["open","Open"],["paid","Paid"],["del","Deleted"]].map(([k,l])=>`<button data-aof="${k}" class="${aoF===k?"on":""}">${l} <b>${cnt(k)}</b></button>`).join("")}</div>
     ${list.map(t=>{const [k,lab]=aoState(t),val=t.items.reduce((a,x)=>a+lv(x),0),open=aoOpen===t.id;
-      return `<div class="aorow ${k}${open?" open":""}"><button class="aohead" data-aoid="${t.id}"><span><b>${t.walk?"🍸":t.pickup?"🥡":""}${esc(t.label)}</b> · #${t.no||""} · ${timeOf(t.createdAt)} · ${stOf(t)==="bar"?"Bar":"Kitchen"}${t.byName?" · "+esc(t.byName):""}</span><em class="aost ${k}">${esc(lab)}</em><b class="amt">${money(val)}</b></button>
+      return `<div class="aorow ${k}${open?" open":""}"><button class="aohead" data-aoid="${t.id}"><span><b>${t.walk?"🍸":t.pickup?"🍕":""}${esc(t.label)}</b> · #${t.no||""} · ${timeOf(t.createdAt)} · ${stOf(t)==="bar"?"Bar":"Kitchen"}${t.byName?" · "+esc(t.byName):""}</span><em class="aost ${k}">${esc(lab)}</em><b class="amt">${money(val)}</b></button>
         ${open?`<div class="aoitems">${t.items.map(x=>`<div class="${x.v?"void":""}"><span>${x.q}× ${esc(x.n)}${x.g?" · "+esc(x.g):""}${x.note?` <i>${esc(x.note)}</i>`:""}${x.v?` <i>${esc(x.vr||"void")}${x.vb?" · "+esc(x.vb):""}</i>`:""}</span><span>${money(x.q*x.p)}</span></div>`).join("")}
           ${t.note?`<div><i>Note: ${esc(t.note)}</i></div>`:""}${canThermal()?`<button class="btn sec aodel" data-aorep="${t.id}">🖨 Reprint this order</button>`:""}${k==="del"||k==="rej"?"":`<button class="btn dng aodel" data-aodel="${t.id}">🗑 Delete this order</button>`}</div>`:""}</div>`}).join("")||`<p class="trial">No orders here.</p>`}`;
   $("xFoot").innerHTML=`${canThermal()&&list.length?`<button class="btn sec" data-aoprint>🖨 Print list</button>`:""}<button class="btn pri" data-xdone>Done</button>`}
@@ -4461,7 +4461,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261113203440";const APP_VER=6;   // both stamped by the publish script
+const APP_BUILD="20261113203950";const APP_VER=7;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
