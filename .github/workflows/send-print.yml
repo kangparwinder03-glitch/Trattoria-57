@@ -7,13 +7,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Insert print job
+      - name: Insert print job (signed in as the restaurant)
         env:
-          U: https://uzrkewizkqdnqpovwune.supabase.co/rest/v1/t57_docs
-          K: sb_publishable_Hix2EgA_xpjxMYFvmarVIQ_Hj0qx3YM
+          T57_EMAIL: ${{ secrets.T57_EMAIL }}
+          T57_PASSWORD: ${{ secrets.T57_PASSWORD }}
+        shell: python
         run: |
-          jq '.data.createdAt=(now*1000|floor)' tools/printjob.json > /tmp/job.json
-          code=$(curl -s -o /tmp/out.txt -w '%{http_code}' -X POST "$U" -H "apikey: $K" -H "Authorization: Bearer $K" -H "Content-Type: application/json" -H "Prefer: resolution=merge-duplicates,return=minimal" --data @/tmp/job.json)
-          echo "HTTP $code"; cat /tmp/out.txt
-          test "$code" -lt 300
-          curl -s -H "apikey: $K" -H "Authorization: Bearer $K" "$U?select=id,data->>to,data->>title&coll=eq.printjobs&order=updated_at.desc&limit=2"
+          import json, os, time, urllib.request
+          BASE = "https://uzrkewizkqdnqpovwune.supabase.co"; KEY = "sb_publishable_Hix2EgA_xpjxMYFvmarVIQ_Hj0qx3YM"
+          def call(url, data=None, method="POST", headers={}):
+              req = urllib.request.Request(BASE + url, data=json.dumps(data).encode() if data is not None else None, method=method,
+                                           headers={"apikey": KEY, "Content-Type": "application/json", **headers})
+              with urllib.request.urlopen(req, timeout=60) as r:
+                  b = r.read(); return json.loads(b) if b else None
+          tok = call("/auth/v1/token?grant_type=password", {"email": os.environ["T57_EMAIL"], "password": os.environ["T57_PASSWORD"]})["access_token"]
+          job = json.load(open("tools/printjob.json")); job["data"]["createdAt"] = int(time.time() * 1000)
+          call("/rest/v1/t57_docs", job, headers={"Authorization": "Bearer " + tok, "Prefer": "resolution=merge-duplicates,return=minimal"})
+          print("Sent", job["id"], "to", job["data"]["to"])
