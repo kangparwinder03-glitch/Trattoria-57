@@ -905,6 +905,9 @@ body.mode-waiter #vKitchen,body.mode-waiter #vBar,body.mode-waiter #vReport{disp
 .vercard{display:flex;gap:12px;align-items:center;width:100%;text-align:left;border:1px solid var(--parch2);background:#fffaf0;border-radius:14px;padding:10px 14px;margin-bottom:10px;font:inherit;color:var(--ink)}
 .vercard .ic{font-size:26px}.vercard b{display:block;font-size:17px}.vercard small{display:block;font-size:12px;color:#6d6448}.vercard em{display:block;font-style:normal;font-size:13px;margin-top:2px;color:#3e4a22}
 .vercard.new{border-color:#c79a2b;background:#fff6dc}.vercard.new em{color:#8a5a00}
+.halfrow{border:2px dashed #c79a2b!important;background:#fffaf0}
+.halfbar{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#3e4a22;color:#fff;padding:10px 12px;border-radius:12px;margin-bottom:8px;font-size:15px}
+.halfbar button{margin-left:auto;background:#fff;color:#3e4a22;border:0;border-radius:10px;padding:8px 14px;font-weight:700}
 </style>
 </head>
 <body>
@@ -1933,6 +1936,14 @@ const catHas=k=>{const c=MENU.find(x=>x[0]===k);return !!(c&&c[1].length)};
 const showCat=k=>k!=="Specials"||catHas(k);
 const firstFood=()=>CATS.find(k=>!BAR_CATS.has(k)&&catHas(k))||CATS.find(k=>!BAR_CATS.has(k));
 const ITEMS={};MENU.forEach(([cat,list])=>list.forEach(([n,p,d])=>{ITEMS[n]={n,p,d,cat,station:BAR_CATS.has(cat)?"bar":"kitchen"}}));
+// ---- half & half pizzas: "½ Margherita / ½ Diavola", charged at the dearer of the two ----
+function halfShort(n){return String(n).replace(/^Pizza /,"")}
+function halfName(a,b){return "½ "+halfShort(a)+" / ½ "+halfShort(b)}
+function halfBases(){return Object.values(ITEMS).filter(x=>x.cat==="Pizza"&&!x.half&&!/calzone/i.test(x.n)).map(x=>x.n)}
+function halfChoices(){const c=MENU.find(m=>m[0]==="Pizza");return c?c[1].map(x=>x[0]).filter(n=>!/calzone/i.test(n)):[]}
+function addHalves(){for(const k in ITEMS)if(ITEMS[k].half)delete ITEMS[k];const ps=halfBases();
+  for(const a of ps)for(const b of ps)if(a!==b){const n=halfName(a,b);ITEMS[n]={n,p:Math.max(ITEMS[a].p,ITEMS[b].p),d:"Half & half",cat:"Pizza",station:"kitchen",half:[a,b]}}}
+addHalves();
 // ---- menu edits (manager): price changes, new items, removed items — stored once, synced to every device ----
 const BASE_MENU=JSON.parse(JSON.stringify(MENU));
 let menuOv={price:{},desc:{},hide:[],add:[]};
@@ -1947,7 +1958,7 @@ function applyMenu(){
   const out=BASE_MENU.map(([cat,list])=>[cat,list.map(([n,p,d])=>[n,menuOv.price[n]!=null?menuOv.price[n]:p,menuOv.desc[n]!=null?menuOv.desc[n]:d])]);
   menuOv.add.forEach(a=>{const c=out.find(x=>x[0]===a.cat);if(c&&!c[1].some(x=>x[0]===a.n))c[1].push([a.n,menuOv.price[a.n]!=null?menuOv.price[a.n]:a.p,menuOv.desc[a.n]!=null?menuOv.desc[a.n]:a.d])});
   out.forEach(([cat,list])=>list.forEach(([n,p,d])=>{ITEMS[n]={n,p,d,cat,station:BAR_CATS.has(cat)?"bar":"kitchen",hidden:hide.has(n)}}));
-  MENU.length=0;out.forEach(([cat,list])=>MENU.push([cat,list.filter(x=>!hide.has(x[0]))]))}
+  MENU.length=0;out.forEach(([cat,list])=>MENU.push([cat,list.filter(x=>!hide.has(x[0]))]));addHalves()}
 try{const v=JSON.parse(localStorage.getItem("t57-menu")||"null");if(v){menuOv=cleanMenuOv(v);applyMenu()}}catch(e){}
 const FLOW=["new","received","preparing","served"];
 const ST_LABEL={new:"Sent",received:"Received",preparing:"Preparing",served:"✓ Served"};
@@ -2342,7 +2353,13 @@ function renderOrder(){
       return `<button data-c="${esc(k)}" class="${k===ord.cat?"on":""}${k==="Specials"?" spc":""}">${k==="Specials"?"⭐ ":""}${esc(k)}${n?" · "+n:""}</button>`}).join("")}</div>`;
     const qq=(ord.q||"").trim().toLowerCase();
     const list=qq?MENU.flatMap(([k,l])=>l.map(x=>[x[0],x[1],k+(x[2]?" · "+x[2]:"")])).filter(([n,p,d])=>(n+" "+d).toLowerCase().includes(qq)).slice(0,60):MENU.find(m=>m[0]===ord.cat)[1];
-    body.innerHTML=list.map(([n,p,d])=>{const q=c.filter(x=>x.n===n).reduce((a,x)=>a+x.q,0);
+    if(ord.half&&(qq||ord.cat!=="Pizza"))ord.half=null;
+    const hq=c.filter(x=>ITEMS[x.n]&&ITEMS[x.n].half).reduce((a,x)=>a+x.q,0);
+    if(ord.half){const h=ord.half;
+      body.innerHTML=`<div class="halfbar"><b>½ + ½</b> Tap the <b>${h.a?"second":"first"} half</b>${h.a?` · 1st: ${esc(halfShort(h.a))}`:""}<button data-halfx>Cancel</button></div>`+
+        halfChoices().filter(n=>n!==h.a).map(n=>`<div class="mi${outSet.has(n)?" out":""}" data-half="${esc(n)}"><div class="nm"><b>${esc(halfShort(n))}</b></div><div class="pr">${money(priceOf(n))}</div><div class="step">${outSet.has(n)?`<span class="oos">OUT</span>`:`<button class="add">½</button>`}</div></div>`).join("");
+    }else
+    body.innerHTML=(!qq&&ord.cat==="Pizza"&&halfChoices().length>1?`<div class="mi halfrow${hq?" has":""}" data-halfgo><div class="nm"><b>½ + ½ &nbsp;Half &amp; half pizza</b><small>Pick any two pizzas · charged at the dearer one${hq?` · ${hq} on this order`:""}</small></div><div class="step"><button class="add">+</button></div></div>`:"")+list.map(([n,p,d])=>{const q=c.filter(x=>x.n===n).reduce((a,x)=>a+x.q,0);
       const out=outSet.has(n);
       return `<div class="mi${q?" has":""}${out?" out":""}" data-n="${esc(n)}"><div class="nm"><b>${esc(n)}</b>${d?`<small>${esc(d)}</small>`:""}</div><div class="pr">${priceOf(n)<p?`<s>${money(p)}</s> <b class="hhp">${money(priceOf(n))}</b>`:money(p)}</div>
       <div class="step">${q?`<button data-a="dec">−</button><span>${q}</span>`:""}${out?`<span class="oos">OUT</span>`:`<button class="add" data-a="inc">+</button>`}</div></div>${ord.pop&&ord.pop.n===n?popHtml(n):""}`}).join("")+
@@ -2465,6 +2482,14 @@ $("oBody").addEventListener("click",e=>{
   const gb=e.target.closest("[data-g]");if(gb){ord.covers=Math.max(1,Math.min(40,(ord.covers||2)+(+gb.dataset.g)));renderOrder();return}
   const q=e.target.closest("[data-q]");
   if(q){const row=q.closest(".cl"),inp=row.querySelector(".ln"),t=q.dataset.q;if((inp.value||"").includes(t))return;inp.value=(inp.value?inp.value+", "+t:t).slice(0,120);c[+row.dataset.i].note=inp.value;inp.classList.toggle("alg",isAlg(inp.value));return}
+  if(e.target.closest("[data-halfgo]")){ord.half={a:null};ord.pop=null;renderOrder();$("oBody").scrollTop=0;return}
+  if(e.target.closest("[data-halfx]")){ord.half=null;renderOrder();return}
+  const hp=e.target.closest("[data-half]");
+  if(hp&&ord.half){const n=hp.dataset.half;if(outSet.has(n)){toast(halfShort(n)+" is out of stock");return}
+    if(!ord.half.a){ord.half.a=n;renderOrder();$("oBody").scrollTop=0;return}
+    const hn=halfName(ord.half.a,n),gg=ord.pickup?"":tabFor(hn);let line=c.find(x=>x.n===hn&&!x.note&&(x.g||"")===gg);
+    if(line)line.q++;else c.push(Object.assign({n:hn,q:1,note:""},gg?{g:gg}:{}));
+    ord.half=null;renderOrder();toast("Added "+hn+" · "+money(priceOf(hn)));return}
   const mi=e.target.closest(".mi"),cl=e.target.closest(".cl[data-i]");const a=e.target.closest("[data-a]");
   if(mi){const n=mi.dataset.n,gg=ord.pickup?"":tabFor(n);let line=c.find(x=>x.n===n&&!x.note&&(x.g||"")===gg);
     if(a&&a.dataset.a==="dec"){const l=[...c].reverse().find(x=>x.n===n&&(x.g||"")===gg)||[...c].reverse().find(x=>x.n===n);if(l){l.q--;if(l.q<=0)c.splice(c.indexOf(l),1)}}
@@ -4461,7 +4486,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261113164058";const APP_VER=3;   // both stamped by the publish script
+const APP_BUILD="20261113183042";const APP_VER=4;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
