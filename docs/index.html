@@ -875,6 +875,7 @@ body.mode-waiter #vKitchen,body.mode-waiter #vBar,body.mode-waiter #vReport{disp
 }
 .mipop .pq.mix{border-bottom:1px dashed var(--parch2);padding-bottom:8px;margin-bottom:6px}
 .mipop .pq.mix button small{opacity:.75;font-weight:600}
+.tabchips .tcn{font-style:normal;display:inline-block;min-width:18px;padding:0 5px;margin-left:3px;border-radius:9px;background:#c79a2b;color:#fff;font-size:12px;line-height:18px;text-align:center}
 </style>
 </head>
 <body>
@@ -2357,19 +2358,20 @@ function renderOrder(){
   const cats=$("oCats"),body=$("oBody"),foot=$("oFoot");
   if(ord.tab==="menu"&&!ord.review){
     cats.style.display="";
-    const drinks=BAR_CATS.has(ord.cat),cnt=d=>c.filter(x=>BAR_CATS.has(ITEMS[x.n].cat)===d).reduce((a,x)=>a+x.q,0);
+    const drinks=BAR_CATS.has(ord.cat),forTab=x=>ord.pickup||(x.g||"")===(((ITEMS[x.n]&&BAR_CATS.has(ITEMS[x.n].cat))?ord.gDrink:ord.gFood)||""),mineC=c.filter(forTab),
+      cnt=d=>mineC.filter(x=>BAR_CATS.has(ITEMS[x.n].cat)===d).reduce((a,x)=>a+x.q,0);
     cats.innerHTML=`<div class="msearch"><input id="mSearch" type="search" placeholder="🔎 Search the menu, e.g. peroni, diavola" value="${esc(ord.q||"")}" autocomplete="off">${ord.q?`<button data-mq>✕</button>`:""}</div>`+(hhActive()?`<div class="hhbar">🍹 Happy hour until ${settings.hh.to} · ${settings.hh.pct}% off ${settings.hh.cats.length>3?"drinks":settings.hh.cats.join(", ")}</div>`:"")+tabChips(drinks)+`<div class="sidetog">${ord.barMode?"":`<button data-side="food" class="${drinks?"":"on"}">🍝 Food${cnt(false)?` <b>${cnt(false)}</b>`:""}</button>`}<button data-side="drinks" class="${drinks?"on":""}">🍸 Drinks${cnt(true)?` <b>${cnt(true)}</b>`:""}</button></div>
-      <div class="catrow">${CATS.filter(k=>BAR_CATS.has(k)===drinks&&showCat(k)).map(k=>{const n=c.filter(x=>ITEMS[x.n].cat===k).reduce((a,x)=>a+x.q,0);
+      <div class="catrow">${CATS.filter(k=>BAR_CATS.has(k)===drinks&&showCat(k)).map(k=>{const n=mineC.filter(x=>ITEMS[x.n].cat===k).reduce((a,x)=>a+x.q,0);
       return `<button data-c="${esc(k)}" class="${k===ord.cat?"on":""}${k==="Specials"?" spc":""}">${k==="Specials"?"⭐ ":""}${esc(k)}${n?" · "+n:""}</button>`}).join("")}</div>`;
     const qq=(ord.q||"").trim().toLowerCase();
     const list=qq?MENU.flatMap(([k,l])=>l.map(x=>[x[0],x[1],k+(x[2]?" · "+x[2]:"")])).filter(([n,p,d])=>(n+" "+d+" "+(IT_OF[n]||"")).toLowerCase().includes(qq)).slice(0,60):MENU.find(m=>m[0]===ord.cat)[1];
     if(ord.half&&(qq||ord.cat!=="Pizza"))ord.half=null;
-    const hq=c.filter(x=>ITEMS[x.n]&&ITEMS[x.n].half).reduce((a,x)=>a+x.q,0);
+    const hq=mineC.filter(x=>ITEMS[x.n]&&ITEMS[x.n].half).reduce((a,x)=>a+x.q,0);
     if(ord.half){const h=ord.half;
       body.innerHTML=`<div class="halfbar"><b>½ + ½</b> Tap the <b>${h.a?"second":"first"} half</b>${h.a?` · 1st: ${esc(halfShort(h.a))}`:""}<button data-halfx>Cancel</button></div>`+
         halfChoices().filter(n=>n!==h.a).map(n=>`<div class="mi${outSet.has(n)?" out":""}" data-half="${esc(n)}"><div class="nm"><b>${esc(halfShort(n))}</b></div><div class="pr">${money(priceOf(n))}</div><div class="step">${outSet.has(n)?`<span class="oos">OUT</span>`:`<button class="add">½</button>`}</div></div>`).join("");
     }else
-    body.innerHTML=(!qq&&ord.cat==="Pizza"&&halfChoices().length>1?`<div class="mi halfrow${hq?" has":""}" data-halfgo><div class="nm"><b>½ + ½ &nbsp;Half &amp; half pizza</b><small>Pick any two pizzas · charged at the dearer one${hq?` · ${hq} on this order`:""}</small></div><div class="step"><button class="add">+</button></div></div>`:"")+list.map(([n,p,d])=>{const q=c.filter(x=>x.n===n).reduce((a,x)=>a+x.q,0);
+    body.innerHTML=(!qq&&ord.cat==="Pizza"&&halfChoices().length>1?`<div class="mi halfrow${hq?" has":""}" data-halfgo><div class="nm"><b>½ + ½ &nbsp;Half &amp; half pizza</b><small>Pick any two pizzas · charged at the dearer one${hq?` · ${hq} on this order`:""}</small></div><div class="step"><button class="add">+</button></div></div>`:"")+list.map(([n,p,d])=>{const q=mineC.filter(x=>x.n===n).reduce((a,x)=>a+x.q,0);
       const out=outSet.has(n);
       return `<div class="mi${q?" has":""}${out?" out":""}" data-n="${esc(n)}"><div class="nm"><b>${esc(n)}</b>${d?`<small>${esc(d)}</small>`:""}</div><div class="pr">${priceOf(n)<p?`<s>${money(p)}</s> <b class="hhp">${money(priceOf(n))}</b>`:money(p)}</div>
       <div class="step">${q?`<button data-a="dec">−</button><span>${q}</span>`:""}${out?`<span class="oos">OUT</span>`:`<button class="add" data-a="inc">+</button>`}</div></div>${ord.pop&&ord.pop.n===n?popHtml(n):""}`}).join("")+
@@ -2510,7 +2512,7 @@ $("oBody").addEventListener("click",e=>{if(ord&&ord.openedAt&&Date.now()-ord.ope
     ord.half=null;renderOrder();toast("Added "+hn+" · "+money(priceOf(hn)));return}
   const mi=e.target.closest(".mi"),cl=e.target.closest(".cl[data-i]");const a=e.target.closest("[data-a]");
   if(mi){const n=mi.dataset.n,gg=ord.pickup?"":tabFor(n);let line=c.find(x=>x.n===n&&!x.note&&(x.g||"")===gg);
-    if(a&&a.dataset.a==="dec"){const l=[...c].reverse().find(x=>x.n===n&&(x.g||"")===gg)||[...c].reverse().find(x=>x.n===n);if(l){l.q--;if(l.q<=0)c.splice(c.indexOf(l),1)}}
+    if(a&&a.dataset.a==="dec"){const l=[...c].reverse().find(x=>x.n===n&&(x.g||"")===gg);if(l){l.q--;if(l.q<=0)c.splice(c.indexOf(l),1)}}
     else{if(outSet.has(n)){toast(n+" is out of stock");return}if(line)line.q++;else{line=Object.assign({n,q:1,note:""},gg?{g:gg}:{});c.push(line)}
       ord.pop=optsFor(n).opts.length?{n,plain:line,cur:null}:null}
     if(a&&a.dataset.a==="dec")ord.pop=null;
@@ -3918,7 +3920,8 @@ function tabNames(all){const set=[];(all||[]).forEach(t=>t.items.forEach(x=>{if(
 function tabFor(n){const d=BAR_CATS.has(ITEMS[n].cat);return (d?ord.gDrink:ord.gFood)||""}
 function tabChips(drinks){
   if(ord.pickup)return "";const names=tabNames(ordTickets()),cur=(drinks?ord.gDrink:ord.gFood)||"";
-  return `<div class="tabchips"><span class="tcl">${drinks?"Drinks for":"Food for"}</span><button data-tab="" class="${cur?"":"on"}">🍽 Table</button>${names.map(n=>`<button data-tab="${esc(n)}" class="${cur===n?"on":""}">👤 ${esc(n)}</button>`).join("")}<button data-tab="+" class="add">+ Guest</button></div>`}
+  const nIn=g=>cart().filter(x=>(x.g||"")===g&&ITEMS[x.n]&&BAR_CATS.has(ITEMS[x.n].cat)===drinks).reduce((a,x)=>a+x.q,0),badge=g=>{const k=nIn(g);return k?` <i class="tcn">${k}</i>`:""};
+  return `<div class="tabchips"><span class="tcl">${drinks?"Drinks for":"Food for"}</span><button data-tab="" class="${cur?"":"on"}">🍽 Table${badge("")}</button>${names.map(n=>`<button data-tab="${esc(n)}" class="${cur===n?"on":""}">👤 ${esc(n)}${badge(n)}</button>`).join("")}<button data-tab="+" class="add">+ Guest</button></div>`}
 function tabChip(v){
   const drinks=BAR_CATS.has(ord.cat);
   if(v==="+"){const names=tabNames(ordTickets());let n=prompt("Guest name (or seat number)",`Seat ${names.length+1}`);n=str(n||"",20).trim();if(!n)return;
@@ -4512,7 +4515,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261113225951";const APP_VER=12;   // both stamped by the publish script
+const APP_BUILD="20261113230932";const APP_VER=13;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
