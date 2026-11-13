@@ -38,6 +38,7 @@ class MainActivity : Activity() {
     private lateinit var copiesLabel: TextView
     private lateinit var cutBox: CheckBox
     private lateinit var bigBox: CheckBox
+    private lateinit var speakBox: CheckBox
     private var cols = 32
     private var station = "kitchen"
     private val prefs by lazy { getSharedPreferences("t57", Context.MODE_PRIVATE) }
@@ -122,6 +123,8 @@ class MainActivity : Activity() {
         root.addView(cutBox)
         bigBox = CheckBox(this).apply { text = "EXTRA-LARGE text on order tickets"; textSize = 16f }
         root.addView(bigBox)
+        speakBox = CheckBox(this).apply { text = "🔊 Say new orders out loud (chime + \"New order, Table 4\")"; textSize = 16f }
+        root.addView(speakBox)
         logoBox = CheckBox(this).apply { text = "Print the Trattoria 57 logo"; textSize = 16f; isChecked = prefs.getBoolean("logo", true)
             setOnCheckedChangeListener { _, on -> prefs.edit().putBoolean("logo", on).apply() } }
         root.addView(logoBox)
@@ -144,6 +147,12 @@ class MainActivity : Activity() {
             bigBox.isChecked = PrintService.bigFor(prefs, station)
             bigBox.setOnCheckedChangeListener { _, on -> prefs.edit().putBoolean("big_$station", on).apply()
                 Hub.log(if (on) "${PrintService.stationName(station)} tickets: extra-large text" else "${PrintService.stationName(station)} tickets: normal text") }
+            speakBox.visibility = copiesLabel.visibility
+            speakBox.setOnCheckedChangeListener(null)
+            speakBox.isChecked = Speaker.on(prefs, station)
+            speakBox.setOnCheckedChangeListener { _, on -> prefs.edit().putBoolean("speak_$station", on).apply()
+                if (on) { Speaker.say(this, "Voice on. New order, Table 4"); Hub.log("🔊 ${PrintService.stationName(station)}: new orders will be read out") }
+                else Hub.log("🔇 ${PrintService.stationName(station)}: orders won't be read out") }
             cGroup.setOnCheckedChangeListener(null)
             cGroup.check(100 + PrintService.copiesFor(prefs, station))
             cGroup.setOnCheckedChangeListener { _, id -> prefs.edit().putInt("copies_$station", id - 100).apply(); Hub.log("${PrintService.stationName(station)} tickets now print ${id - 100}x") }

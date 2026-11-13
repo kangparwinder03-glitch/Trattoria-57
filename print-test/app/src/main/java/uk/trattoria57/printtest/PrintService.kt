@@ -122,6 +122,7 @@ class PrintService : Service() {
                 Hub.say(ready, true)
                 markDone(done, coll, id, st)
                 Alexa.announce(label, st, training)
+                if (Speaker.on(prefs, st)) Speaker.say(this, Speaker.words(label, training))
             }
         }
         // bills, receipts and reports sent from the website to this printer
