@@ -21,6 +21,21 @@ jobs:
               with urllib.request.urlopen(req, timeout=60) as r:
                   b = r.read(); return json.loads(b) if b else None
           tok = call("/auth/v1/token?grant_type=password", {"email": os.environ["T57_EMAIL"], "password": os.environ["T57_PASSWORD"]})["access_token"]
-          job = json.load(open("tools/printjob.json")); job["data"]["createdAt"] = int(time.time() * 1000)
-          call("/rest/v1/t57_docs", job, headers={"Authorization": "Bearer " + tok, "Prefer": "resolution=merge-duplicates,return=minimal"})
-          print("Sent", job["id"], "to", job["data"]["to"])
+          jobs = json.load(open("tools/printjob.json")); jobs = jobs if isinstance(jobs, list) else [jobs]
+          A = {"Authorization": "Bearer " + tok}
+          st = {}
+          try:
+              q = urllib.request.Request(BASE + "/rest/v1/t57_docs?coll=eq.settings&id=eq.main&select=data", headers={"apikey": KEY, **A})
+              st = (json.loads(urllib.request.urlopen(q, timeout=60).read()) or [{}])[0].get("data", {}) or {}
+          except Exception as e: print("no settings", e)
+          revs = [x for x in [{"n": "Google", "u": st.get("review")}, {"n": "TripAdvisor", "u": st.get("ta")}] if x["u"]]
+          socs = [x for x in [{"n": "Instagram", "h": "", "u": st.get("ig")}, {"n": "Facebook", "h": "Trattoria 57", "u": st.get("fb")}] if x["u"]]
+          for job in jobs:
+              d = job["data"]; d["createdAt"] = int(time.time() * 1000)
+              k = d.pop("fillQr", None)
+              if k is not None:   # same review / social QR codes a real receipt gets
+                  if revs: r = revs[k % len(revs)]; d["review"] = r["u"]; d["reviews"] = [r]
+                  if socs: d["social"] = [socs[k % len(socs)]]
+              call("/rest/v1/t57_docs", job, headers={**A, "Prefer": "resolution=merge-duplicates,return=minimal"})
+              print("Sent", job["id"], "to", d["to"], "qr:", d.get("review", "")[:30], [x["n"] for x in d.get("social", [])])
+              time.sleep(2)
