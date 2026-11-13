@@ -873,6 +873,8 @@ body.mode-waiter #vKitchen,body.mode-waiter #vBar,body.mode-waiter #vReport{disp
   body:not(.g) #rotateMsg span{font-size:64px;display:inline-block;transform:rotate(90deg)}
   body:not(.g) #rotateMsg small{font-weight:400;font-size:15px;opacity:.85;max-width:420px}
 }
+.mipop .pq.mix{border-bottom:1px dashed var(--parch2);padding-bottom:8px;margin-bottom:6px}
+.mipop .pq.mix button small{opacity:.75;font-weight:600}
 </style>
 </head>
 <body>
@@ -1835,7 +1837,7 @@ const MENU=[
 ["Prosecco & Spritz",[["Small White Prosecco",7.90,""],["Small Rosé Prosecco",7.90,""],["Aperol Spritz",8.90,""]]],
 ["Spirits",[["Famous Grouse · Single",4.20,""],["Famous Grouse · Double",7.90,""],["Jameson · Single",4.00,""],["Jameson · Double",7.90,""],["Bells · Single",3.90,""],["Bells · Double",7.60,""],["Spiced Rum · Single",3.90,""],["Spiced Rum · Double",7.10,""],["Captain Morgan's · Single",3.90,""],["Captain Morgan's · Double",7.10,""],["Smirnoff · Single",3.80,""],["Smirnoff · Double",7.00,""],["Gordon's · Single",3.80,""],["Gordon's · Double",7.40,""],["Bacardi · Single",3.80,""],["Bacardi · Double",7.00,""],["Lamb's · Single",3.80,""],["Lamb's · Double",7.00,""],["Southern Comfort · Single",3.80,""],["Southern Comfort · Double",7.00,""],["Jack Daniel's · Single",3.80,""],["Jack Daniel's · Double",7.00,""],["Archers · Single",3.50,""],["Archers · Double",6.50,""],["Malibu · Single",3.50,""],["Malibu · Double",6.50,""],["Martini · Single",3.50,""],["Martini · Double",6.50,""],["Disaronno · Single",3.50,""],["Disaronno · Double",6.59,""]]],
 ["Gin",[["Malfy Flavours · Single",4.50,""],["Malfy Flavours · Double",7.70,""],["Whitley Neill · Single",4.30,""],["Whitley Neill · Double",7.60,""],["Tanqueray Flavours · Single",4.30,""],["Tanqueray Flavours · Double",7.60,""],["Bombay Flavours · Single",4.20,""],["Bombay Flavours · Double",7.50,""],["Gordon's Flavours · Single",4.00,""],["Gordon's Flavours · Double",7.90,""],["Premium Gin · Single",3.80,"From £3.80 — see gin bar"],["Premium Gin · Double",7.00,"From £7.00 — see gin bar"]]],
-["Mixers",[["Tonic",2.50,""],["Slimline Tonic",2.50,""],["Coke (mixer)",0.90,""],["Lemonade (mixer)",0.90,""],["Soda (mixer)",0.50,""]]],
+["Mixers",[["Tonic",2.50,""],["Slimline Tonic",2.50,""],["Coke (mixer)",0.90,""],["Diet Coke (mixer)",0.90,""],["Lemonade (mixer)",0.90,""],["Diet Lemonade (mixer)",0.90,""],["Soda (mixer)",0.50,""]]],
 ["Shots",[["Baby Guinness",3.90,""],["Tequila",3.50,""],["Jäger",3.50,""],["Disaronno shot",3.50,""],["Tia Maria",3.50,""],["Limoncello",3.00,""],["Sambuca",3.00,""],["Baileys",3.00,""]]],
 ["Hot Drinks",[["Liqueur Coffee",7.30,""],["Espresso",3.50,""],["Latte",3.50,""],["Flat White",3.50,""],["Cappuccino",3.50,""],["White Coffee",3.10,""],["Americano",3.00,""],["Black Coffee",2.50,""],["Tea",2.80,""],["Milk",2.00,"Glass"]]],
 ["Specials",[]],
@@ -1967,7 +1969,20 @@ const lv=x=>x.v?0:x.q*x.p;   // line value (voided lines are free)
 const ALG=/allerg|gluten|coeliac|celiac|dairy|lactose|\bnuts?\b|peanut|shellfish|prawn|\begg|sesame|vegan|soya|\bfish\b|mustard|celery|anaphyl/i;
 const isAlg=t=>!!t&&ALG.test(t);
 const ALG_CHIPS=["Nut allergy","Gluten free","Dairy free","Shellfish allergy","Egg allergy","Vegan"];
-const DRINK_CHIPS=["No ice","Ice & lemon","Ice & lime","Slice of orange","Straw","Slimline tonic","Diet mixer","Large glass","Jug","Bottle & glass"];
+const DRINK_CHIPS=["Ice","No ice","Lemon","Lime"];
+function drinkChips(c){
+  if(c==="Spirits"||c==="Gin")return ["Ice","No ice","Lemon","Lime","Slice of orange"];
+  if(c==="Wine")return ["Ice","No ice","Extra glass"];
+  if(c==="Prosecco & Spritz")return ["Ice","Extra glass"];
+  if(c==="Beer & Cider")return ["Glass","No glass","Ice","Lime"];
+  if(c==="Shots")return ["Chilled","Ice"];
+  if(c==="Soft Drinks")return ["Ice","No ice","Lemon","Lime","Straw","Large glass","Jug"];
+  return DRINK_CHIPS}
+// a mixer is its own priced line on the bill, joined to its drink ("with Tonic")
+const MIXERS=[["Tonic","Tonic"],["Slimline tonic","Slimline Tonic"],["Coke","Coke (mixer)"],["Diet Coke","Diet Coke (mixer)"],["Lemonade","Lemonade (mixer)"],["Diet lemonade","Diet Lemonade (mixer)"],["Soda","Soda (mixer)"]];
+const WINE_ADD=[["Lemonade (spritzer)","Add lemonade to wine"],["Soda","Add soda to wine"]];
+function mixFor(n){const c=ITEMS[n]&&ITEMS[n].cat;const l=c==="Spirits"||c==="Gin"?MIXERS:c==="Wine"&&!/^Add /.test(n)?WINE_ADD:[];return l.filter(([,m])=>ITEMS[m]&&!ITEMS[m].hidden&&!outSet.has(m))}
+function syncMixers(c){for(let i=c.length-1;i>=0;i--){const x=c[i];if(!x.of)continue;const P=c.find(y=>y.lid===x.of);if(!P||P.mx!==x.n)c.splice(i,1);else x.q=P.q}}
 // quick options that drop down under a dish/drink the moment it's added
 // items where the customer has to pick one (shown first in the drop-down; the order can't be sent without it)
 const CHOICES={"Mineral Water":["Still","Sparkling"],"Salad":["Mixed","Green","Tomato"],"Liqueur Coffee":["Irish","Baileys","Tia Maria","Amaretto"]};
@@ -1978,7 +1993,7 @@ const needsChoice=x=>CHOICES[x.n]&&!CHOICES[x.n].some(c=>(x.pc||[]).includes(c)|
 const DONENESS=["Blue","Rare","Medium rare","Medium","Medium well","Well done"];
 function optsFor(n){const it=ITEMS[n];if(!it)return {opts:[],cook:false,alg:false};const c=it.cat;
   if(c==="Hot Drinks")return {opts:["Oat milk","Soya milk","Decaf","Extra shot","Sugar on side","Extra hot"],alg:false};
-  if(BAR_CATS.has(c))return {opts:DRINK_CHIPS,alg:false};
+  if(BAR_CATS.has(c))return {opts:drinkChips(c),mix:mixFor(n),alg:false};
   if(/steak|fracosta|filetto di bue|sirloin|rib ?eye|t-bone|rump/i.test(n+" "+(it.d||"")))return {opts:["Peppercorn sauce","Diane sauce","Sauce on side","No sauce","Chips instead","Salad instead"],cook:true,alg:true};
   if(c==="Pizza"||c==="Garlic Pizzas")return {opts:["No onion","No chilli","No mushrooms","No olives","Extra cheese","Extra chilli","Well done","Halal","Gluten free base"],alg:true};
   if(c==="Pasta"||c==="Risotto")return {opts:["No onion","No garlic","No chilli","No mushrooms","Extra cheese","Gluten free pasta","Starter size"],alg:true};
@@ -1988,7 +2003,8 @@ function optsFor(n){const it=ITEMS[n];if(!it)return {opts:[],cook:false,alg:fals
 function popHtml(n){const P=ord.pop,L=P.cur,have=new Set(L&&L.pc||[]),o=optsFor(n);
   const chip=(t,cls)=>`<button data-pq="${esc(t)}" class="${cls||""}${have.has(t)?" on":""}">${cls==="alg"?"⚠ ":""}${esc(t)}</button>`;
   const ch=CHOICES[n];
-  return `<div class="mipop">${ch?`<div class="pq choice"><span>Which one?</span>${ch.map(t=>chip(t,"ch")).join("")}</div>`:""}${o.cook?`<div class="pq cook"><span>How cooked?</span>${DONENESS.map(t=>chip(t,"ck")).join("")}</div>`:""}
+  const mx=o.mix&&o.mix.length?`<div class="pq mix"><span>Mixer?</span>${o.mix.map(([lab,m])=>`<button data-pmx="${esc(m)}" class="mx${L&&L.mx===m?" on":""}">${esc(lab)} <small>+${money(priceOf(m))}</small></button>`).join("")}</div>`:"";
+  return `<div class="mipop">${mx}${ch?`<div class="pq choice"><span>Which one?</span>${ch.map(t=>chip(t,"ch")).join("")}</div>`:""}${o.cook?`<div class="pq cook"><span>How cooked?</span>${DONENESS.map(t=>chip(t,"ck")).join("")}</div>`:""}
     <div class="pq">${o.opts.map(t=>chip(t)).join("")}</div>${o.alg?`<div class="pq">${ALG_CHIPS.map(t=>chip(t,"alg")).join("")}</div>`:""}
     <div class="pqrow"><input data-pn placeholder="Anything else for this one?" maxlength="80" value="${esc(L&&L.px||"")}"><button class="pdone" data-pdone>${L&&L.note?"✓ Done":"No changes"}</button></div></div>`}
 function popLine(){const P=ord.pop,c=cart();if(P.cur&&c.includes(P.cur))return P.cur;
@@ -2318,7 +2334,7 @@ $("oCats").addEventListener("input",e=>{if(e.target.id!=="mSearch"||!ord)return;
 $("oCats").addEventListener("click",e=>{if(e.target.closest("[data-mq]")&&ord){ord.q="";renderOrder()}});
 function renderOrder(){
   $("ordOv").classList.toggle("barmode",!!(ord&&ord.barMode));   // bar staff: big, bold, full-screen drinks screen
-  if(!ord)return;ord._sig=ordSig();
+  if(!ord)return;ord._sig=ordSig();syncMixers(cart());
   const g=curGroup(),ids=g.slice().sort((a,b)=>a-b),b=ord.pickup?null:state.bookings[leadOf(g)];
   if(ord.pickup){$("oTitle").innerHTML=ord.walk?`🍸 Bar walk-up <span style="color:var(--wine)">#${ord.pno}</span>`:`🍕 Pickup <span style="color:var(--wine)">#${ord.pno}</span><span class="chip" style="background:#3f5f86">No table</span>`;
     $("oSub").textContent=ord.walk?(ord.pname?ord.pname+" · ":"")+"Served and paid at the bar":(ord.pname?ord.pname+(ord.pphone?" · "+ord.pphone:""):"Collection order")+(ord.pat?" · ⏰ ready for "+ord.pat:" · ASAP")+" · tell the customer their number";}
@@ -2365,7 +2381,7 @@ function renderOrder(){
       <div class="step">${x.g?`<span class="gtag">👤 ${esc(x.g)}</span>`:""}<button data-a="dec">−</button><span>${x.q}</span><button class="add" data-a="inc">+</button></div></div>
       ${outSet.has(x.n)?`<div class="note" style="margin:4px 0">⛔ Out of stock — remove this</div>`:""}
       ${ITEMS[x.n].station==="bar"?`<input class="ln" placeholder="Note for the bar (e.g. no ice)" maxlength="120" value="${esc(x.note)}">
-      <div class="qn">${DRINK_CHIPS.map(t=>`<button data-q="${t}">${t}</button>`).join("")}</div></div>`:`<input class="ln${isAlg(x.note)?" alg":""}" placeholder="Note for kitchen (e.g. no onions)" maxlength="120" value="${esc(x.note)}">
+      <div class="qn">${x.of?"":drinkChips(ITEMS[x.n].cat).map(t=>`<button data-q="${t}">${t}</button>`).join("")}</div></div>`:`<input class="ln${isAlg(x.note)?" alg":""}" placeholder="Note for kitchen (e.g. no onions)" maxlength="120" value="${esc(x.note)}">
       <div class="qn alg">${ALG_CHIPS.map(t=>`<button data-q="${t}">⚠ ${t}</button>`).join("")}</div>
       <div class="qn">${PREP_CHIPS.map(t=>`<button data-q="${t}">${t}</button>`).join("")}</div></div>`}`).join("")+
       (!ord.pickup&&courseSplit(c)?`<label class="cl pace"><input type="checkbox" data-f="pace"${ord.holdMains!==false?" checked":""}> <span><b>⏸ Hold mains until I fire them</b><small>Starters go to the kitchen now. Tap 🔥 Fire mains when the table's ready.</small></span></label>`:"")+
@@ -2467,6 +2483,13 @@ $("oBody").addEventListener("click",e=>{if(ord&&ord.openedAt&&Date.now()-ord.ope
     (async()=>{const list=ordTickets().filter(t=>t.hold);for(const t of list)await patchTicket(t,{hold:false,createdAt:Date.now()});alexaSay(list.map(t=>Object.assign({},t,{hold:false})));toast(`Approved ${list.length} → kitchen/bar`);ticketsChanged()})();return}
   const qb=e.target.closest('[data-f="qrok"],[data-f="qrno"]');if(qb){qrDecision(qb);return}
   if(!ord)return;const c=cart();
+  const pm=e.target.closest("[data-pmx]");if(pm&&ord.pop){const L=popLine();if(!L)return;const m=pm.dataset.pmx,c=cart();
+    L.lid=L.lid||("l"+Date.now().toString(36)+Math.random().toString(36).slice(2,6));
+    const old=c.findIndex(x=>x.of===L.lid);if(old>=0)c.splice(old,1);
+    const lab=(o=>o?o[0]:m)([...MIXERS,...WINE_ADD].find(x=>x[1]===m));
+    L.pc=L.pc.filter(x=>!/^with /.test(x));
+    if(L.mx===m)L.mx="";else{L.mx=m;L.pc.unshift("with "+lab);c.splice(c.indexOf(L)+1,0,Object.assign({n:m,q:L.q,note:"for "+L.n,of:L.lid},L.g?{g:L.g}:{}))}
+    L.note=popNote(L);renderOrder();return}
   const pq=e.target.closest("[data-pq]");if(pq&&ord.pop){const L=popLine();if(!L)return;const t=pq.dataset.pq,i=L.pc.indexOf(t);
     if(i>=0)L.pc.splice(i,1);else{const ex=[DONENESS,CHOICES[L.n]||[]].find(g=>g.includes(t));if(ex)L.pc=L.pc.filter(x=>!ex.includes(x));L.pc.push(t)}L.note=popNote(L);renderOrder();return}
   if(e.target.closest("[data-pdone]")){ord.pop=null;renderOrder();return}
@@ -4478,7 +4501,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261113224529";const APP_VER=10;   // both stamped by the publish script
+const APP_BUILD="20261113225417";const APP_VER=11;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
