@@ -1956,6 +1956,11 @@ let tickets=[];            // tickets for the shown date
 let ticketUnsub=null;
 const carts={};           // draft orders per table group (by lead id)
 const cartOwner={};       // which party a draft belongs to (so the next party at that table never inherits it)
+// unsent items are kept on the tablet too, so an update or restart never loses an order being taken
+(()=>{try{const v=JSON.parse(localStorage.getItem(LK+"carts")||"null");if(v&&v.d===todayKey()){Object.assign(carts,v.c||{});Object.assign(cartOwner,v.o||{})}}catch(e){}})();
+let cartsJson="";function keepCarts(){try{const c={};for(const k in carts)if(carts[k]&&carts[k].length)c[k]=carts[k];
+  const j=JSON.stringify({d:todayKey(),c,o:cartOwner});if(j!==cartsJson){cartsJson=j;localStorage.setItem(LK+"carts",j)}}catch(e){}}
+setInterval(keepCarts,1500);addEventListener("pagehide",keepCarts);document.addEventListener("visibilitychange",keepCarts);
 const partyKey=L=>{const b=state.bookings[L];return b?[b.time,b.walkin?1:0,(b.guests[0]&&b.guests[0].name)||""].join("|"):"free"};
 let ord=null;             // {lead, tab, cat, review}
 let outSet=new Set();     // out-of-stock item names
@@ -4337,15 +4342,17 @@ function setStatus(cls,txt){const s=$("status");s.className="status "+cls;s.text
 function loadLocal(k){try{const v=localStorage.getItem(LK+"p23-"+k);return v?sanitize(JSON.parse(v)):null}catch(e){return null}}
 function saveLocal(){try{localStorage.setItem(LK+"p23-"+dateKey,JSON.stringify(state))}catch(e){}}
 let writing=false,again=false,pendingSnap=null;
+function markDirty(k,on){try{on?localStorage.setItem(LK+"p23dirty-"+k,"1"):localStorage.removeItem(LK+"p23dirty-"+k)}catch(e){}}
+const isDirty=k=>{try{return localStorage.getItem(LK+"p23dirty-"+k)==="1"}catch(e){return false}};
 async function save(){
   saveLocal();
   if(!db||readOnly){if(!db)setStatus("local","This device");return}
   if(writing){again=true;return}
   writing=true;setStatus("saving","Saving…");
-  const key=dateKey,body=clone(state);body.updatedAt=Date.now();
-  try{await db.doc("plan23/"+key).set(body);setStatus("live","Saved · live")}
+  const key=dateKey,body=clone(state);body.updatedAt=Date.now();markDirty(key,true);
+  try{await db.doc("plan23/"+key).set(body);setStatus("live","Saved · live");if(!again)markDirty(key,false)}
   catch(err){
-    if(err&&err.code==="invalid_argument"){readOnly=true;setStatus("local","View only");toast("You have view-only access")}
+    if(err&&err.code==="invalid_argument"){readOnly=true;markDirty(key,false);setStatus("local","View only");toast("You have view-only access")}
     else if(err&&err.code==="quota_exceeded"){setStatus("local","Storage full");toast("Storage is full — couldn't save")}
     else setStatus("local","Not saved — retrying");
     if(err&&err.code==="unavailable"){writing=false;setTimeout(save,800+Math.random()*800);return}
@@ -4362,6 +4369,8 @@ function subscribe(){
     if(key!==dateKey)return;
     if(!snap.metadata.fromCache){clearTimeout(loadTimer);if(!writing)setStatus("live","Saved · live")}
     if(snap.metadata.hasPendingWrites)return;
+    // this tablet has a change the cloud never got (e.g. it reloaded for an update mid-save): keep ours and send it
+    if(isDirty(key)){if(writing)return;const mine=loadLocal(key);if(mine){state=mine;render();save();return}markDirty(key,false)}
     if(!snap.exists)return; // empty day: keep default layout until someone acts
     const s=sanitize(clone(snap.data()));
     if((dragging||sheetGroup)&&view!=="guest"){pendingSnap=s;return}
@@ -4451,7 +4460,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261113083957";const APP_VER=1;   // both stamped by the publish script
+const APP_BUILD="20261113145140";const APP_VER=2;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
@@ -4461,7 +4470,11 @@ async function fillVerCard(){const el=$("verState");if(!el)return;el.textContent
   if(v.build===APP_BUILD){el.innerHTML="✅ Up to date";$("verCard").classList.remove("new")}
   else{$("verCard").classList.add("new");el.innerHTML=`⬆ Version ${v.ver||"new"} is out — <b>tap to update now</b>`;$("verCard").dataset.go=v.build}}
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
-function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
+function goNewVersion(v,tries){
+  // never reload while a save is still on its way (tries for up to ~10s, then goes anyway: nothing is lost, it's all on the tablet)
+  if(typeof writing!=="undefined"&&(writing||again)&&(tries||0)<20){setTimeout(()=>goNewVersion(v,(tries||0)+1),500);return}
+  try{keepCarts()}catch(e){}
+  location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
   if(!appBusy()){goNewVersion(v);return}
   let b=document.getElementById("updBtn");
