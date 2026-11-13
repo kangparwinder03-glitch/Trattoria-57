@@ -902,6 +902,9 @@ body.mode-waiter #vKitchen,body.mode-waiter #vBar,body.mode-waiter #vReport{disp
   #oCats .catrow{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
   #oCats .catrow button{flex:none}
 }
+.vercard{display:flex;gap:12px;align-items:center;width:100%;text-align:left;border:1px solid var(--parch2);background:#fffaf0;border-radius:14px;padding:10px 14px;margin-bottom:10px;font:inherit;color:var(--ink)}
+.vercard .ic{font-size:26px}.vercard b{display:block;font-size:17px}.vercard small{display:block;font-size:12px;color:#6d6448}.vercard em{display:block;font-style:normal;font-size:13px;margin-top:2px;color:#3e4a22}
+.vercard.new{border-color:#c79a2b;background:#fff6dc}.vercard.new em{color:#8a5a00}
 </style>
 </head>
 <body>
@@ -4196,16 +4199,19 @@ const HUB=[
 function openHub(){
   const m=MODES[devMode]||MODES.manager;
   openX("hub","⭐ Manager","Everything for managers in one place",hubClick);
-  $("xBody").innerHTML=`<button class="hubtab" data-hub="mode"><span>📱 This tablet is for</span><b>${m.icon} ${esc(m.name)}</b><em>Change</em></button>`+
+  $("xBody").innerHTML=`<button class="vercard" id="verCard" data-hub="ver"><span class="ic">📲</span><span><b>App version ${APP_VER||"(test copy)"}</b><small>${APP_BUILD==="dev"?"not a published copy":"Installed "+buildWhen(APP_BUILD)}</small><em id="verState"></em></span></button><button class="hubtab" data-hub="mode"><span>📱 This tablet is for</span><b>${m.icon} ${esc(m.name)}</b><em>Change</em></button>`+
     HUB.map(([g,items])=>`<div class="gl-title"><span>${g}</span></div><div class="hubg">${items.map(([k,ic,t])=>`<button data-hub="${k}"><span class="ic">${ic}</span><b>${t}</b></button>`).join("")}</div>`).join("")+
     `<div class="gl-title"><span>🎓 Training</span></div><div class="hubg"><button data-hub="train"><span class="ic">${TRAIN?"✅":"🎓"}</span><b>${TRAIN?"Switch this tablet back to LIVE":"Switch this tablet to TRAINING"}</b></button>${TRAIN?"":`<button data-hub="golive" class="dng"><span class="ic">🚀</span><b>Go live — delete test data</b></button>`}</div>`;
   $("xFoot").innerHTML=`<button class="btn sec" data-xdone style="max-width:none">Close</button>`;
+  fillVerCard();
 }
 function settingsAt(id){openSettings();setTimeout(()=>{const el=$(id);if(el){const f=el.closest(".fld")||el.closest("div")||el;f.scrollIntoView({block:"center",behavior:"smooth"});f.classList.add("hubflash");setTimeout(()=>f.classList.remove("hubflash"),1600)}},250)}
 function hubReport(mode){repUnlockUntil=Date.now()+15*60000;repMode=mode;try{localStorage.setItem("t57-repmode",mode)}catch(_){}
   if(location.hash==="#report"){route();renderReport()}else location.hash="#report"}
 function hubClick(e){
-  const b=e.target.closest("[data-hub]");if(!b)return;const k=b.dataset.hub;mgrUntil=Math.max(mgrUntil,Date.now()+MGR_GRACE);closeX();
+  const b=e.target.closest("[data-hub]");if(!b)return;const k=b.dataset.hub;
+  if(k==="ver"){if(b.dataset.go)goNewVersion(b.dataset.go);else fillVerCard();return}
+  mgrUntil=Math.max(mgrUntil,Date.now()+MGR_GRACE);closeX();
   ({mode:openModePicker,rday:()=>hubReport("day"),rweek:()=>hubReport("week"),rmonth:()=>hubReport("month"),allord:openAllOrders,hours:openHours,
     menu:openMenuEd,hh:()=>settingsAt("hhOn"),pmenu:()=>pickPrinter(to=>printJob(to,"menu","Menu & prices",menuLines(),"full"),"Print the menu with prices"),
     staff:openManage,mpin:()=>askPin("New manager PIN","Choose a new 4-digit PIN",async v=>{try{await mgrStore.put("main",{pin:await hashPin(v,"manager")})}catch(_){return true}closePad();toast("Manager PIN changed");return true}),
@@ -4445,13 +4451,21 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261113000057";
+const APP_BUILD="20261113083957";const APP_VER=1;   // both stamped by the publish script
+function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
+  const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
+async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
+async function fillVerCard(){const el=$("verState");if(!el)return;el.textContent="Checking for updates…";
+  const v=await latestVer();if(!$("verState"))return;
+  if(!v||!v.build){el.textContent="Couldn't check right now (no internet?)";return}
+  if(v.build===APP_BUILD){el.innerHTML="✅ Up to date";$("verCard").classList.remove("new")}
+  else{$("verCard").classList.add("new");el.innerHTML=`⬆ Version ${v.ver||"new"} is out — <b>tap to update now</b>`;$("verCard").dataset.go=v.build}}
 function appBusy(){return !!(document.querySelector(".overlay.show")||dragging||sheetGroup||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))}
 function goNewVersion(v){location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash)}
 function newVersion(v){
   if(!appBusy()){goNewVersion(v);return}
   let b=document.getElementById("updBtn");
-  if(!b){b=document.createElement("button");b.id="updBtn";b.className="updbtn";b.textContent="✨ New version — tap to update";b.onclick=()=>goNewVersion(v);document.body.appendChild(b)}
+  if(!b){b=document.createElement("button");b.id="updBtn";b.className="updbtn";b.textContent="✨ New version ready — tap to update";b.onclick=()=>goNewVersion(v);document.body.appendChild(b)}
 }
 if(!window.claude&&location.protocol.startsWith("http")&&APP_BUILD!=="dev"){
   const chk=async()=>{try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return;const v=(await r.json()).build;if(v&&v!==APP_BUILD)newVersion(v)}catch(_){}};
