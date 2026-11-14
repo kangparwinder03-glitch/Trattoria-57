@@ -787,7 +787,7 @@ body.training{padding-top:30px}
 .cujump{border-style:dashed!important}
 .cusug{display:flex;flex-wrap:wrap;gap:6px}.cusug:empty{display:none}.cusug button{border:1px solid #d8cba8;background:#f6efdc;border-radius:18px;padding:8px 12px;font-size:15px;color:#3b3325;max-width:100%;text-align:left}.cusug button b{color:#000}
 .custrow{display:flex;gap:10px;align-items:center}.custrow .btn{flex:1}
-.xlbox{background:#eef3fa;border:1px solid #b9c9df;border-radius:12px;padding:8px 10px}.xlmk{display:flex;gap:10px;align-items:center}.xlmk .btn{flex:1;max-width:none}
+.xlbox{background:#eef3fa;border:1px solid #b9c9df;border-radius:12px;padding:8px 10px}.xlmk{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.xlmk .btn{flex:1;max-width:none}
 .xla{display:flex;align-items:center;gap:2px;font-weight:800;color:#2f4a6e}.xla input{width:80px!important;text-align:right;font-size:17px;font-weight:800;padding:6px 8px!important}
 .mexl{display:flex;align-items:center;gap:2px;font-size:12px;color:#8a8170;white-space:nowrap}.mexl input{width:58px!important;text-align:right;font-size:14px}.mexl.on{color:#3f5a1e;font-weight:800}.mexl.on input{border-color:#7a9a3a!important;background:#f3f8e8}.mexl.bad input{border-color:#c0392b!important}
 .mep{display:flex;align-items:center;gap:2px;font-weight:800}.mep input{width:84px!important;text-align:right}.mep.chg input{border-color:#d9b04a!important;background:#fff6e6}
@@ -1973,6 +1973,7 @@ function addXL(){for(const k in ITEMS)if(ITEMS[k].xl)delete ITEMS[k];
   for(const n of Object.keys(ITEMS)){const b=ITEMS[n];if(!b||b.half||b.alias||b.xl||b.custom||BAR_CATS.has(b.cat))continue;const r=(menuOv.xl||{})[n]||"";
     ITEMS[xlName(n)]=Object.assign({},b,{n:xlName(n),p:Math.round((b.p+(r?xlAdd(b.p,r):0))*100)/100,hidden:true,xl:n,xlr:r})}}
 const XL_DEFAULT=2;
+const xlHalf=b=>Math.round(priceOf(b)*50)/100;   // +50% of the dish
 // a line's price: extra large lines carry the extra the waiter typed (xa)
 // custom requests: typed by the waiter, own price; registered as hidden items so the rest of the app treats them like dishes
 function regCustom(n,p,st,cat){if(!n||(ITEMS[n]&&!ITEMS[n].custom))return;ITEMS[n]={n,p:Math.max(0,+p||0),d:"Custom request",cat:cat||(st==="bar"?"Soft Drinks":"Starters"),station:st==="bar"?"bar":"kitchen",hidden:true,custom:true}}
@@ -2128,7 +2129,7 @@ function popHtml(n){const P=ord.pop,L=P.cur,have=new Set(L&&L.pc||[]),o=optsFor(
   const mx=o.mix&&o.mix.length?`<div class="pq mix"><span>Mixer?</span>${o.mix.map(([lab,m])=>`<button data-pmx="${esc(m)}" class="mx${L&&L.mx===m?" on":""}">${esc(lab)} <small>+${money(priceOf(m))}</small></button>`).join("")}</div>`:"";
   const xb=ITEMS[n]&&ITEMS[n].xl||n,xi=ITEMS[xlName(xb)],isXL=!!(L&&ITEMS[L.n]&&ITEMS[L.n].xl);
   const xa=isXL?Math.round((linePrice(L)-priceOf(xb))*100)/100:0;
-  const xr=xi?`<div class="pq choice xlrow"><span>Size?</span><button data-pxl="0" class="ch${isXL?"":" on"}">Regular</button><button data-pxl="1" class="ch${isXL?" on":""}">⬆ Extra large</button>${isXL?`<label class="xla">+£<input data-pxa type="number" inputmode="decimal" step="0.10" min="0" max="99" value="${xa.toFixed(2)}"></label>`:""}</div>`:"";
+  const xr=xi?`<div class="pq choice xlrow"><span>Size?</span><button data-pxl="0" class="ch${isXL?"":" on"}">Regular</button><button data-pxl="1" class="ch${isXL?" on":""}">⬆ Extra large</button>${isXL?`<button data-pxh class="ch${Math.abs(xa-xlHalf(xb))<0.005?" on":""}">+50% <small>${money(xlHalf(xb))}</small></button><label class="xla">or +£<input data-pxa type="number" inputmode="decimal" step="0.10" min="0" max="99" value="${xa.toFixed(2)}"></label>`:""}</div>`:"";
   return `<div class="mipop">${xr}${mx}${ch?`<div class="pq choice"><span>${freeSide(n)?"Free side?":"Which one?"}</span>${ch.map(t=>chip(t,"ch")).join("")}</div>`:""}${o.cook?`<div class="pq cook"><span>How cooked?</span>${DONENESS.map(t=>chip(t,"ck")).join("")}</div>`:""}
     <div class="pq">${o.opts.map(t=>chip(t)).join("")}</div>${o.alg?`<div class="pq">${ALG_CHIPS.map(t=>chip(t,"alg")).join("")}</div>`:""}
     <div class="pqrow"><input data-pn data-ac="note" placeholder="Anything else for this one?" maxlength="80" value="${esc(L&&L.px||"")}"><button class="pdone" data-pdone>${L&&L.note?"✓ Done":"No changes"}</button></div></div>`}
@@ -2649,8 +2650,9 @@ $("oBody").addEventListener("click",e=>{if(ord&&ord.openedAt&&Date.now()-ord.ope
     if(L.mx===m)L.mx="";else{L.mx=m;L.pc.unshift("with "+lab);c.splice(c.indexOf(L)+1,0,Object.assign({n:m,q:L.q,note:"for "+L.n,of:L.lid},L.g?{g:L.g}:{}))}
     L.note=popNote(L);renderOrder();return}
   const px=e.target.closest("[data-pxl]");if(px&&ord.pop){const L=popLine();if(!L)return;const b=ITEMS[L.n]&&ITEMS[L.n].xl||L.n;
-    if(px.dataset.pxl==="1"&&ITEMS[xlName(b)]){const xi=ITEMS[xlName(b)];L.n=xlName(b);L.xa=xi.xlr?Math.round((priceOf(L.n)-priceOf(b))*100)/100:XL_DEFAULT}else{L.n=b;delete L.xa}
+    if(px.dataset.pxl==="1"&&ITEMS[xlName(b)]){const xi=ITEMS[xlName(b)];L.n=xlName(b);L.xa=xi.xlr?Math.round((priceOf(L.n)-priceOf(b))*100)/100:xlHalf(b)}else{L.n=b;delete L.xa}
     renderOrder();requestAnimationFrame(()=>{const i=$("oBody").querySelector("[data-pxa]");if(i)try{i.focus();i.select()}catch(e){}});return}
+  if(e.target.closest("[data-pxh]")&&ord.pop){const L=popLine();if(!L||!ITEMS[L.n]||!ITEMS[L.n].xl)return;L.xa=xlHalf(ITEMS[L.n].xl);renderOrder();return}
   const pq=e.target.closest("[data-pq]");if(pq&&ord.pop){const L=popLine();if(!L)return;const t=pq.dataset.pq,i=L.pc.indexOf(t);
     if(i>=0)L.pc.splice(i,1);else{const ex=[DONENESS,CHOICES[L.n]||[]].find(g=>g.includes(t));if(ex)L.pc=L.pc.filter(x=>!ex.includes(x));L.pc.push(t)}L.note=popNote(L);renderOrder();return}
   if(e.target.closest("[data-pdone]")){ord.pop=null;renderOrder();return}
@@ -2689,7 +2691,7 @@ $("oCats").addEventListener("click",e=>{const tc=e.target.closest("[data-tab]");
 $("oBody").addEventListener("input",e=>{if(!ord)return;
   if(e.target.id==="cuN"){ord.cu=Object.assign(ord.cu||{},{n:e.target.value});$("cuS").innerHTML=cuChips(e.target.value);return}
   if(e.target.id==="cuP"){ord.cu=Object.assign(ord.cu||{},{p:e.target.value});return}
-  if(e.target.matches("[data-pxa]")&&ord.pop){const L=popLine();if(!L)return;const v=Math.round(+e.target.value*100)/100;if(e.target.value!==""&&isFinite(v)&&v>=0&&v<100)L.xa=v;
+  if(e.target.matches("[data-pxa]")&&ord.pop){const L=popLine();if(!L)return;const v=Math.round(+e.target.value*100)/100;if(e.target.value!==""&&isFinite(v)&&v>=0&&v<100)L.xa=v;{const h=e.target.closest(".pq")&&e.target.closest(".pq").querySelector("[data-pxh]");if(h&&ITEMS[L.n])h.classList.toggle("on",Math.abs((+L.xa||0)-xlHalf(ITEMS[L.n].xl))<0.005)}
     const f=$("oFoot").querySelector('[data-f="review"]'),c=cart();if(f)f.textContent=`Review order · ${c.reduce((a,x)=>a+x.q,0)} · ${money(c.reduce((a,x)=>a+x.q*linePrice(x),0))}`;return}
   if(e.target.matches("[data-pn]")&&ord.pop){const L=popLine();if(!L)return;L.px=e.target.value;L.note=popNote(L);const b=e.target.parentElement.querySelector("[data-pdone]");if(b)b.textContent=L.note?"✓ Done":"No changes";
     return}
@@ -4389,10 +4391,10 @@ async function makeXL(k,extra){
 function openItemDisc(k){
   if(readOnly){toast("View only");return}
   const B=billOf(ordTickets()),l=B.lines.find(x=>x.k===k);if(!l||!B.anchor)return;
-  const canXL=!!ITEMS[xlName(l.n)],xr=(menuOv.xl||{})[l.n],xlDef=xr?xlAdd(l.p,xr):XL_DEFAULT;
+  const canXL=!!ITEMS[xlName(l.n)],xr=(menuOv.xl||{})[l.n],xlDef=xr?xlAdd(l.p,xr):Math.round(l.p*50)/100;
   const cur=B.idisc[k];let sel={t:cur?cur.t:"pct",v:cur?cur.v:0,r:cur?cur.r:(ord.pickup?"Takeaway deal":"Promo")};
   const draw=()=>{const g=l.q*l.p,amt=sel.v?Math.round((sel.t==="pct"?g*sel.v/100:Math.min(g,sel.v))*100)/100:0;
-    $("xBody").innerHTML=(canXL?`<div class="xlbox"><div class="gl-title"><span>⬆ Extra large</span></div><div class="xlmk"><label class="xla">+£<input id="xlVal" type="number" inputmode="decimal" min="0" max="99" step="0.10" value="${(Math.round(xlDef*100)/100).toFixed(2)}"></label><button class="btn pri" data-xlmake>Make ${l.q>1?"1 of "+l.q:"it"} extra large</button></div></div><div class="gl-title" style="margin-top:12px"><span>🏷 Or discount</span></div>`:"")+`<div class="spsum"><div><span>Item</span><b>${money(g)}</b></div><div><span>Discount</span><b>−${money(amt)}</b></div><div class="lft"><span>Now</span><b>${money(g-amt)}</b></div></div>
+    $("xBody").innerHTML=(canXL?`<div class="xlbox"><div class="gl-title"><span>⬆ Extra large</span></div><div class="xlmk"><button class="btn sec" data-xlhalf style="flex:0 0 auto">+50% · ${money(Math.round(l.p*50)/100)}</button><label class="xla">or +£<input id="xlVal" type="number" inputmode="decimal" min="0" max="99" step="0.10" value="${(Math.round(xlDef*100)/100).toFixed(2)}"></label><button class="btn pri" data-xlmake>Make ${l.q>1?"1 of "+l.q:"it"} extra large</button></div></div><div class="gl-title" style="margin-top:12px"><span>🏷 Or discount</span></div>`:"")+`<div class="spsum"><div><span>Item</span><b>${money(g)}</b></div><div><span>Discount</span><b>−${money(amt)}</b></div><div class="lft"><span>Now</span><b>${money(g-amt)}</b></div></div>
       <div class="gl-title"><span>Percent off</span></div><div class="dchips">${[10,15,20,25,30,50].map(v=>`<button data-ip="${v}" class="${sel.t==="pct"&&sel.v===v?"on":""}">${v}%</button>`).join("")}</div>
       <div class="gl-title"><span>Or pounds off</span></div><div class="dchips">${[1,2,3,5].map(v=>`<button data-ia="${v}" class="${sel.t==="amt"&&sel.v===v?"on":""}">£${v}</button>`).join("")}</div>
       <div class="row2" style="margin-top:6px"><div class="fld"><label for="idVal">Other amount</label><input id="idVal" type="number" inputmode="decimal" min="0" step="0.5" value="${sel.v||""}"></div>
@@ -4406,6 +4408,7 @@ function openItemDisc(k){
   };
   openX("idisc",(canXL?"Extra large / discount: ":"Discount: ")+l.n,`${l.q} × ${money(l.p)}${cur?" · now "+idiscLabel(cur):""}`,async e=>{
     const b=e.target.closest("button");if(!b)return;
+    if(b.hasAttribute("data-xlhalf")){$("xlVal").value=(Math.round(l.p*50)/100).toFixed(2);return}
     if(b.hasAttribute("data-xlmake")){const v=Math.round(+$("xlVal").value*100)/100;if(!isFinite(v)||v<=0||v>=100){toast("Type the extra amount, e.g. 2");return}
       b.disabled=true;if(await makeXL(k,v)){closeX();renderOrder();toast(`1 × ${l.n} → extra large +${money(v)}`)}else b.disabled=false;return}
     if(b.dataset.ip){sel.t="pct";sel.v=+b.dataset.ip;draw();return}
@@ -4735,7 +4738,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261114221547";const APP_VER=34;   // both stamped by the publish script
+const APP_BUILD="20261114222032";const APP_VER=35;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
