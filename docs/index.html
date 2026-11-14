@@ -780,6 +780,7 @@ body.training{padding-top:30px}
 .merow{display:flex;gap:8px;align-items:center;padding:8px 0;border-top:1px dashed var(--parch2)}.merow.off .men b{text-decoration:line-through;color:#9a917a}
 .men{flex:1;min-width:0}.men b{font-size:14px}.men i{font-style:normal;font-size:11px;font-weight:800;border-radius:8px;padding:1px 6px;margin-left:6px}.mnew{background:#e6efd8;color:var(--olive-dk)}.moff{background:#f6e1dc;color:var(--wine)}
 .med{display:block;width:100%;margin-top:4px;font-size:12px!important;padding:5px 8px!important}
+.mexl{display:flex;align-items:center;gap:2px;font-size:12px;color:#8a8170;white-space:nowrap}.mexl input{width:58px!important;text-align:right;font-size:14px}.mexl.on{color:#3f5a1e;font-weight:800}.mexl.on input{border-color:#7a9a3a!important;background:#f3f8e8}.mexl.bad input{border-color:#c0392b!important}
 .mep{display:flex;align-items:center;gap:2px;font-weight:800}.mep input{width:84px!important;text-align:right}.mep.chg input{border-color:#d9b04a!important;background:#fff6e6}
 .meh{max-width:none!important;width:auto!important;padding:8px 10px!important;font-size:13px!important;flex:none}
 .meadd{margin-top:12px;padding:10px 12px;border:1px dashed var(--olive);border-radius:12px;background:#f7f9f0}.meaddrow{display:flex;gap:8px;margin:6px 0}.meaddrow>input{flex:1}.meadd>input{width:100%}
@@ -1942,15 +1943,24 @@ const ITEMS={};MENU.forEach(([cat,list])=>list.forEach(([n,p,d])=>{ITEMS[n]={n,p
 // ---- half & half pizzas: "½ Margherita / ½ Diavola", charged at the dearer of the two ----
 function halfShort(n){return String(n).replace(/^Pizza /,"").replace(/ Pizza$/,"")}
 function halfName(a,b){return "½ "+halfShort(a)+" / ½ "+halfShort(b)}
-function halfBases(){return Object.values(ITEMS).filter(x=>x.cat==="Pizza"&&!x.half&&!x.alias&&!/calzone/i.test(x.n)).map(x=>x.n)}
+function halfBases(){return Object.values(ITEMS).filter(x=>x.cat==="Pizza"&&!x.half&&!x.alias&&!x.xl&&!/calzone/i.test(x.n)).map(x=>x.n)}
 function halfChoices(){const c=MENU.find(m=>m[0]==="Pizza");return c?c[1].map(x=>x[0]).filter(n=>!/calzone/i.test(n)):[]}
 function addHalves(){for(const k in ITEMS)if(ITEMS[k].half)delete ITEMS[k];const ps=halfBases();
   for(const a of ps)for(const b of ps)if(a!==b){const n=halfName(a,b);ITEMS[n]={n,p:Math.max(ITEMS[a].p,ITEMS[b].p),d:"Half & half",cat:"Pizza",station:"kitchen",half:[a,b]}}}
 addHalves();addAliases();
 // ---- menu edits (manager): price changes, new items, removed items — stored once, synced to every device ----
 const BASE_MENU=JSON.parse(JSON.stringify(MENU));
-let menuOv={price:{},desc:{},hide:[],add:[]};
-function cleanMenuOv(d){d=d&&typeof d==="object"?d:{};const o={price:{},desc:{},hide:[],add:[]};
+let menuOv={price:{},desc:{},hide:[],add:[],xl:{}};
+// extra large: per dish, either a fixed extra ("2" = +£2.00) or a percentage ("15%")
+function xlRule(v){const t=String(v==null?"":v).replace(/[£\s+]/g,"");if(!t)return null;const pc=/%$/.test(t),x=Math.round(parseFloat(t)*100)/100;
+  if(!isFinite(x)||x<=0||(pc?x>200:x>999))return null;return pc?x+"%":x.toFixed(2)}
+function xlAdd(p,r){return /%$/.test(r)?Math.round(p*parseFloat(r))/100:+r}
+const xlName=n=>n+" (XL)";
+function addXL(){for(const k in ITEMS)if(ITEMS[k].xl)delete ITEMS[k];
+  for(const n in (menuOv.xl||{})){const b=ITEMS[n];if(!b||b.half||b.alias)continue;const r=menuOv.xl[n];
+    ITEMS[xlName(n)]=Object.assign({},b,{n:xlName(n),p:Math.round((b.p+xlAdd(b.p,r))*100)/100,hidden:true,xl:n,xlr:r})}}
+function cleanMenuOv(d){d=d&&typeof d==="object"?d:{};const o={price:{},desc:{},hide:[],add:[],xl:{}};
+  if(d.xl&&typeof d.xl==="object")for(const k in d.xl){const r=xlRule(d.xl[k]);if(r)o.xl[enName(str(k,60))]=r}
   if(d.price&&typeof d.price==="object")for(const k in d.price){const v=Math.round(+d.price[k]*100)/100;if(isFinite(v)&&v>=0&&v<1000)o.price[enName(str(k,60))]=v}
   if(d.desc&&typeof d.desc==="object")for(const k in d.desc)o.desc[enName(str(k,60))]=str(d.desc[k],80);
   if(Array.isArray(d.hide))o.hide=d.hide.map(x=>enName(str(x,60))).filter(Boolean).slice(0,500);
@@ -1961,7 +1971,7 @@ function applyMenu(){
   const out=BASE_MENU.map(([cat,list])=>[cat,list.map(([n,p,d])=>[n,menuOv.price[n]!=null?menuOv.price[n]:p,menuOv.desc[n]!=null?menuOv.desc[n]:d])]);
   menuOv.add.forEach(a=>{const c=out.find(x=>x[0]===a.cat);if(c&&!c[1].some(x=>x[0]===a.n))c[1].push([a.n,menuOv.price[a.n]!=null?menuOv.price[a.n]:a.p,menuOv.desc[a.n]!=null?menuOv.desc[a.n]:a.d])});
   out.forEach(([cat,list])=>list.forEach(([n,p,d])=>{ITEMS[n]={n,p,d,cat,station:BAR_CATS.has(cat)?"bar":"kitchen",hidden:hide.has(n)}}));
-  MENU.length=0;out.forEach(([cat,list])=>MENU.push([cat,list.filter(x=>!hide.has(x[0]))]));addHalves();addAliases()}
+  MENU.length=0;out.forEach(([cat,list])=>MENU.push([cat,list.filter(x=>!hide.has(x[0]))]));addHalves();addAliases();addXL()}
 try{const v=JSON.parse(localStorage.getItem("t57-menu")||"null");if(v){menuOv=cleanMenuOv(v);applyMenu()}}catch(e){}
 const FLOW=["new","received","preparing","served"];
 const ST_LABEL={new:"Sent",received:"Received",preparing:"Preparing",served:"✓ Served"};
@@ -2039,7 +2049,9 @@ function popHtml(n){const P=ord.pop,L=P.cur,have=new Set(L&&L.pc||[]),o=optsFor(
   const chip=(t,cls)=>`<button data-pq="${esc(t)}" class="${cls||""}${have.has(t)?" on":""}">${cls==="alg"?"⚠ ":""}${esc(t)}</button>`;
   const ch=CHOICES[n];
   const mx=o.mix&&o.mix.length?`<div class="pq mix"><span>Mixer?</span>${o.mix.map(([lab,m])=>`<button data-pmx="${esc(m)}" class="mx${L&&L.mx===m?" on":""}">${esc(lab)} <small>+${money(priceOf(m))}</small></button>`).join("")}</div>`:"";
-  return `<div class="mipop">${mx}${ch?`<div class="pq choice"><span>${freeSide(n)?"Free side?":"Which one?"}</span>${ch.map(t=>chip(t,"ch")).join("")}</div>`:""}${o.cook?`<div class="pq cook"><span>How cooked?</span>${DONENESS.map(t=>chip(t,"ck")).join("")}</div>`:""}
+  const xb=ITEMS[n]&&ITEMS[n].xl||n,xi=ITEMS[xlName(xb)],isXL=!!(L&&ITEMS[L.n]&&ITEMS[L.n].xl);
+  const xr=xi?`<div class="pq choice"><span>Size?</span><button data-pxl="0" class="ch${isXL?"":" on"}">Regular</button><button data-pxl="1" class="ch${isXL?" on":""}">Extra large <small>+${money(xi.p-ITEMS[xb].p)}${/%$/.test(xi.xlr)?" ("+xi.xlr+")":""}</small></button></div>`:"";
+  return `<div class="mipop">${xr}${mx}${ch?`<div class="pq choice"><span>${freeSide(n)?"Free side?":"Which one?"}</span>${ch.map(t=>chip(t,"ch")).join("")}</div>`:""}${o.cook?`<div class="pq cook"><span>How cooked?</span>${DONENESS.map(t=>chip(t,"ck")).join("")}</div>`:""}
     <div class="pq">${o.opts.map(t=>chip(t)).join("")}</div>${o.alg?`<div class="pq">${ALG_CHIPS.map(t=>chip(t,"alg")).join("")}</div>`:""}
     <div class="pqrow"><input data-pn placeholder="Anything else for this one?" maxlength="80" value="${esc(L&&L.px||"")}"><button class="pdone" data-pdone>${L&&L.note?"✓ Done":"No changes"}</button></div></div>`}
 function popLine(){const P=ord.pop,c=cart();if(P.cur&&c.includes(P.cur))return P.cur;
@@ -2429,7 +2441,7 @@ function renderOrder(){
       body.innerHTML=`<div class="halfbar"><b>½ + ½</b> Tap the <b>${h.a?"second":"first"} half</b>${h.a?` · 1st: ${esc(halfShort(h.a))}`:""}<button data-halfx>Cancel</button></div>`+
         halfChoices().filter(n=>n!==h.a).map(n=>`<div class="mi${outSet.has(n)?" out":""}" data-half="${esc(n)}"><div class="nm"><b>${esc(halfShort(n))}${EN_OF[n]?` <i class="enn">(${esc(EN_OF[n])})</i>`:""}</b></div><div class="pr">${money(priceOf(n))}</div><div class="step">${outSet.has(n)?`<span class="oos">OUT</span>`:`<button class="add">½</button>`}</div></div>`).join("");
     }else
-    body.innerHTML=(!qq&&ord.cat==="Pizza"&&halfChoices().length>1?`<div class="mi halfrow${hq?" has":""}" data-halfgo><div class="nm"><b>½ + ½ &nbsp;Half &amp; half pizza</b><small>Pick any two pizzas · charged at the dearer one${hq?` · ${hq} on this order`:""}</small></div><div class="step"><button class="add">+</button></div></div>`:"")+list.map(([n,p,d])=>{const q=mineC.filter(x=>x.n===n).reduce((a,x)=>a+x.q,0);
+    body.innerHTML=(!qq&&ord.cat==="Pizza"&&halfChoices().length>1?`<div class="mi halfrow${hq?" has":""}" data-halfgo><div class="nm"><b>½ + ½ &nbsp;Half &amp; half pizza</b><small>Pick any two pizzas · charged at the dearer one${hq?` · ${hq} on this order`:""}</small></div><div class="step"><button class="add">+</button></div></div>`:"")+list.map(([n,p,d])=>{const q=mineC.filter(x=>x.n===n||(ITEMS[x.n]&&ITEMS[x.n].xl===n)).reduce((a,x)=>a+x.q,0);
       const out=outSet.has(n);
       return `<div class="mi${q?" has":""}${out?" out":""}" data-n="${esc(n)}"><div class="nm"><b>${esc(n)}${EN_OF[n]?` <i class="enn">(${esc(EN_OF[n])})</i>`:""}</b>${d?`<small>${esc(d)}</small>`:""}</div><div class="pr">${priceOf(n)<p?`<s>${money(p)}</s> <b class="hhp">${money(priceOf(n))}</b>`:money(p)}</div>
       <div class="step">${q?`<button data-a="dec">−</button><span>${q}</span>`:""}${out?`<span class="oos">OUT</span>`:`<button class="add" data-a="inc">+</button>`}</div></div>${ord.pop&&ord.pop.n===n?popHtml(n):""}`}).join("")+
@@ -2554,6 +2566,8 @@ $("oBody").addEventListener("click",e=>{if(ord&&ord.openedAt&&Date.now()-ord.ope
     L.pc=L.pc.filter(x=>!/^with /.test(x));
     if(L.mx===m)L.mx="";else{L.mx=m;L.pc.unshift("with "+lab);c.splice(c.indexOf(L)+1,0,Object.assign({n:m,q:L.q,note:"for "+L.n,of:L.lid},L.g?{g:L.g}:{}))}
     L.note=popNote(L);renderOrder();return}
+  const px=e.target.closest("[data-pxl]");if(px&&ord.pop){const L=popLine();if(!L)return;const b=ITEMS[L.n]&&ITEMS[L.n].xl||L.n;
+    L.n=px.dataset.pxl==="1"&&ITEMS[xlName(b)]?xlName(b):b;renderOrder();return}
   const pq=e.target.closest("[data-pq]");if(pq&&ord.pop){const L=popLine();if(!L)return;const t=pq.dataset.pq,i=L.pc.indexOf(t);
     if(i>=0)L.pc.splice(i,1);else{const ex=[DONENESS,CHOICES[L.n]||[]].find(g=>g.includes(t));if(ex)L.pc=L.pc.filter(x=>!ex.includes(x));L.pc.push(t)}L.note=popNote(L);renderOrder();return}
   if(e.target.closest("[data-pdone]")){ord.pop=null;renderOrder();return}
@@ -2570,7 +2584,7 @@ $("oBody").addEventListener("click",e=>{if(ord&&ord.openedAt&&Date.now()-ord.ope
     ord.half=null;renderOrder();toast("Added "+hn+" · "+money(priceOf(hn)));return}
   const mi=e.target.closest(".mi"),cl=e.target.closest(".cl[data-i]");const a=e.target.closest("[data-a]");
   if(mi){const n=mi.dataset.n,gg=ord.pickup?"":tabFor(n);let line=c.find(x=>x.n===n&&!x.note&&(x.g||"")===gg);
-    if(a&&a.dataset.a==="dec"){const l=[...c].reverse().find(x=>x.n===n&&(x.g||"")===gg);if(l){l.q--;if(l.q<=0)c.splice(c.indexOf(l),1)}}
+    if(a&&a.dataset.a==="dec"){const l=[...c].reverse().find(x=>(x.n===n||(ITEMS[x.n]&&ITEMS[x.n].xl===n))&&(x.g||"")===gg);if(l){l.q--;if(l.q<=0)c.splice(c.indexOf(l),1)}}
     else{if(outSet.has(n)){toast(n+" is out of stock");return}if(line)line.q++;else{line=Object.assign({n,q:1,note:""},gg?{g:gg}:{});c.push(line)}
       ord.pop=optsFor(n).opts.length?{n,plain:line,cur:null}:null}
     if(a&&a.dataset.a==="dec")ord.pop=null;
@@ -3743,6 +3757,7 @@ function renderMenuEd(){
   $("xBody").innerHTML=tabs+`<div class="melist">${rows.map((r,i)=>{const p=meDraft.price[r.n]!=null?meDraft.price[r.n]:r.p0,off=hide.has(r.n),chg=meDraft.price[r.n]!=null&&meDraft.price[r.n]!==r.p0;
     return `<div class="merow${off?" off":""}"><span class="men"><b>${esc(r.n)}</b>${r.custom?`<i class="mnew">new</i>`:""}${off?`<i class="moff">off the menu</i>`:""}<input class="med" data-med="${i}" maxlength="80" value="${esc(meDraft.desc[r.n]!=null?meDraft.desc[r.n]:r.d0||"")}" placeholder="Description (optional)"></span>
       <label class="mep${chg?" chg":""}">£<input type="number" step="0.05" min="0" max="999" inputmode="decimal" data-mep="${i}" value="${p.toFixed(2)}"></label>
+      ${BAR_CATS.has(meCat)?"":`<label class="mexl${meDraft.xl&&meDraft.xl[r.n]?" on":""}" title="Extra large: type 2 for +£2, or 15% for +15%">XL +<input data-mexl="${i}" maxlength="6" inputmode="decimal" placeholder="—" value="${esc(meDraft.xl&&meDraft.xl[r.n]?(/%$/.test(meDraft.xl[r.n])?meDraft.xl[r.n]:"£"+meDraft.xl[r.n]):"")}"></label>`}
       <button class="btn sec meh" data-mehide="${i}">${off?"↩ Put back":"Remove"}</button>${r.custom?`<button class="btn dng meh" data-medel="${i}" title="Delete for good">🗑</button>`:""}</div>`}).join("")}</div>
     ${meCat==="Specials"?`<div class="mehint" style="background:#fff6dc;border:1px solid #c79a2b;border-radius:10px;padding:8px 10px;margin:6px 0;font-size:14px">⭐ Add today's or this week's specials here. They show on the tablets and the QR menu straight away and go to the kitchen with the mains. When a special is finished, tap <b>Remove</b> on it. The Specials tab hides itself when it's empty.</div>`:""}
     <div class="meadd"><b>+ Add to ${esc(meCat)}</b><div class="meaddrow"><input id="meN" maxlength="60" placeholder="Name, e.g. Pizza Tartufo"><label class="mep">£<input id="meP" type="number" step="0.05" min="0" max="999" inputmode="decimal" placeholder="0.00"></label></div>
@@ -3761,6 +3776,8 @@ async function meSave(){const ov=cleanMenuOv(meDraft);menuOv=ov;applyMenu();
   meDirty=false;closeX();toast("Menu saved — every tablet updates now")}
 $("xBody").addEventListener("input",e=>{if(xKind!=="menued")return;const rows=meRows();
   const pi=e.target.dataset.mep;if(pi!==undefined){const r=rows[+pi],v=Math.round(+e.target.value*100)/100;if(e.target.value!==""&&isFinite(v)&&v>=0){if(v===r.p0)delete meDraft.price[r.n];else meDraft.price[r.n]=v;e.target.parentElement.classList.toggle("chg",v!==r.p0);meDirty=true;$("xFoot").querySelector("[data-mesave]").textContent="💾 Save menu"}}
+  const xi=e.target.dataset.mexl;if(xi!==undefined){const r=rows[+xi],v=xlRule(e.target.value);meDraft.xl=meDraft.xl||{};if(v)meDraft.xl[r.n]=v;else delete meDraft.xl[r.n];
+    e.target.parentElement.classList.toggle("on",!!v);e.target.parentElement.classList.toggle("bad",!!e.target.value.trim()&&!v);meDirty=true;$("xFoot").querySelector("[data-mesave]").textContent="💾 Save menu"}
   const di=e.target.dataset.med;if(di!==undefined){const r=rows[+di],v=e.target.value.trim();if(v===(r.d0||""))delete meDraft.desc[r.n];else meDraft.desc[r.n]=v;meDirty=true;$("xFoot").querySelector("[data-mesave]").textContent="💾 Save menu"}});
 
 // ---- undo a just-sent order for 10 seconds (wrong table, wrong item) ----
@@ -4609,7 +4626,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261114171406";const APP_VER=24;   // both stamped by the publish script
+const APP_BUILD="20261114175044";const APP_VER=25;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
