@@ -1687,10 +1687,15 @@ $("shWalk").onclick=()=>{
     email:"",status:"confirmed",size:+$("fSize").value||2,walkin:true,sentOwner:0,sentCustomer:0};
   save();closeSheet();toast(`${gname(g)} seated · ${+$("fSize").value||2} guests`);openOrder(L);
 };
+// a party has gone: joined tables go back to how they normally stand (Table 1, 10 and 11 stay as their pairs)
+function unjoinAfter(g){if(!g||g.length<2||activeFor(g).length)return;
+  const keep=DEFAULT_GROUPS().filter(d=>d.every(i=>g.includes(i)));
+  const ng=state.groups.filter(x=>!x.some(i=>g.includes(i))).concat(keep);
+  if(JSON.stringify(ng)!==JSON.stringify(state.groups))commit(ng,new Set(g),true)}
 function endBooking(L,kind){
   const bk=state.bookings[L];if(!bk)return;const g=groupFor(L);
   state.done=(state.done||[]).concat([Object.assign({},bk,{status:kind,label:gname(g),paidAt:Date.now()})]).slice(-300);
-  delete state.bookings[L];delete carts[L];delete cartOwner[L];save();render();
+  delete state.bookings[L];delete carts[L];delete cartOwner[L];save();unjoinAfter(g);render();
   toast(kind==="noshow"?`${gname(g)} marked no-show · table free`:kind==="walkout"?`🚶 ${gname(g)} walked out · table free`:`Booking cancelled · ${gname(g)} free`);
 }
 function askEnd(L,kind){
@@ -1709,9 +1714,10 @@ $("shClear").onclick=()=>askEnd(leadOf(groupFor(sheetGroup[0])),"cancelled");
 $("shJoin").onclick=()=>{
   if(readOnly){toast("View only");return}
   const g=groupFor(sheetGroup[0]),L=leadOf(g),z=T[L].zone,hp=homePos(L);
-  const free=unitsOf(state.groups).filter(o=>!o.some(i=>g.includes(i))&&T[o[0]].zone===z&&o.every(i=>T[i].join)&&!state.bookings[leadOf(o)]&&!activeFor(o).length)
+  const fits=o=>layoutFrom(state.groups.filter(x=>!x.some(i=>g.includes(i)||o.includes(i))).concat([g.concat(o)])).ok;   // only offer tables that can really go next to this one
+  const free=unitsOf(state.groups).filter(o=>!o.some(i=>g.includes(i))&&T[o[0]].zone===z&&o.every(i=>T[i].join)&&!state.bookings[leadOf(o)]&&!activeFor(o).length&&fits(o))
     .map(o=>{const p=homePos(leadOf(o));return {o,d:Math.hypot(p.x-hp.x,p.y-hp.y)}}).sort((a,b)=>a.d-b.d).slice(0,8);
-  if(!free.length){toast("No free tables nearby to join");return}
+  if(!free.length){toast("No more tables fit next to "+gname(g)+" — try starting the group from another table");return}
   closeSheet();
   openX("join","🔗 Join "+gname(g)+" with…","Nearest free tables first",ev=>{const b=ev.target.closest("[data-jn]");if(!b)return;
     const o=b.dataset.jn.split(",").map(Number);closeX();
@@ -2392,7 +2398,7 @@ function renderOrder(){
       <div class="qn">${x.of?"":drinkChips(ITEMS[x.n].cat).map(t=>`<button data-q="${t}">${t}</button>`).join("")}</div></div>`:`<input class="ln${isAlg(x.note)?" alg":""}" placeholder="Note for kitchen (e.g. no onions)" maxlength="120" value="${esc(x.note)}">
       <div class="qn alg">${ALG_CHIPS.map(t=>`<button data-q="${t}">⚠ ${t}</button>`).join("")}</div>
       <div class="qn">${PREP_CHIPS.map(t=>`<button data-q="${t}">${t}</button>`).join("")}</div></div>`}`).join("")+
-      (!ord.pickup&&courseSplit(c)?`<label class="cl pace"><input type="checkbox" data-f="pace"${ord.holdMains!==false?" checked":""}> <span><b>⏸ Hold mains until I fire them</b><small>Starters go to the kitchen now. Tap 🔥 Fire mains when the table's ready.</small></span></label>`:"")+
+      ""+
       `<div class="cl"><b style="font-size:13px">Note for the whole table</b><input id="oNote" placeholder="Allergies, timing…" maxlength="200" value="${esc(ord.note||"")}"></div>`
       :`<div class="empty">Nothing in this order yet.</div>`);
     foot.innerHTML=`<button class="btn sec" data-f="back">‹ Menu</button><button class="btn pri" data-f="send"${c.length?"":" disabled"}>${c.every(x=>ITEMS[x.n].station==="bar")?"Send to bar":c.some(x=>ITEMS[x.n].station==="bar")?"Send to kitchen + bar":"Send to kitchen"} · ${money(sum)}</button>`;
@@ -2547,7 +2553,7 @@ $("oFoot").addEventListener("click",async e=>{
     const no=tickets.reduce((m,t)=>Math.max(m,t.no||0),0)+1;
     const first=!ordTickets().length&&!ord.pickup;let coversLeft=first?(ord.covers||0):0;
     let parts=[["kitchen",c.filter(x=>ITEMS[x.n].station!=="bar")],["bar",c.filter(x=>ITEMS[x.n].station==="bar")]].filter(p=>p[1].length);
-    const pace=!ord.pickup&&ord.holdMains!==false&&courseSplit(c);
+    const pace=false;   // everything goes to the kitchen together (one ticket, grouped STARTERS / MAINS / DESSERTS)
     if(pace)parts=[["kitchen",pace.st],["kitchen",pace.mn,true]].concat(parts.filter(p=>p[0]==="bar"));
     const made=parts.map(([st,list,hold])=>{const t={wait:!!hold,id:"t"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)+st[0],date:dateKey,tables:ids,station:st,
       label:ord.pickup?(ord.walk?"Bar walk-up #":"Pickup #")+ord.pno:gname(g),items:list.map(x=>Object.assign({n:x.n,q:x.q,p:priceOf(x.n),note:(x.note||"").trim(),c:courseOf(x.n)},x.g?{g:x.g}:{})),
@@ -4047,6 +4053,7 @@ async function finishBill(pay){
   const L=leadOf(g),bk=state.bookings[L];
   if(bk)recordVisit(bk,B,gname(g));
   if(bk){state.done=(state.done||[]).concat([Object.assign({},bk,{label:gname(g),paidAt:now})]).slice(-300);delete state.bookings[L];delete carts[L];delete cartOwner[L];save()}
+  unjoinAfter(g);
   gIdx=null;toast(`Paid · ${how} · table is free again`);closeOrder();ticketsChanged();
 }
 
@@ -4522,7 +4529,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261114003125";const APP_VER=16;   // both stamped by the publish script
+const APP_BUILD="20261114003739";const APP_VER=17;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
