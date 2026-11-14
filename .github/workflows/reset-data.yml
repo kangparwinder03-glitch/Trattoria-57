@@ -8,6 +8,10 @@ on:
       confirm:
         description: 'Type RESET to confirm'
         required: true
+      scope:
+        description: 'live = live side only, both = live and training'
+        required: false
+        default: 'both'
 
 permissions:
   contents: read
@@ -19,6 +23,7 @@ jobs:
     steps:
       - name: Back up, then reset
         env:
+          SCOPE: ${{ github.event.inputs.scope }}
           T57_EMAIL: ${{ secrets.T57_EMAIL }}
           T57_PASSWORD: ${{ secrets.T57_PASSWORD }}
         run: |
@@ -41,7 +46,8 @@ jobs:
           with gzip.open("before-reset.json.gz", "wt", encoding="utf-8") as f: json.dump({"made": time.time(), "rows": rows}, f)
           print("Backed up", len(rows), "records")
           colls = ["tickets", "plan23", "printjobs", "calls", "shifts", "stock", "guests"]
-          colls += ["train_" + c for c in colls]
+          if os.environ.get("SCOPE", "both") != "live": colls += ["train_" + c for c in colls]
+          print("Clearing:", ", ".join(colls))
           gone = call("/rest/v1/t57_docs?coll=in.(" + ",".join(colls) + ")&select=coll", headers={**A, "Prefer": "return=representation"}, method="DELETE") or []
           n = collections.Counter(r["coll"] for r in gone)
           call("/rest/v1/rpc/t57_merge", {"c": "settings", "i": "live", "patch": {"since": int(time.time() * 1000)}}, headers=A)
