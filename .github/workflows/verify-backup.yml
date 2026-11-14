@@ -1,0 +1,38 @@
+name: Check the latest backup can be restored
+# Downloads last night's encrypted backup, unlocks it with the restaurant password and counts what's inside.
+# Read-only: nothing is written back to the database. Only counts are printed, never any data.
+on:
+  workflow_dispatch:
+  push:
+    paths: ["tools/verify-backup.txt"]
+permissions:
+  actions: read
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download the newest nightly backup
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN=$(gh run list -R "$GITHUB_REPOSITORY" --workflow nightly-backup.yml --status success -L 1 --json databaseId -q '.[0].databaseId')
+          echo "backup from run $RUN"
+          gh run download "$RUN" -R "$GITHUB_REPOSITORY" -D bk
+          ls -l bk/*/
+      - name: Unlock it and count what's inside
+        env:
+          T57_PASSWORD: ${{ secrets.T57_PASSWORD }}
+        run: |
+          F=$(ls bk/*/*.enc | head -1)
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in "$F" -out b.json.gz -pass env:T57_PASSWORD
+          gunzip -c b.json.gz > b.json
+          python3 - <<'PY'
+          import json,collections
+          d=json.load(open("b.json"))
+          rows=d if isinstance(d,list) else d.get("rows") or d.get("data") or d
+          if isinstance(rows,dict): rows=[{"coll":k.split("/")[0]} for k in rows]
+          c=collections.Counter(r.get("coll","?") for r in rows)
+          print("✅ Backup unlocked and readable —",len(rows),"records")
+          for k,v in sorted(c.items()): print(f"   {k}: {v}")
+          PY
