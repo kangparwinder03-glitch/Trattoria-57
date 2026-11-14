@@ -780,6 +780,7 @@ body.training{padding-top:30px}
 .merow{display:flex;gap:8px;align-items:center;padding:8px 0;border-top:1px dashed var(--parch2)}.merow.off .men b{text-decoration:line-through;color:#9a917a}
 .men{flex:1;min-width:0}.men b{font-size:14px}.men i{font-style:normal;font-size:11px;font-weight:800;border-radius:8px;padding:1px 6px;margin-left:6px}.mnew{background:#e6efd8;color:var(--olive-dk)}.moff{background:#f6e1dc;color:var(--wine)}
 .med{display:block;width:100%;margin-top:4px;font-size:12px!important;padding:5px 8px!important}
+.xla{display:flex;align-items:center;gap:2px;font-weight:800;color:#2f4a6e}.xla input{width:80px!important;text-align:right;font-size:17px;font-weight:800;padding:6px 8px!important}
 .mexl{display:flex;align-items:center;gap:2px;font-size:12px;color:#8a8170;white-space:nowrap}.mexl input{width:58px!important;text-align:right;font-size:14px}.mexl.on{color:#3f5a1e;font-weight:800}.mexl.on input{border-color:#7a9a3a!important;background:#f3f8e8}.mexl.bad input{border-color:#c0392b!important}
 .mep{display:flex;align-items:center;gap:2px;font-weight:800}.mep input{width:84px!important;text-align:right}.mep.chg input{border-color:#d9b04a!important;background:#fff6e6}
 .meh{max-width:none!important;width:auto!important;padding:8px 10px!important;font-size:13px!important;flex:none}
@@ -1957,8 +1958,12 @@ function xlRule(v){const t=String(v==null?"":v).replace(/[£\s+]/g,"");if(!t)ret
 function xlAdd(p,r){return /%$/.test(r)?Math.round(p*parseFloat(r))/100:+r}
 const xlName=n=>n+" (XL)";
 function addXL(){for(const k in ITEMS)if(ITEMS[k].xl)delete ITEMS[k];
-  for(const n in (menuOv.xl||{})){const b=ITEMS[n];if(!b||b.half||b.alias)continue;const r=menuOv.xl[n];
-    ITEMS[xlName(n)]=Object.assign({},b,{n:xlName(n),p:Math.round((b.p+xlAdd(b.p,r))*100)/100,hidden:true,xl:n,xlr:r})}}
+  // every food dish can go extra large; the waiter types the extra (or it uses the manager's preset for that dish)
+  for(const n of Object.keys(ITEMS)){const b=ITEMS[n];if(!b||b.half||b.alias||b.xl||BAR_CATS.has(b.cat))continue;const r=(menuOv.xl||{})[n]||"";
+    ITEMS[xlName(n)]=Object.assign({},b,{n:xlName(n),p:Math.round((b.p+(r?xlAdd(b.p,r):0))*100)/100,hidden:true,xl:n,xlr:r})}}
+const XL_DEFAULT=2;
+// a line's price: extra large lines carry the extra the waiter typed (xa)
+function linePrice(x){const it=ITEMS[x.n];if(it&&it.xl&&x.xa!=null&&isFinite(+x.xa))return Math.round((priceOf(it.xl)+(+x.xa))*100)/100;return priceOf(x.n)}
 function cleanMenuOv(d){d=d&&typeof d==="object"?d:{};const o={price:{},desc:{},hide:[],add:[],xl:{}};
   if(d.xl&&typeof d.xl==="object")for(const k in d.xl){const r=xlRule(d.xl[k]);if(r)o.xl[enName(str(k,60))]=r}
   if(d.price&&typeof d.price==="object")for(const k in d.price){const v=Math.round(+d.price[k]*100)/100;if(isFinite(v)&&v>=0&&v<1000)o.price[enName(str(k,60))]=v}
@@ -1973,6 +1978,7 @@ function applyMenu(){
   out.forEach(([cat,list])=>list.forEach(([n,p,d])=>{ITEMS[n]={n,p,d,cat,station:BAR_CATS.has(cat)?"bar":"kitchen",hidden:hide.has(n)}}));
   MENU.length=0;out.forEach(([cat,list])=>MENU.push([cat,list.filter(x=>!hide.has(x[0]))]));addHalves();addAliases();addXL()}
 try{const v=JSON.parse(localStorage.getItem("t57-menu")||"null");if(v){menuOv=cleanMenuOv(v);applyMenu()}}catch(e){}
+addXL();
 const FLOW=["new","received","preparing","served"];
 const ST_LABEL={new:"Sent",received:"Received",preparing:"Preparing",served:"✓ Served"};
 const ST_BTN={new:"Mark received",received:"Start preparing",preparing:"Mark served"};
@@ -2050,7 +2056,8 @@ function popHtml(n){const P=ord.pop,L=P.cur,have=new Set(L&&L.pc||[]),o=optsFor(
   const ch=CHOICES[n];
   const mx=o.mix&&o.mix.length?`<div class="pq mix"><span>Mixer?</span>${o.mix.map(([lab,m])=>`<button data-pmx="${esc(m)}" class="mx${L&&L.mx===m?" on":""}">${esc(lab)} <small>+${money(priceOf(m))}</small></button>`).join("")}</div>`:"";
   const xb=ITEMS[n]&&ITEMS[n].xl||n,xi=ITEMS[xlName(xb)],isXL=!!(L&&ITEMS[L.n]&&ITEMS[L.n].xl);
-  const xr=xi?`<div class="pq choice"><span>Size?</span><button data-pxl="0" class="ch${isXL?"":" on"}">Regular</button><button data-pxl="1" class="ch${isXL?" on":""}">Extra large <small>+${money(xi.p-ITEMS[xb].p)}${/%$/.test(xi.xlr)?" ("+xi.xlr+")":""}</small></button></div>`:"";
+  const xa=isXL?Math.round((linePrice(L)-priceOf(xb))*100)/100:0;
+  const xr=xi?`<div class="pq choice xlrow"><span>Size?</span><button data-pxl="0" class="ch${isXL?"":" on"}">Regular</button><button data-pxl="1" class="ch${isXL?" on":""}">⬆ Extra large</button>${isXL?`<label class="xla">+£<input data-pxa type="number" inputmode="decimal" step="0.10" min="0" max="99" value="${xa.toFixed(2)}"></label>`:""}</div>`:"";
   return `<div class="mipop">${xr}${mx}${ch?`<div class="pq choice"><span>${freeSide(n)?"Free side?":"Which one?"}</span>${ch.map(t=>chip(t,"ch")).join("")}</div>`:""}${o.cook?`<div class="pq cook"><span>How cooked?</span>${DONENESS.map(t=>chip(t,"ck")).join("")}</div>`:""}
     <div class="pq">${o.opts.map(t=>chip(t)).join("")}</div>${o.alg?`<div class="pq">${ALG_CHIPS.map(t=>chip(t,"alg")).join("")}</div>`:""}
     <div class="pqrow"><input data-pn placeholder="Anything else for this one?" maxlength="80" value="${esc(L&&L.px||"")}"><button class="pdone" data-pdone>${L&&L.note?"✓ Done":"No changes"}</button></div></div>`}
@@ -2424,7 +2431,7 @@ function renderOrder(){
   document.querySelector('#ordOv .otabs [data-t="booking"]').style.display=ord.pickup?"none":"";
   document.querySelectorAll("#ordOv .otabs button").forEach(x=>x.classList.toggle("on",x.dataset.t===ord.tab));
   const act=ordTickets();document.querySelector('#ordOv .otabs [data-t="sent"]').textContent=act.length?`Orders & bill (${act.length})`:"Orders & bill";
-  const c=cart(),count=c.reduce((a,x)=>a+x.q,0),sum=c.reduce((a,x)=>a+x.q*priceOf(x.n),0);
+  const c=cart(),count=c.reduce((a,x)=>a+x.q,0),sum=c.reduce((a,x)=>a+x.q*linePrice(x),0);
   const cats=$("oCats"),body=$("oBody"),foot=$("oFoot");
   if(ord.tab==="menu"&&!ord.review){
     cats.style.display="";
@@ -2567,7 +2574,8 @@ $("oBody").addEventListener("click",e=>{if(ord&&ord.openedAt&&Date.now()-ord.ope
     if(L.mx===m)L.mx="";else{L.mx=m;L.pc.unshift("with "+lab);c.splice(c.indexOf(L)+1,0,Object.assign({n:m,q:L.q,note:"for "+L.n,of:L.lid},L.g?{g:L.g}:{}))}
     L.note=popNote(L);renderOrder();return}
   const px=e.target.closest("[data-pxl]");if(px&&ord.pop){const L=popLine();if(!L)return;const b=ITEMS[L.n]&&ITEMS[L.n].xl||L.n;
-    L.n=px.dataset.pxl==="1"&&ITEMS[xlName(b)]?xlName(b):b;renderOrder();return}
+    if(px.dataset.pxl==="1"&&ITEMS[xlName(b)]){const xi=ITEMS[xlName(b)];L.n=xlName(b);L.xa=xi.xlr?Math.round((priceOf(L.n)-priceOf(b))*100)/100:XL_DEFAULT}else{L.n=b;delete L.xa}
+    renderOrder();requestAnimationFrame(()=>{const i=$("oBody").querySelector("[data-pxa]");if(i)try{i.focus();i.select()}catch(e){}});return}
   const pq=e.target.closest("[data-pq]");if(pq&&ord.pop){const L=popLine();if(!L)return;const t=pq.dataset.pq,i=L.pc.indexOf(t);
     if(i>=0)L.pc.splice(i,1);else{const ex=[DONENESS,CHOICES[L.n]||[]].find(g=>g.includes(t));if(ex)L.pc=L.pc.filter(x=>!ex.includes(x));L.pc.push(t)}L.note=popNote(L);renderOrder();return}
   if(e.target.closest("[data-pdone]")){ord.pop=null;renderOrder();return}
@@ -2593,6 +2601,8 @@ $("oBody").addEventListener("click",e=>{if(ord&&ord.openedAt&&Date.now()-ord.ope
 });
 $("oCats").addEventListener("click",e=>{const tc=e.target.closest("[data-tab]");if(tc&&ord){e.stopPropagation();tabChip(tc.dataset.tab)}},true);
 $("oBody").addEventListener("input",e=>{if(!ord)return;
+  if(e.target.matches("[data-pxa]")&&ord.pop){const L=popLine();if(!L)return;const v=Math.round(+e.target.value*100)/100;if(e.target.value!==""&&isFinite(v)&&v>=0&&v<100)L.xa=v;
+    const f=$("oFoot").querySelector('[data-f="review"]'),c=cart();if(f)f.textContent=`Review order · ${c.reduce((a,x)=>a+x.q,0)} · ${money(c.reduce((a,x)=>a+x.q*linePrice(x),0))}`;return}
   if(e.target.matches("[data-pn]")&&ord.pop){const L=popLine();if(!L)return;L.px=e.target.value;L.note=popNote(L);const b=e.target.parentElement.querySelector("[data-pdone]");if(b)b.textContent=L.note?"✓ Done":"No changes";
     return}
   if(e.target.id==="oNote"){ord.note=e.target.value;return}
@@ -2621,7 +2631,7 @@ $("oFoot").addEventListener("click",async e=>{if(Date.now()<footLockUntil){e.sto
     const pace=false;   // everything goes to the kitchen together (one ticket, grouped STARTERS / MAINS / DESSERTS)
     if(pace)parts=[["kitchen",pace.st],["kitchen",pace.mn,true]].concat(parts.filter(p=>p[0]==="bar"));
     const made=parts.map(([st,list,hold])=>{const t={wait:!!hold,id:"t"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)+st[0],date:dateKey,tables:ids,station:st,
-      label:ord.pickup?(ord.walk?"Bar walk-up #":"Pickup #")+ord.pno:gname(g),items:list.map(x=>Object.assign({n:x.n,q:x.q,p:priceOf(x.n),note:(x.note||"").trim(),c:courseOf(x.n)},x.g?{g:x.g}:{})),
+      label:ord.pickup?(ord.walk?"Bar walk-up #":"Pickup #")+ord.pno:gname(g),items:list.map(x=>Object.assign({n:x.n,q:x.q,p:linePrice(x),note:(x.note||"").trim(),c:courseOf(x.n)},x.g?{g:x.g}:{})),
       note:[st==="kitchen"?bkAlg:"",(ord.note||"").trim()].filter(Boolean).join(" · ").slice(0,200),status:"new",createdAt:Date.now(),updatedAt:Date.now(),closed:false,no,covers:coversLeft,by:waiter?waiter.id:"",byName:waiter?waiter.name:"",
       pickup:!!ord.pickup,walk:!!(ord.pickup&&ord.walk),pno:ord.pickup?ord.pno:0,pname:ord.pickup?(ord.pname||"").trim():"",pphone:ord.pickup?(ord.pphone||"").trim():""};coversLeft=0;
       if(ord.pickup&&!ord.walk&&ord.pat){t.pat=ord.pat;const fa=patFireAt(ord.pat,st);if(fa>Date.now()){t.wait=true;t.fireAt=fa}}
@@ -4626,7 +4636,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261114175044";const APP_VER=25;   // both stamped by the publish script
+const APP_BUILD="20261114181332";const APP_VER=26;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
