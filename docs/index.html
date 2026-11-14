@@ -1279,10 +1279,27 @@ function sanitize(d){
       const id=+k;if(!(id>=1&&id<=N))continue;const b=d.bookings[k];if(!b||typeof b!=="object")continue;
       s.bookings[id]=cleanBooking(b);
     }
-    if(Array.isArray(d.done))s.done=d.done.slice(-300).filter(b=>b&&typeof b==="object").map(b=>Object.assign(cleanBooking(b),{label:str(b.label,40),paidAt:+b.paidAt||0}));
+    for(const k in d)if(k.startsWith("b:")){const id=+k.slice(2);if(!(id>=1&&id<=N))continue;const b=d[k];
+      if(b&&typeof b==="object")s.bookings[id]=cleanBooking(b);else delete s.bookings[id]}
+    const dn=(Array.isArray(d.done)?d.done:[]).concat(Object.keys(d).filter(k=>k.startsWith("d:")).map(k=>d[k]));
+    s.done=dn.filter(b=>b&&typeof b==="object").map(b=>Object.assign(cleanBooking(b),{label:str(b.label,40),paidAt:+b.paidAt||0}))
+      .sort((a,b)=>a.paidAt-b.paidAt).filter((b,i,a)=>i===0||doneKey(b)!==doneKey(a[i-1])).slice(-300);
   }
   return s;
 }
+// ---- floor plan saves send only what changed and merge it into the cloud copy, so two tablets can't wipe each other's tables ----
+function doneKey(d){return String(d.paidAt||0)+"_"+String(d.label||"").replace(/[^A-Za-z0-9+]/g,"")+"_"+String((d.guests&&d.guests[0]&&d.guests[0].name)||"").replace(/[^A-Za-z0-9]/g,"").slice(0,12)}
+function planPatch(from,to){const p={},A=from.bookings||{},B=to.bookings||{};
+  const norm=b=>b&&typeof b==="object"?JSON.stringify(cleanBooking(b)):"null";   // compare tidied copies, or a tablet re-saves forever
+  new Set([...Object.keys(A),...Object.keys(B)]).forEach(id=>{if(norm(A[id])!==norm(B[id]))p["b:"+id]=B[id]?cleanBooking(B[id]):null});
+  if(JSON.stringify(cleanGroups(from.groups||[]))!==JSON.stringify(cleanGroups(to.groups||[])))p.groups=clone(to.groups);
+  const seen=new Set((from.done||[]).map(doneKey));(to.done||[]).forEach(d=>{const k=doneKey(d);if(!seen.has(k))p["d:"+k]=clone(d)});
+  return p}
+function applyPlanPatch(st,p){const s=clone(st);
+  for(const k in p){if(k.startsWith("b:")){const id=k.slice(2);if(p[k])s.bookings[id]=cleanBooking(p[k]);else delete s.bookings[id]}
+    else if(k==="groups"){const L=layoutFrom(p.groups);if(L.ok){s.groups=clone(p.groups);s.tables=L.tables}}
+    else if(k.startsWith("d:"))s.done=(s.done||[]).concat([clone(p[k])]).slice(-300)}
+  return s}
 // Every table has a fixed home spot. A group sits at its first table's spot and grows to the right;
 // the rest of that row slides along to make room, then everything clicks back when it splits.
 function unitsOf(groups){
@@ -2100,7 +2117,12 @@ async function flushOutbox(){
   if(flushing||!db||!outbox.length)return;flushing=true;
   try{while(outbox.length){const q=outbox[0];
       try{const ref=db.collection(q.coll).doc(q.id);await Promise.race([q.op==="set"?ref.set(q.data):ref.update(q.data),new Promise((_,no)=>setTimeout(()=>no({code:"unavailable"}),10000))])}
-      catch(e){if(hardErr(e)){outbox.shift();saveOutbox();continue}break}
+      catch(e){if(hardErr(e)){outbox.shift();saveOutbox();continue}
+        // one change that keeps failing must never hold up the orders behind it
+        q.tries=(q.tries||0)+1;
+        if(q.tries>=20){outbox.shift();saveOutbox();toast("⚠ One change to an order couldn't be saved — please check the bill",5000);continue}
+        if(q.tries%3===0&&outbox.length>1){outbox.push(outbox.shift());saveOutbox();continue}
+        break}
       outbox.shift();saveOutbox()}
     if(!outbox.length){toast("✅ Back online — everything sent");ticketsChanged()}}
   finally{flushing=false}}
@@ -2547,6 +2569,7 @@ $("oFoot").addEventListener("click",async e=>{
     const oos=c.find(x=>outSet.has(x.n));if(oos){toast(oos.n+" is out of stock — remove it");return}
     const nc=c.find(needsChoice);if(nc){toast(`${nc.n}: ${CHOICES[nc.n].join(" or ")}? Tap it to choose`);ord.review=false;ord.pop=null;
       ord.cat=ITEMS[nc.n].cat;ord.pop={n:nc.n,plain:nc,cur:nc.q===1?Object.assign(nc,{pc:nc.pc||[],px:nc.px||""}):null};renderOrder();return}
+    if(!ord.pickup&&!state.bookings[leadOf(curGroup())]&&!ordTickets().length){toast("Nobody is seated at "+gname(curGroup())+" — it was cleared. Seat the party first.",4000);return}
     if(!waiter&&staffList().length){toast("Who's serving? Pick your name");pickWaiter(()=>{const b2=$("oFoot").querySelector('[data-f="send"]');if(b2)b2.click()});return}
     const g=curGroup(),ids=g.slice().sort((a,b)=>a-b);
     const bkN=!ord.pickup&&state.bookings[leadOf(g)];const bkAlg=[bkN&&isAlg(bkN.notes)&&!(ord.note||"").includes(bkN.notes)?"Booking: "+bkN.notes:"",(()=>{const P=bkN&&bkProf(bkN);return P&&P.allergy&&!(bkN.notes||"").includes(P.allergy)&&!(ord.note||"").includes(P.allergy)?"On file: "+P.allergy:""})()].filter(Boolean).join(" · ");
@@ -3445,7 +3468,8 @@ async function loadDay(k){
 async function saveDay(k,st){
   if(k===dateKey){state=st;render();save();return}
   try{localStorage.setItem(LK+"p23-"+k,JSON.stringify(st))}catch(e){}
-  if(db){const body=clone(st);body.updatedAt=Date.now();await db.doc("plan23/"+k).set(body)}
+  if(db){let base=defaultState();try{const sn=await db.doc("plan23/"+k).get();if(sn.exists)base=sanitize(clone(sn.data()))}catch(e){}
+    const patch=planPatch(base,st);if(Object.keys(patch).length){patch.updatedAt=Date.now();await db.doc("plan23/"+k).update(patch)}}
 }
 async function allDays(){
   const out={},t=todayKey();
@@ -4397,7 +4421,7 @@ function setDate(k){
   const d=new Date(k+"T12:00:00");const today=todayKey();
   $("dateLabel").textContent=k===today?"Today":d.toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short"});
   const bn=$("dateBanner");if(bn){bn.classList.toggle("show",k!==today);bn.innerHTML=k!==today?`📅 Viewing ${esc(d.toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"}))} <button id="backToday">Back to today</button>`:""}
-  state=loadLocal(k)||defaultState();if(sheetGroup)closeSheet();if(typeof closeOrder==="function"&&ord)closeOrder();render();subscribe();if(typeof subscribeTickets==="function")subscribeTickets();
+  state=loadLocal(k)||defaultState();synced=loadSynced(k)||(Object.keys(state.bookings).length?null:(()=>{const s=clone(state);s._k=k;return s})());if(sheetGroup)closeSheet();if(typeof closeOrder==="function"&&ord)closeOrder();render();subscribe();if(typeof subscribeTickets==="function")subscribeTickets();
 }
 function shift(n){const d=new Date(dateKey+"T12:00:00");d.setDate(d.getDate()+n);
   setDate(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"))}
@@ -4408,7 +4432,10 @@ $("dateInput").addEventListener("change",e=>{if(/^\d{4}-\d{2}-\d{2}$/.test(e.tar
 // ---------- persistence ----------
 function setStatus(cls,txt){const s=$("status");s.className="status "+cls;s.textContent=txt}
 function loadLocal(k){try{const v=localStorage.getItem(LK+"p23-"+k);return v?sanitize(JSON.parse(v)):null}catch(e){return null}}
-function saveLocal(){try{localStorage.setItem(LK+"p23-"+dateKey,JSON.stringify(state))}catch(e){}}
+function saveLocal(){try{localStorage.setItem(LK+"p23-"+dateKey,JSON.stringify(state));if(synced&&synced._k===dateKey)localStorage.setItem(LK+"p23sync-"+dateKey,JSON.stringify(synced))}catch(e){}}
+let synced=null;   // the plan exactly as the cloud last had it ({…, _k: day})
+function loadSynced(k){try{const v=JSON.parse(localStorage.getItem(LK+"p23sync-"+k)||"null");if(v){const s=sanitize(v);s._k=k;return s}}catch(e){}return null}
+function setSynced(s,k){synced=clone(s);synced._k=k}
 let writing=false,again=false,pendingSnap=null;
 function markDirty(k,on){try{on?localStorage.setItem(LK+"p23dirty-"+k,"1"):localStorage.removeItem(LK+"p23dirty-"+k)}catch(e){}}
 const isDirty=k=>{try{return localStorage.getItem(LK+"p23dirty-"+k)==="1"}catch(e){return false}};
@@ -4417,8 +4444,14 @@ async function save(){
   if(!db||readOnly){if(!db)setStatus("local","This device");return}
   if(writing){again=true;return}
   writing=true;setStatus("saving","Saving…");
-  const key=dateKey,body=clone(state);body.updatedAt=Date.now();markDirty(key,true);
-  try{await db.doc("plan23/"+key).set(body);setStatus("live","Saved · live");if(!again)markDirty(key,false)}
+  const key=dateKey;markDirty(key,true);
+  try{
+    if(!synced||synced._k!==key){const sv=loadSynced(key);if(sv)synced=sv;else{const sn=await db.doc("plan23/"+key).get();setSynced(sn.exists?sanitize(clone(sn.data())):defaultState(),key)}}
+    const base=synced,patch=planPatch(base,state);
+    if(Object.keys(patch).length){patch.updatedAt=Date.now();await db.doc("plan23/"+key).update(patch);if(synced===base){setSynced(applyPlanPatch(base,patch),key);saveLocal()}}
+    setStatus("live","Saved · live");if(!again)markDirty(key,false);
+    // changes other tablets made while this one was saving are picked up straight away
+    try{const sn=await db.doc("plan23/"+key).get();if(sn.exists&&key===dateKey&&!again){rebase(sanitize(clone(sn.data())),key);afterRemote()}}catch(e){}}
   catch(err){
     if(err&&err.code==="invalid_argument"){readOnly=true;markDirty(key,false);setStatus("local","View only");toast("You have view-only access")}
     else if(err&&err.code==="quota_exceeded"){setStatus("local","Storage full");toast("Storage is full — couldn't save")}
@@ -4427,7 +4460,17 @@ async function save(){
   }
   writing=false;if(again){again=false;save()}
 }
-function applySnapshotLater(){if(pendingSnap&&!dragging&&!sheetGroup){const s=pendingSnap;pendingSnap=null;state=s;saveLocal();render()}}
+// the cloud copy changed: take it, then put back anything this tablet changed that the cloud hasn't got yet
+function rebase(server,key){let mine;
+  if(synced&&synced._k===key)mine=planPatch(synced,state);
+  else{mine={};const A=server.bookings||{};for(const id in state.bookings||{})if(!A[id])mine["b:"+id]=clone(state.bookings[id])}   // don't know what the cloud had: keep only tables this tablet added
+  setSynced(server,key);
+  const n=Object.keys(mine).length;state=n?applyPlanPatch(server,mine):clone(server);saveLocal();if(n&&!writing)save();else if(n)again=true}
+function applySnapshotLater(){if(pendingSnap&&!dragging&&!$("sheetOv").classList.contains("show")){const s=pendingSnap;pendingSnap=null;rebase(s,dateKey);afterRemote()}}
+// another tablet changed the floor: redraw, and if the table open here was paid & cleared over there, say so and close it
+function afterRemote(){whenFree(render);
+  if(ord&&!ord.pickup&&$("ordOv").classList.contains("show")){const g=groupFor(ord.lead);
+    if(!state.bookings[leadOf(g)]&&!activeFor(g).length){const n=gname(g);delete carts[ord.lead];closeOrder();toast("🔔 "+n+" was paid & cleared on another tablet",4000)}}}
 function subscribe(){
   if(!db)return;if(unsub){unsub();unsub=null}
   clearTimeout(loadTimer);
@@ -4437,13 +4480,13 @@ function subscribe(){
     if(key!==dateKey)return;
     if(!snap.metadata.fromCache){clearTimeout(loadTimer);if(!writing)setStatus("live","Saved · live")}
     if(snap.metadata.hasPendingWrites)return;
-    // this tablet has a change the cloud never got (e.g. it reloaded for an update mid-save): keep ours and send it
-    if(isDirty(key)){if(writing)return;const mine=loadLocal(key);if(mine){state=mine;render();save();return}markDirty(key,false)}
+    // after a reload, remember what the cloud had last time so changes made here but never sent still go up
+    if(!synced||synced._k!==key){const sv=loadSynced(key);if(sv)synced=sv;else if(isDirty(key)){if(writing)return;markDirty(key,false)}}
     // nothing saved in the cloud for this day (new day, or a manager reset): show a clean floor, not an old copy kept on this tablet
-    if(!snap.exists){if(Object.keys(state.bookings||{}).length||(state.done||[]).length){state=defaultState();saveLocal();for(const k in carts)delete carts[k];for(const k in cartOwner)delete cartOwner[k];keepCarts();render()}return}
+    if(!snap.exists){setSynced(defaultState(),key);if(Object.keys(state.bookings||{}).length||(state.done||[]).length){state=defaultState();saveLocal();for(const k in carts)delete carts[k];for(const k in cartOwner)delete cartOwner[k];keepCarts();render()}return}
     const s=sanitize(clone(snap.data()));
-    if((dragging||sheetGroup)&&view!=="guest"){pendingSnap=s;return}
-    state=s;saveLocal();whenFree(render);if(view==="guest")renderGuest();if(typeof syncCalls==="function")syncCalls();
+    if((dragging||$("sheetOv").classList.contains("show"))&&view!=="guest"){pendingSnap=s;return}   // only the booking form / a drag holds updates back
+    rebase(s,key);afterRemote();if(view==="guest")renderGuest();if(typeof syncCalls==="function")syncCalls();
   },err=>{clearTimeout(loadTimer);setStatus("local",err&&err.code==="revoked"?"Offline":"This device")});
 }
 
@@ -4529,7 +4572,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261114003739";const APP_VER=17;   // both stamped by the publish script
+const APP_BUILD="20261114020331";const APP_VER=18;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
