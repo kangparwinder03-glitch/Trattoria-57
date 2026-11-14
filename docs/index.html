@@ -780,8 +780,11 @@ body.training{padding-top:30px}
 .merow{display:flex;gap:8px;align-items:center;padding:8px 0;border-top:1px dashed var(--parch2)}.merow.off .men b{text-decoration:line-through;color:#9a917a}
 .men{flex:1;min-width:0}.men b{font-size:14px}.men i{font-style:normal;font-size:11px;font-weight:800;border-radius:8px;padding:1px 6px;margin-left:6px}.mnew{background:#e6efd8;color:var(--olive-dk)}.moff{background:#f6e1dc;color:var(--wine)}
 .med{display:block;width:100%;margin-top:4px;font-size:12px!important;padding:5px 8px!important}
+.acg{position:fixed;z-index:9990;pointer-events:none;color:#a99f88;white-space:pre;overflow:hidden;box-sizing:border-box;display:flex;align-items:center}
+.acok{position:fixed;z-index:9991;border:0;background:#3d4a1e;color:#fff;border-radius:8px;width:30px;height:30px;font-size:16px;font-weight:800;padding:0;display:none}
 .custbox{margin:10px 8px 0;padding:10px 12px;border:2px dashed #c9b98f;border-radius:14px;background:#fffdf6;display:flex;flex-direction:column;gap:7px}.custbox small{color:#8a8170;margin-top:-5px}
 #cuN{font-size:18px;padding:10px 12px;border:1.5px solid #c9b98f;border-radius:10px;width:100%;box-sizing:border-box}
+.cujump{border-style:dashed!important}
 .cusug{display:flex;flex-wrap:wrap;gap:6px}.cusug:empty{display:none}.cusug button{border:1px solid #d8cba8;background:#f6efdc;border-radius:18px;padding:8px 12px;font-size:15px;color:#3b3325;max-width:100%;text-align:left}.cusug button b{color:#000}
 .custrow{display:flex;gap:10px;align-items:center}.custrow .btn{flex:1}
 .xlbox{background:#eef3fa;border:1px solid #b9c9df;border-radius:12px;padding:8px 10px}.xlmk{display:flex;gap:10px;align-items:center}.xlmk .btn{flex:1;max-width:none}
@@ -1976,7 +1979,7 @@ function regCustom(n,p,st,cat){if(!n||(ITEMS[n]&&!ITEMS[n].custom))return;ITEMS[
 let custLog=[];try{custLog=JSON.parse(localStorage.getItem("t57-custom")||"[]").filter(x=>x&&x.n).slice(0,200);custLog.forEach(x=>regCustom(x.n,x.p,x.st,x.cat))}catch(e){custLog=[]}
 function logCustom(n,p,st,cat){custLog=[{n,p,st,cat},...custLog.filter(x=>x.n.toLowerCase()!==n.toLowerCase())].slice(0,200);try{localStorage.setItem("t57-custom",JSON.stringify(custLog))}catch(e){}}
 // predictive text for custom requests: whole menu names, past requests, then single-word completion
-const CU_EXTRA=["no cheese","extra cheese","no onion","no garlic","no mushrooms","gluten free","dairy free","sauce on the side","well done","extra","without","half portion","small portion","large portion","plain pasta with butter","plain pasta with tomato sauce","chips","side salad","mixed vegetables","garlic bread","birthday dessert with candle","bread and butter","olive oil","balsamic","ketchup","mayonnaise","mustard","cream","ice","lemon"];
+const CU_EXTRA=["no cheese","extra cheese","no chilli","extra chilli flakes","no tomato","no sauce","no butter","no salt","no onion","no garlic","no mushrooms","gluten free","dairy free","sauce on the side","well done","extra","without","half portion","small portion","large portion","plain pasta with butter","plain pasta with tomato sauce","chips","side salad","mixed vegetables","garlic bread","birthday dessert with candle","bread and butter","olive oil","balsamic","ketchup","mayonnaise","mustard","cream","ice","lemon"];
 function cuSuggest(t){const q=t.toLowerCase().trim();if(!q)return [];
   const names=[...custLog.map(x=>x.n),...MENU.flatMap(c=>c[1].map(x=>x[0])),...Object.values(EN_OF),...CU_EXTRA];
   const seen=new Set(),out=[],push=x=>{const k=x.toLowerCase();if(!seen.has(k)&&k!==q){seen.add(k);out.push(x)}};
@@ -1993,6 +1996,40 @@ function cuSuggest(t){const q=t.toLowerCase().trim();if(!q)return [];
     [...words].filter(x=>x.length>w.length&&x.toLowerCase().startsWith(w)).sort((x,y)=>x.length-y.length).slice(0,3).forEach(x=>push(m[1]+fix(m[2],x)))}
   return out.slice(0,6)}
 function cuChips(t){const q=t.trim();return cuSuggest(t).map(x=>{const i=x.toLowerCase().indexOf(q.toLowerCase());return `<button data-cus="${esc(x)}">${i>=0&&q?esc(x.slice(0,i))+"<b>"+esc(x.slice(i,i+q.length))+"</b>"+esc(x.slice(i+q.length)):esc(x)}</button>`}).join("")}
+// ── predictive typing: the rest of the best guess shows faded inside the box; tap ✓ (or Enter) to take it ──
+let noteLog=[];try{noteLog=JSON.parse(localStorage.getItem("t57-notes")||"[]").slice(0,300)}catch(e){}
+function learnNote(t){String(t||"").split(/,\s*/).map(x=>x.trim()).filter(x=>x.length>2&&x.length<60).forEach(x=>{noteLog=[x,...noteLog.filter(y=>y.toLowerCase()!==x.toLowerCase())].slice(0,300)});try{localStorage.setItem("t57-notes",JSON.stringify(noteLog))}catch(e){}}
+function notePhrases(){const o=new Set([...noteLog,...(typeof ALG_CHIPS!=="undefined"?ALG_CHIPS:[]),...(typeof PREP_CHIPS!=="undefined"?PREP_CHIPS:[]),...CU_EXTRA,
+  "no onions","no garlic","no chilli","no mushrooms","no olives","no tomatoes","no peppers","no sauce","no butter","no salt","no pepper","nut allergy","gluten allergy","dairy allergy","shellfish allergy","egg allergy","coeliac","vegetarian","vegan","halal","medium rare","medium","medium well","well done","rare","bring with mains","bring with starters","bring first","kids first","birthday","anniversary","cut into slices","cut in half","extra crispy","sauce on the side","dressing on the side","extra chilli flakes","extra cheese","extra sauce","small portion"]);return [...o]}
+function acBest(v,kind){if(!v||/\s$/.test(v)&&kind!=="note")return "";
+  if(kind==="custom"){const lv=v.toLowerCase();return cuSuggest(v).find(x=>x.toLowerCase().startsWith(lv)&&x.length>v.length)||""}
+  const m=v.match(/^(.*,\s*)?([^,]*)$/),pre=m[1]||"",seg=m[2];if(seg.trim().length<2)return "";const ls=seg.toLowerCase();
+  const all=notePhrases(),hit=all.filter(x=>x.toLowerCase().startsWith(ls)&&x.length>seg.length).sort((a,b)=>(noteLog.includes(b)-noteLog.includes(a))||a.length-b.length)[0];
+  if(hit)return pre+seg+hit.slice(seg.length);
+  const w=seg.match(/^(.*?)(\S+)$/);if(w&&w[2].length>=2){const lw=w[2].toLowerCase(),words=[...new Set(all.flatMap(x=>x.split(/\s+/)))].filter(x=>x.length>lw.length&&x.toLowerCase().startsWith(lw)).sort((a,b)=>a.length-b.length);
+    if(words[0])return pre+w[1]+w[2]+words[0].slice(w[2].length)}
+  return ""}
+let acG=null,acB=null,acCur=null;
+function acEls(){if(acG)return;acG=document.createElement("div");acG.className="acg";document.body.appendChild(acG);
+  acB=document.createElement("button");acB.type="button";acB.className="acok";acB.textContent="✓";document.body.appendChild(acB);
+  acB.addEventListener("pointerdown",e=>{e.preventDefault();e.stopPropagation();if(acCur)acTake(acCur)});acB.addEventListener("click",e=>{e.preventDefault();e.stopPropagation()})}
+function acShow(inp){acEls();const v=inp.value,full=acBest(v,inp.dataset.ac);acCur=inp;
+  inp._ac=full&&full.toLowerCase().startsWith(v.toLowerCase())&&full.length>v.length?full:"";
+  if(!inp._ac||inp.selectionStart!==v.length||inp.scrollWidth>inp.clientWidth+2){acG.style.display="none";acB.style.display=inp._ac&&inp.selectionStart===v.length?"block":"none";if(inp._ac)acPos(inp,true);return}
+  const cs=getComputedStyle(inp);["fontSize","fontFamily","fontWeight","letterSpacing","paddingLeft","paddingRight","lineHeight"].forEach(k=>acG.style[k]=cs[k]);
+  acG.innerHTML=`<span style="visibility:hidden">${esc(v)}</span>${esc(inp._ac.slice(v.length))}`;acG.style.display="flex";acB.style.display="block";acPos(inp)}
+function acPos(inp,onlyBtn){const r=inp.getBoundingClientRect(),cs=getComputedStyle(inp),bl=parseFloat(cs.borderLeftWidth)||0;
+  if(!onlyBtn)Object.assign(acG.style,{left:(r.left+bl)+"px",top:r.top+"px",width:(r.width-bl-40)+"px",height:r.height+"px"});
+  Object.assign(acB.style,{left:(r.right-36)+"px",top:(r.top+r.height/2-15)+"px"})}
+function acTake(inp){if(!inp._ac)return;inp.value=inp._ac+(inp.dataset.ac==="note"?"":"");inp._ac="";
+  inp.dispatchEvent(new Event("input",{bubbles:true}));inp.dispatchEvent(new Event("change",{bubbles:true}));try{inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length)}catch(e){}
+  if(inp.id==="cuN"){const it=ITEMS[inp.value];if(it&&!it.hidden&&$("cuP")){$("cuP").value=priceOf(inp.value).toFixed(2);if(ord)ord.cu=Object.assign(ord.cu||{},{p:$("cuP").value})}}acShow(inp)}
+function acHide(){if(acG){acG.style.display="none";acB.style.display="none"}acCur=null}
+document.addEventListener("scroll",()=>{if(acCur&&document.activeElement===acCur)acShow(acCur);else acHide()},true);window.addEventListener("resize",()=>{if(acCur)acShow(acCur)});
+document.addEventListener("input",e=>{const t=e.target;if(t&&t.matches&&t.matches("input[data-ac]"))acShow(t)},true);
+document.addEventListener("focusin",e=>{const t=e.target;if(t&&t.matches&&t.matches("input[data-ac]")&&t.value)acShow(t)});
+document.addEventListener("focusout",e=>{const t=e.target;if(t&&t.matches&&t.matches("input[data-ac]"))setTimeout(()=>{if(document.activeElement!==t)acHide()},150)});
+document.addEventListener("keydown",e=>{const t=e.target;if(t&&t.matches&&t.matches("input[data-ac]")&&t._ac&&(e.key==="Tab"||e.key==="Enter"||e.key==="ArrowRight"&&t.selectionStart===t.value.length)){e.preventDefault();acTake(t)}},true);
 function linePrice(x){if(x.cp!=null&&isFinite(+x.cp))return Math.round(+x.cp*100)/100;const it=ITEMS[x.n];if(it&&it.xl&&x.xa!=null&&isFinite(+x.xa))return Math.round((priceOf(it.xl)+(+x.xa))*100)/100;return priceOf(x.n)}
 function cleanMenuOv(d){d=d&&typeof d==="object"?d:{};const o={price:{},desc:{},hide:[],add:[],xl:{}};
   if(d.xl&&typeof d.xl==="object")for(const k in d.xl){const r=xlRule(d.xl[k]);if(r)o.xl[enName(str(k,60))]=r}
@@ -2094,7 +2131,7 @@ function popHtml(n){const P=ord.pop,L=P.cur,have=new Set(L&&L.pc||[]),o=optsFor(
   const xr=xi?`<div class="pq choice xlrow"><span>Size?</span><button data-pxl="0" class="ch${isXL?"":" on"}">Regular</button><button data-pxl="1" class="ch${isXL?" on":""}">⬆ Extra large</button>${isXL?`<label class="xla">+£<input data-pxa type="number" inputmode="decimal" step="0.10" min="0" max="99" value="${xa.toFixed(2)}"></label>`:""}</div>`:"";
   return `<div class="mipop">${xr}${mx}${ch?`<div class="pq choice"><span>${freeSide(n)?"Free side?":"Which one?"}</span>${ch.map(t=>chip(t,"ch")).join("")}</div>`:""}${o.cook?`<div class="pq cook"><span>How cooked?</span>${DONENESS.map(t=>chip(t,"ck")).join("")}</div>`:""}
     <div class="pq">${o.opts.map(t=>chip(t)).join("")}</div>${o.alg?`<div class="pq">${ALG_CHIPS.map(t=>chip(t,"alg")).join("")}</div>`:""}
-    <div class="pqrow"><input data-pn placeholder="Anything else for this one?" maxlength="80" value="${esc(L&&L.px||"")}"><button class="pdone" data-pdone>${L&&L.note?"✓ Done":"No changes"}</button></div></div>`}
+    <div class="pqrow"><input data-pn data-ac="note" placeholder="Anything else for this one?" maxlength="80" value="${esc(L&&L.px||"")}"><button class="pdone" data-pdone>${L&&L.note?"✓ Done":"No changes"}</button></div></div>`}
 function popLine(){const P=ord.pop,c=cart();if(P.cur&&c.includes(P.cur))return P.cur;
   const plain=P.plain;if(!plain||!c.includes(plain))return null;
   let L;if(plain.q>1){plain.q--;L=Object.assign({n:plain.n,q:1,note:""},plain.g?{g:plain.g}:{});c.splice(c.indexOf(plain)+1,0,L)}else L=plain;
@@ -2473,7 +2510,7 @@ function renderOrder(){
       cnt=d=>mineC.filter(x=>BAR_CATS.has(ITEMS[x.n].cat)===d).reduce((a,x)=>a+x.q,0);
     cats.innerHTML=`<div class="msearch"><input id="mSearch" type="search" placeholder="🔎 Search the menu, e.g. peroni, diavola" value="${esc(ord.q||"")}" autocomplete="off">${ord.q?`<button data-mq>✕</button>`:""}</div>`+(hhActive()?`<div class="hhbar">🍹 Happy hour until ${settings.hh.to} · ${settings.hh.pct}% off ${settings.hh.cats.length>3?"drinks":settings.hh.cats.join(", ")}</div>`:"")+tabChips(drinks)+`<div class="sidetog">${ord.barMode?"":`<button data-side="food" class="${drinks?"":"on"}">🍝 Food${cnt(false)?` <b>${cnt(false)}</b>`:""}</button>`}<button data-side="drinks" class="${drinks?"on":""}">🍸 Drinks${cnt(true)?` <b>${cnt(true)}</b>`:""}</button></div>
       <div class="catrow">${CATS.filter(k=>BAR_CATS.has(k)===drinks&&showCat(k)).map(k=>{const n=mineC.filter(x=>ITEMS[x.n].cat===k).reduce((a,x)=>a+x.q,0);
-      return `<button data-c="${esc(k)}" class="${k===ord.cat?"on":""}${k==="Specials"?" spc":""}">${k==="Specials"?"⭐ ":""}${esc(k)}${n?" · "+n:""}</button>`}).join("")}</div>`;
+      return `<button data-c="${esc(k)}" class="${k===ord.cat?"on":""}${k==="Specials"?" spc":""}">${k==="Specials"?"⭐ ":""}${esc(k)}${n?" · "+n:""}</button>`}).join("")}<button data-cujump class="cujump">✏️ Custom</button></div>`;
     const qq=(ord.q||"").trim().toLowerCase();
     const list=qq?MENU.flatMap(([k,l])=>l.map(x=>[x[0],x[1],k+(x[2]?" · "+x[2]:"")])).filter(([n,p,d])=>(n+" "+d+" "+(EN_OF[n]||"")).toLowerCase().includes(qq)).slice(0,60):MENU.find(m=>m[0]===ord.cat)[1];
     if(ord.half&&(qq||!HALF_CATS.has(ord.cat)))ord.half=null;
@@ -2487,7 +2524,7 @@ function renderOrder(){
       return `<div class="mi${q?" has":""}${out?" out":""}" data-n="${esc(n)}"><div class="nm"><b>${esc(n)}${EN_OF[n]?` <i class="enn">(${esc(EN_OF[n])})</i>`:""}</b>${d?`<small>${esc(d)}</small>`:""}</div><div class="pr">${priceOf(n)<p?`<s>${money(p)}</s> <b class="hhp">${money(priceOf(n))}</b>`:money(p)}</div>
       <div class="step">${q?`<button data-a="dec">−</button><span>${q}</span>`:""}${out?`<span class="oos">OUT</span>`:`<button class="add" data-a="inc">+</button>`}</div></div>${ord.pop&&ord.pop.n===n?popHtml(n):""}`}).join("")+
       (qq?"":`<div class="custbox"><b>✏️ Custom request</b><small>Anything not on the menu — goes to the ${drinks?"bar":"kitchen"}</small>
-        <input id="cuN" placeholder="Start typing, e.g. pizza…" maxlength="60" autocomplete="off" autocapitalize="sentences" value="${esc((ord.cu&&ord.cu.n)||"")}">
+        <input id="cuN" data-ac="custom" placeholder="Start typing, e.g. pizza…" maxlength="60" autocomplete="off" autocapitalize="sentences" value="${esc((ord.cu&&ord.cu.n)||"")}">
         <div class="cusug" id="cuS">${cuChips((ord.cu&&ord.cu.n)||"")}</div>
         <div class="custrow"><label class="xla">£<input id="cuP" type="number" inputmode="decimal" min="0" max="999" step="0.10" placeholder="0.00" value="${esc((ord.cu&&ord.cu.p)||"")}"></label><button class="btn pri" data-cuadd>+ Add</button></div></div>`)+
       `<div class="empty" style="padding:18px">Allergies? Add a note on the next screen. Halal &amp; gluten free options available.</div>`;
@@ -2500,12 +2537,12 @@ function renderOrder(){
     body.innerHTML=(ord.pickup&&!ord.walk&&c.length?patChips():"")+(ord.pickup&&c.length?`<div class="guests" style="gap:8px"><input id="pName" placeholder="Name (optional)" maxlength="40" value="${esc(ord.pname||"")}" style="flex:1.2"><input id="pPhone" type="tel" inputmode="tel" placeholder="Phone (optional)" maxlength="30" value="${esc(ord.pphone||"")}" style="flex:1"></div>`:"")+(firstOrder&&c.length?`<div class="guests"><b>Guests at table</b><div class="step"><button data-g="-1">−</button><span>${ord.covers}</span><button class="add" data-g="1">+</button></div></div>`:"")+(c.length?c.map((x,i)=>`<div class="cl" data-i="${i}"><div class="r1"><b>${esc(x.n)}</b><span class="pr">${money(priceOf(x.n)*x.q)}</span>
       <div class="step">${x.g?`<span class="gtag">👤 ${esc(x.g)}</span>`:""}<button data-a="dec">−</button><span>${x.q}</span><button class="add" data-a="inc">+</button></div></div>
       ${outSet.has(x.n)?`<div class="note" style="margin:4px 0">⛔ Out of stock — remove this</div>`:""}
-      ${ITEMS[x.n].station==="bar"?`<input class="ln" placeholder="Note for the bar (e.g. no ice)" maxlength="120" value="${esc(x.note)}">
-      <div class="qn">${x.of?"":drinkChips(ITEMS[x.n].cat).map(t=>`<button data-q="${t}">${t}</button>`).join("")}</div></div>`:`<input class="ln${isAlg(x.note)?" alg":""}" placeholder="Note for kitchen (e.g. no onions)" maxlength="120" value="${esc(x.note)}">
+      ${ITEMS[x.n].station==="bar"?`<input class="ln" data-ac="note" placeholder="Note for the bar (e.g. no ice)" maxlength="120" value="${esc(x.note)}">
+      <div class="qn">${x.of?"":drinkChips(ITEMS[x.n].cat).map(t=>`<button data-q="${t}">${t}</button>`).join("")}</div></div>`:`<input class="ln${isAlg(x.note)?" alg":""}" data-ac="note" placeholder="Note for kitchen (e.g. no onions)" maxlength="120" value="${esc(x.note)}">
       <div class="qn alg">${ALG_CHIPS.map(t=>`<button data-q="${t}">⚠ ${t}</button>`).join("")}</div>
       <div class="qn">${PREP_CHIPS.map(t=>`<button data-q="${t}">${t}</button>`).join("")}</div></div>`}`).join("")+
       ""+
-      `<div class="cl"><b style="font-size:13px">Note for the whole table</b><input id="oNote" placeholder="Allergies, timing…" maxlength="200" value="${esc(ord.note||"")}"></div>`
+      `<div class="cl"><b style="font-size:13px">Note for the whole table</b><input id="oNote" data-ac="note" placeholder="Allergies, timing…" maxlength="200" value="${esc(ord.note||"")}"></div>`
       :`<div class="empty">Nothing in this order yet.</div>`);
     foot.innerHTML=`<button class="btn sec" data-f="back">‹ Menu</button><button class="btn pri" data-f="send"${c.length?"":" disabled"}>${c.every(x=>ITEMS[x.n].station==="bar")?"Send to bar":c.some(x=>ITEMS[x.n].station==="bar")?"Send to kitchen + bar":"Send to kitchen"} · ${money(sum)}</button>`;
   }else{
@@ -2646,6 +2683,8 @@ $("oBody").addEventListener("click",e=>{if(ord&&ord.openedAt&&Date.now()-ord.ope
     renderOrder();if(ord.pop)requestAnimationFrame(()=>{const m=$("oBody").querySelector(".mipop");if(m)try{m.scrollIntoView({block:"nearest"})}catch(e){}});return}
   if(cl&&a){const x=c[+cl.dataset.i];if(a.dataset.a==="inc")x.q++;else{x.q--;if(x.q<=0)c.splice(+cl.dataset.i,1)}renderOrder()}
 });
+$("oCats").addEventListener("click",e=>{if(!ord||!e.target.closest("[data-cujump]"))return;e.stopPropagation();ord.q="";ord.half=null;ord.pop=null;renderOrder();
+  const i=$("cuN");if(i){i.scrollIntoView({block:"center"});try{i.focus({preventScroll:true})}catch(e){}}},true);
 $("oCats").addEventListener("click",e=>{const tc=e.target.closest("[data-tab]");if(tc&&ord){e.stopPropagation();tabChip(tc.dataset.tab)}},true);
 $("oBody").addEventListener("input",e=>{if(!ord)return;
   if(e.target.id==="cuN"){ord.cu=Object.assign(ord.cu||{},{n:e.target.value});$("cuS").innerHTML=cuChips(e.target.value);return}
@@ -2680,7 +2719,7 @@ $("oFoot").addEventListener("click",async e=>{if(Date.now()<footLockUntil){e.sto
     const pace=false;   // everything goes to the kitchen together (one ticket, grouped STARTERS / MAINS / DESSERTS)
     if(pace)parts=[["kitchen",pace.st],["kitchen",pace.mn,true]].concat(parts.filter(p=>p[0]==="bar"));
     const made=parts.map(([st,list,hold])=>{const t={wait:!!hold,id:"t"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)+st[0],date:dateKey,tables:ids,station:st,
-      label:ord.pickup?(ord.walk?"Bar walk-up #":"Takeaway #")+ord.pno:gname(g),items:list.map(x=>Object.assign({n:x.n,q:x.q,p:linePrice(x),note:(x.note||"").trim(),c:ord.pickup?"":courseOf(x.n)},x.g?{g:x.g}:{})),
+      label:ord.pickup?(ord.walk?"Bar walk-up #":"Takeaway #")+ord.pno:gname(g),items:list.map(x=>(learnNote(x.note),0)||Object.assign({n:x.n,q:x.q,p:linePrice(x),note:(x.note||"").trim(),c:ord.pickup?"":courseOf(x.n)},x.g?{g:x.g}:{})),
       note:[st==="kitchen"?bkAlg:"",(ord.note||"").trim()].filter(Boolean).join(" · ").slice(0,200),status:"new",createdAt:Date.now(),updatedAt:Date.now(),closed:false,no,covers:coversLeft,by:waiter?waiter.id:"",byName:waiter?waiter.name:"",
       pickup:!!ord.pickup,walk:!!(ord.pickup&&ord.walk),pno:ord.pickup?ord.pno:0,pname:ord.pickup?(ord.pname||"").trim():"",pphone:ord.pickup?(ord.pphone||"").trim():""};coversLeft=0;
       if(ord.pickup&&!ord.walk&&ord.pat)t.pat=ord.pat;   // pickups go to the kitchen straight away, collection time printed big on top
@@ -4696,7 +4735,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261114221041";const APP_VER=33;   // both stamped by the publish script
+const APP_BUILD="20261114221547";const APP_VER=34;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
