@@ -99,7 +99,7 @@ object Format {
             val pat = t.optString("pat")
             if (!bar) { line("COLLECTION TIME"); size(4, 4).line(if (pat.isNotBlank()) pat else "ASAP").size(1, 1); bar(8) }
             else if (pat.isNotBlank()) size(2, 2).line("FOR $pat").size(1, 1)
-            line("PICKUP").size(2, 2).line("#" + t.optInt("pno")).size(1, 1)
+            line("TAKEAWAY").size(2, 2).line("#" + t.optInt("pno")).size(1, 1)
             val who = listOf(t.optString("pname"), t.optString("pphone")).filter { it.isNotBlank() }.joinToString(" · ")
             if (who.isNotBlank()) line(who)
         } else size(2, 2).line(t.optString("label").uppercase(Locale.UK)).size(1, 1)

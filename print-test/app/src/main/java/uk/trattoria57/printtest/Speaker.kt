@@ -37,7 +37,7 @@ object Speaker {
     /** Words for a ticket label: "Tables 1+2" → "Tables 1 and 2", "Pickup #25" → "Pickup number 25". */
     fun words(label: String, training: Boolean): String {
         val l = label.replace("+", " and ").replace("#", "number ").trim()
-        val what = if (l.lowercase().startsWith("pickup") || l.lowercase().startsWith("bar walk")) "New $l" else "New order, $l"
+        val what = if (l.lowercase().startsWith("pickup") || l.lowercase().startsWith("takeaway") || l.lowercase().startsWith("bar walk")) "New $l" else "New order, $l"
         return (if (training) "Training. " else "") + what
     }
 

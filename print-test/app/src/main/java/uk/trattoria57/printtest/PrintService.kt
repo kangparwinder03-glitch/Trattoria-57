@@ -114,7 +114,7 @@ class PrintService : Service() {
             for ((coll, id, d) in tickets) {
                 if (!running || prefs.getString("station", "kitchen") != st) return
                 val training = coll == "train_tickets"
-                val label = if (d.optBoolean("pickup")) "Pickup #${d.optInt("pno")}" else d.optString("label")
+                val label = if (d.optBoolean("pickup")) "Takeaway #${d.optInt("pno")}" else d.optString("label")
                 EscPos.hasCutter = cutterFor(prefs, st)
                 val copies = copiesFor(prefs, st)
                 val lg = logos(cols)
