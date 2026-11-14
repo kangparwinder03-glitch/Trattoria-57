@@ -548,6 +548,7 @@ body.tiles #floor,body.tiles .hint,body.tiles .ctrls{display:none}
 .tile:active{transform:scale(.97)}
 .tile .tn{display:flex;justify-content:space-between;align-items:baseline}
 .tile .tn b{font-family:"Cormorant Garamond",Georgia,serif;font-size:28px;line-height:1}
+.tile .tn.long{flex-direction:column;align-items:flex-start;gap:2px}.tile .tn.long b{font-size:20px;word-break:break-word}
 .tile .tn span{font-size:11px;color:#8a7d62;font-weight:700}
 .tile .who{font-weight:700;font-size:14px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tile .meta{font-size:12px;color:#6d6448;margin-top:2px}
@@ -1459,7 +1460,7 @@ function renderTiles(){
     if(fk==="qr"){cls="qr";tag="📱 QR order"}
     if(fk==="call"){cls="call";const f=Object.values(flashes).find(x=>x.kind==="call"&&x.tables.some(i=>g.includes(i)));tag=f&&f.what==="bill"?"💷 Bill":f&&f.what==="ready"?"🔔 Food ready":"🙋 Waiter"}
     const bill=act.length?money(billOf(act).total):"";
-    sec[z].push({id:g[0],min:Math.min(...g),html:`<button class="tile ${cls}" data-t="${g[0]}"><div class="tn"><b>${esc(groupNames(g).join("+"))}</b><span>${cap} seats</span></div>
+    sec[z].push({id:g[0],min:Math.min(...g),html:`<button class="tile ${cls}" data-t="${g[0]}"><div class="tn${groupNames(g).join("+").length>5?" long":""}"><b>${esc(groupNames(g).join("+"))}</b><span>${cap} seats</span></div>
       <div class="who">${esc(who)}</div><div class="meta">${esc(meta)}</div>${(()=>{const tm=tableTimer(act);return tm?`<div class="tmr${tm.late?" late":""}">${tm.txt}</div>`:""})()}${tag||bill?`<div class="tt2">${tag?`<i>${esc(tag)}</i>`:"<span></span>"}<em>${bill}</em></div>`:""}</button>`});
   }
   const picks=typeof pickupRows==="function"?pickupRows():[];
@@ -4521,7 +4522,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261114001020";const APP_VER=15;   // both stamped by the publish script
+const APP_BUILD="20261114003125";const APP_VER=16;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
