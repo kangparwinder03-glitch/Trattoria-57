@@ -95,11 +95,13 @@ object Format {
         if (training) line("** TRAINING - NOT REAL **")
         if (copies > 1) line("Copy $copy of $copies")
         if (t.optBoolean("pickup")) {
-            line("PICKUP").size(3, 3).line("#" + t.optInt("pno")).size(1, 1)
+            // pickups/takeaways: collection time huge at the very top, everything cooked together (no courses)
+            val pat = t.optString("pat")
+            if (!bar) { line("COLLECTION TIME"); size(4, 4).line(if (pat.isNotBlank()) pat else "ASAP").size(1, 1); bar(8) }
+            else if (pat.isNotBlank()) size(2, 2).line("FOR $pat").size(1, 1)
+            line("PICKUP").size(2, 2).line("#" + t.optInt("pno")).size(1, 1)
             val who = listOf(t.optString("pname"), t.optString("pphone")).filter { it.isNotBlank() }.joinToString(" · ")
             if (who.isNotBlank()) line(who)
-            val pat = t.optString("pat")
-            if (pat.isNotBlank()) size(2, 2).line("FOR $pat").size(1, 1)
         } else size(2, 2).line(t.optString("label").uppercase(Locale.UK)).size(1, 1)
         bold(false)
         val time = SimpleDateFormat("HH:mm", Locale.UK).format(Date(t.optLong("createdAt", System.currentTimeMillis())))
@@ -115,7 +117,7 @@ object Format {
         // kitchen: group by course — STARTERS, thick bar, MAINS, thick bar, DESSERTS
         val order = mutableListOf<Int>()
         val course = { i: Int -> items.getJSONObject(i).optString("c") }
-        val grouped = !bar && (0 until items.length()).any { course(it).isNotBlank() }
+        val grouped = !bar && !t.optBoolean("pickup") && (0 until items.length()).any { course(it).isNotBlank() }
         if (grouped) { for (c in listOf("s", "m", "", "d")) for (i in 0 until items.length()) if (course(i) == c && !items.getJSONObject(i).optBoolean("v")) order += i }
         else for (i in 0 until items.length()) if (!items.getJSONObject(i).optBoolean("v")) order += i
         var lastC: String? = null
