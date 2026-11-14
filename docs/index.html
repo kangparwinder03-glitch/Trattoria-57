@@ -780,6 +780,7 @@ body.training{padding-top:30px}
 .merow{display:flex;gap:8px;align-items:center;padding:8px 0;border-top:1px dashed var(--parch2)}.merow.off .men b{text-decoration:line-through;color:#9a917a}
 .men{flex:1;min-width:0}.men b{font-size:14px}.men i{font-style:normal;font-size:11px;font-weight:800;border-radius:8px;padding:1px 6px;margin-left:6px}.mnew{background:#e6efd8;color:var(--olive-dk)}.moff{background:#f6e1dc;color:var(--wine)}
 .med{display:block;width:100%;margin-top:4px;font-size:12px!important;padding:5px 8px!important}
+.xlbox{background:#eef3fa;border:1px solid #b9c9df;border-radius:12px;padding:8px 10px}.xlmk{display:flex;gap:10px;align-items:center}.xlmk .btn{flex:1;max-width:none}
 .xla{display:flex;align-items:center;gap:2px;font-weight:800;color:#2f4a6e}.xla input{width:80px!important;text-align:right;font-size:17px;font-weight:800;padding:6px 8px!important}
 .mexl{display:flex;align-items:center;gap:2px;font-size:12px;color:#8a8170;white-space:nowrap}.mexl input{width:58px!important;text-align:right;font-size:14px}.mexl.on{color:#3f5a1e;font-weight:800}.mexl.on input{border-color:#7a9a3a!important;background:#f3f8e8}.mexl.bad input{border-color:#c0392b!important}
 .mep{display:flex;align-items:center;gap:2px;font-weight:800}.mep input{width:84px!important;text-align:right}.mep.chg input{border-color:#d9b04a!important;background:#fff6e6}
@@ -2497,7 +2498,7 @@ function receiptHtml(B){
   return `<div class="rcpt"><div class="rc-h"><i>TRATTORIA</i><b>57</b><small>ITALIAN KITCHEN &amp; BAR</small><span>55/57 Gisburn Road, Barnoldswick · 01282 816554</span></div>
     <div class="rc-m"><span>${who}</span><span>${d.toLocaleDateString("en-GB")} ${timeOf(d.getTime())}</span></div>
     <div class="rc-hint">Tap an item to give it a discount</div>
-    ${B.lines.map(l=>`<div class="rc-l rc-it${l.d?" has":""}" data-ld="${esc(l.k)}"><span>${l.q} × ${esc(l.n)} <em>🏷</em></span><span>${money(l.q*l.p)}</span></div>${l.d?`<div class="rc-l rc-idisc" data-ld="${esc(l.k)}"><span>↳ ${esc(idiscLabel(l.d))}</span><span>−${money(l.dAmt)}</span></div>`:""}`).join("")}
+    ${B.lines.map(l=>`<div class="rc-l rc-it${l.d?" has":""}" data-ld="${esc(l.k)}"><span>${l.q} × ${esc(l.n)} <em>${ITEMS[xlName(l.n)]?"⬆ ":""}🏷</em></span><span>${money(l.q*l.p)}</span></div>${l.d?`<div class="rc-l rc-idisc" data-ld="${esc(l.k)}"><span>↳ ${esc(idiscLabel(l.d))}</span><span>−${money(l.dAmt)}</span></div>`:""}`).join("")}
     <div class="rc-l rc-sub"><span>Subtotal</span><span>${money(B.sub)}</span></div>
     ${B.itemDisc?`<div class="rc-l rc-disc"><span>Item discounts</span><span>−${money(B.itemDisc)}</span></div>`:""}
     ${B.disc?`<div class="rc-l rc-disc"><span>Discount (${esc(discLabel(B.disc))})${B.disc.note?`<i>${esc(B.disc.note)}</i>`:""}</span><span>−${money(B.orderDiscAmt)}</span></div>`:""}
@@ -4290,12 +4291,22 @@ function pickPrinter(then,what){
 
 // ---- per-item discounts (tap an item on the bill) ----
 const IDISC_REASONS=["Pickup deal","Promo","Staff","Complaint","Friends & family"];
+// make an item already on the bill extra large (waiter forgot at order time): one at a time, like a void
+async function makeXL(k,extra){
+  const B=billOf(ordTickets()),l=B.lines.find(x=>x.k===k);if(!l)return false;const xn=xlName(l.n);if(!ITEMS[xn])return false;
+  if((B.itPaid[k]||0)>0){toast("Part of this is already paid — take the payment off first");return false}
+  const t=[...B.live].reverse().find(t=>t.items.some(y=>!y.v&&y.n===l.n&&y.p===l.p));if(!t)return false;
+  const items=t.items.map(y=>({...y})),i=items.findIndex(y=>!y.v&&y.n===l.n&&y.p===l.p),it=items[i];
+  const nx={...it,q:1,n:xn,p:Math.round((it.p+extra)*100)/100,xb:waiter?waiter.name:""};
+  if(it.q>1){it.q--;items.splice(i+1,0,nx)}else items[i]=nx;
+  await patchTicket(t,{items});ticketsChanged();return true}
 function openItemDisc(k){
   if(readOnly){toast("View only");return}
   const B=billOf(ordTickets()),l=B.lines.find(x=>x.k===k);if(!l||!B.anchor)return;
+  const canXL=!!ITEMS[xlName(l.n)],xr=(menuOv.xl||{})[l.n],xlDef=xr?xlAdd(l.p,xr):XL_DEFAULT;
   const cur=B.idisc[k];let sel={t:cur?cur.t:"pct",v:cur?cur.v:0,r:cur?cur.r:(ord.pickup?"Pickup deal":"Promo")};
   const draw=()=>{const g=l.q*l.p,amt=sel.v?Math.round((sel.t==="pct"?g*sel.v/100:Math.min(g,sel.v))*100)/100:0;
-    $("xBody").innerHTML=`<div class="spsum"><div><span>Item</span><b>${money(g)}</b></div><div><span>Discount</span><b>−${money(amt)}</b></div><div class="lft"><span>Now</span><b>${money(g-amt)}</b></div></div>
+    $("xBody").innerHTML=(canXL?`<div class="xlbox"><div class="gl-title"><span>⬆ Extra large</span></div><div class="xlmk"><label class="xla">+£<input id="xlVal" type="number" inputmode="decimal" min="0" max="99" step="0.10" value="${(Math.round(xlDef*100)/100).toFixed(2)}"></label><button class="btn pri" data-xlmake>Make ${l.q>1?"1 of "+l.q:"it"} extra large</button></div></div><div class="gl-title" style="margin-top:12px"><span>🏷 Or discount</span></div>`:"")+`<div class="spsum"><div><span>Item</span><b>${money(g)}</b></div><div><span>Discount</span><b>−${money(amt)}</b></div><div class="lft"><span>Now</span><b>${money(g-amt)}</b></div></div>
       <div class="gl-title"><span>Percent off</span></div><div class="dchips">${[10,15,20,25,30,50].map(v=>`<button data-ip="${v}" class="${sel.t==="pct"&&sel.v===v?"on":""}">${v}%</button>`).join("")}</div>
       <div class="gl-title"><span>Or pounds off</span></div><div class="dchips">${[1,2,3,5].map(v=>`<button data-ia="${v}" class="${sel.t==="amt"&&sel.v===v?"on":""}">£${v}</button>`).join("")}</div>
       <div class="row2" style="margin-top:6px"><div class="fld"><label for="idVal">Other amount</label><input id="idVal" type="number" inputmode="decimal" min="0" step="0.5" value="${sel.v||""}"></div>
@@ -4307,8 +4318,10 @@ function openItemDisc(k){
       bx[1].textContent="−"+money(a);bx[2].textContent=money(g-a);$("xBody").querySelectorAll("[data-ip].on,[data-ia].on").forEach(c=>c.classList.remove("on"));
       const ok=$("xFoot").querySelector("[data-iok]");if(ok)ok.disabled=!sel.v};
   };
-  openX("idisc","Discount: "+l.n,`${l.q} × ${money(l.p)}${cur?" · now "+idiscLabel(cur):""}`,async e=>{
+  openX("idisc",(canXL?"Extra large / discount: ":"Discount: ")+l.n,`${l.q} × ${money(l.p)}${cur?" · now "+idiscLabel(cur):""}`,async e=>{
     const b=e.target.closest("button");if(!b)return;
+    if(b.hasAttribute("data-xlmake")){const v=Math.round(+$("xlVal").value*100)/100;if(!isFinite(v)||v<=0||v>=100){toast("Type the extra amount, e.g. 2");return}
+      b.disabled=true;if(await makeXL(k,v)){closeX();renderOrder();toast(`1 × ${l.n} → extra large +${money(v)}`)}else b.disabled=false;return}
     if(b.dataset.ip){sel.t="pct";sel.v=+b.dataset.ip;draw();return}
     if(b.dataset.ia){sel.t="amt";sel.v=+b.dataset.ia;draw();return}
     if(b.dataset.ir){sel.r=b.dataset.ir;draw();return}
@@ -4636,7 +4649,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261114181332";const APP_VER=26;   // both stamped by the publish script
+const APP_BUILD="20261114181912";const APP_VER=27;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
