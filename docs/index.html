@@ -3930,9 +3930,10 @@ function tabChip(v){
     if(n.toLowerCase()==="table")n="Table guest";ord.guests=(ord.guests||[]);if(!ord.guests.includes(n)&&!names.includes(n))ord.guests.push(n);v=n}
   if(drinks)ord.gDrink=v;else ord.gFood=v;renderOrder()}
 // the bill for one tab ("" = shared table): same discounts as the whole bill, shared out fairly
-function tabBill(all,name){
+function tabBill(all,name){return tabBillBy(all,x=>(x.g||"")===name)}
+function tabBillBy(all,keep){
   const B=billOf(all),live=B.live;if(!live.length)return Object.assign(billOf([]),{live:[]});
-  const copies=live.map((t,i)=>Object.assign({},t,{items:t.items.filter(x=>(x.g||"")===name),pays:[]}));
+  const copies=live.map((t,i)=>Object.assign({},t,{items:t.items.filter(keep),pays:[]}));
   let disc=B.disc;if(disc&&disc.type==="amt"){const base=B.sub-B.itemDisc;disc=Object.assign({},disc,{type:"pct",value:base>0?B.orderDiscAmt/base*100:0})}
   copies[0].disc=disc;copies[0].idisc=B.idisc;
   const TB=billOf(copies);
@@ -4033,8 +4034,11 @@ async function finishBill(pay){
   const how=mode==="split"?"split payment":pay;
   if(settings.autoRc!==false&&canThermal()&&B.live.length){
     const named=tabNames(all).length;let L;
-    if(named&&!isP){const TB=tabBill(all,"");L=TB.live.some(t=>t.items.some(x=>!x.v))?billLines(TB,"Table"):null;if(L)L.splice(L.length-3,0,PL.lr("PAID",money(TB.total),1),PL.rule())}
-    else{L=billLines(B);L.splice(L.length-3,0,PL.lr("PAID ("+(mode==="split"?"split":pay)+")",money(B.total),1),PL.rule())}
+    // guests who paid on their own already got their receipt; this one covers everything else the table paid for
+    const paidTabs=new Set(pays.filter(p=>p.tab).map(p=>p.tab)),tablePays=pays.filter(p=>!p.tab);
+    const paidLines=tot=>tablePays.length?tablePays.map(p=>PL.lr("PAID "+p.m,money(p.a),1)):[PL.lr("PAID ("+pay+")",money(tot),1)];
+    if(named&&!isP){const TB=tabBillBy(all,x=>!x.g||!paidTabs.has(x.g));L=TB.live.some(t=>t.items.some(x=>!x.v))?billLines(TB,paidTabs.size?"":"Table"):null;if(L)L.splice(L.length-3,0,...paidLines(TB.total),PL.rule())}
+    else{L=billLines(B);L.splice(L.length-3,0,...paidLines(B.total),PL.rule())}
     if(L)
     printJob(rcpPrinter(),"receipt","Receipt "+(isP?"Pickup "+pno:gname(g)),L,"full",...qrPair());
   }
@@ -4517,7 +4521,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261113231250";const APP_VER=14;   // both stamped by the publish script
+const APP_BUILD="20261114001020";const APP_VER=15;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
