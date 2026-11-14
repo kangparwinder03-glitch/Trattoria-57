@@ -1927,11 +1927,11 @@ const MENU=[
 // ---------- orders & kitchen ----------
 // ---- English on every screen and kitchen/bar ticket; the customer's bill & receipt on the till printer stay in Italian ----
 const EN_OF={"Acqua del Rubinetto":"Tap Water","Acqua Frizzante":"Sparkling Water","Antipasto Misto": "Mixed Antipasti", "Polpette della Casa": "House Meatballs", "Cocktail di Gamberetti": "Prawn Cocktail", "Melone Fresco": "Fresh Melon", "Melone & Prosciutto": "Melon & Parma Ham", "Pasticcio de Fegato": "Chicken Liver Pâté", "Brie Fritto": "Deep Fried Brie", "Salmone Affumicato": "Smoked Salmon", "Costolette di Maiale in Salsa": "BBQ Spare Ribs", "Alette di Pollo in Salsa": "BBQ Chicken Wings", "Funghi all'Aglio": "Garlic Mushrooms", "Funghi Andreas": "Deep Fried Mushrooms", "Calamari Fritti": "Fried Calamari", "Gamberetti alla Diavola (Hot)": "Devilled Prawns (Hot)", "Gamberoni in Tempura": "Tempura King Prawns", "Sardine Fritte": "Fried Sardines", "Bruschetta Classica": "Classic Bruschetta", "Bruschetta Ezios": "Bruschetta Ezio's", "Bruschetta Diavola": "Spicy Salami Bruschetta", "Pizza all'Aglio": "Garlic Pizza", "Pizza all'Aglio e Pomodoro": "Garlic & Tomato Pizza", "Pizza all'Aglio e Mozzarella": "Garlic & Mozzarella Pizza", "Pizza Messicana": "Mexican Garlic Pizza", "Pizza Funghi": "Mushroom Pizza", "Pizza Prosciutto": "Ham Pizza", "Pizza Marinara": "Seafood Pizza", "Pizza Diavola": "Hot Salami Pizza", "Pizza Garibaldi": "Garibaldi Pizza", "Pizza Margherita": "Margherita Pizza", "Pizza Capricciosa": "Ham & Mushroom Pizza", "Pizza Hawaiana": "Hawaiian Pizza", "Pizza House Special": "House Special Pizza", "Pizza 4 Formaggi": "Four Cheese Pizza", "Pizza Vegetariana": "Vegetarian Pizza", "Pizza Trastevere": "Stilton & Parma Ham Pizza", "Pizza 4 Stagioni": "Four Seasons Pizza", "Pizza Vulcano": "Volcano Pizza", "Linguine Marinara": "Seafood Linguine", "Tortellini House Special": "House Special Tortellini", "Penne Napoli": "Penne Tomato & Basil", "Tagliatelle Stilton": "Stilton Tagliatelle", "Tagliatelle Mare e Monti": "Prawn & Mushroom Tagliatelle", "Linguine al Salmone": "Smoked Salmon Linguine", "Lasagna Vegetariana": "Vegetable Lasagne", "Lasagna": "Lasagne", "Cannelloni Contadina": "Spinach & Ricotta Cannelloni", "Tortellini alla Panna": "Creamy Tortellini", "Risotto al Salmone": "Salmon Risotto", "Risotto Formaggio & Prosciutto": "Cheese & Parma Ham Risotto", "Risotto alla Panna": "Creamy Risotto", "Risotto Marinara": "Seafood Risotto", "Pollo alla Panna": "Chicken in Cream Sauce", "Pollo alla Cacciatora": "Chicken Cacciatore", "Pollo Principessa": "Chicken Principessa", "Pollo Diavola (Hot)": "Devilled Chicken (Hot)", "Pollo al Pepe": "Peppered Chicken", "Pollo Corso": "Chicken Corso", "Pollo alla Strogonoff": "Chicken Stroganoff", "Filetto alla Strogonoff": "Beef Fillet Stroganoff", "Fracosta di Bue": "Sirloin Steak", "Filetto di Bue Extra Mature": "Fillet Steak", "Scampi alla Panna": "Scampi in Cream Sauce", "Scampi alla Provinciale": "Scampi Provinciale", "Scampi Fritti": "Breaded Scampi", "Salmone Aurora": "Salmon Aurora", "Salmone Navona": "Salmon Navona", "Sauce: Pepe": "Sauce: Peppercorn", "Sauce: All'Aglio": "Sauce: Garlic", "Sauce: Panna": "Sauce: Cream", "Maionese all'Aglio": "Garlic Mayo", "Pomodoro dip": "Tomato Dip"};
-const IT_OF={};MENU.forEach(([cat,list])=>list.forEach(it=>{const e=EN_OF[it[0]];if(e){IT_OF[e]=it[0];it[0]=e}}));
-const enName=n=>EN_OF[n]||n;                                  // old Italian name (saved prices, stock lists…) → today's English one
+const IT_OF={};for(const k in EN_OF)IT_OF[EN_OF[k]]=k;          // English name → Italian (menu shows Italian, English underneath)
+const enName=n=>IT_OF[n]||n;                                  // English name saved by v15–v21 (prices, stock lists…) → today's Italian one
 function itName(n){const it=ITEMS[n];if(it&&it.half)return "½ "+(IT_OF[it.half[0]]||it.half[0]).replace(/^Pizza /,"")+" / ½ "+(IT_OF[it.half[1]]||it.half[1]).replace(/^Pizza /,"");
-  if(it&&it.alias)return n;return IT_OF[n]||n}
-function addAliases(){for(const it in EN_OF){const e=EN_OF[it];if(ITEMS[e]&&(!ITEMS[it]||ITEMS[it].alias))ITEMS[it]=Object.assign({},ITEMS[e],{n:it,hidden:true,alias:e})}}
+  if(it&&it.alias)return it.alias;return IT_OF[n]||n}
+function addAliases(){for(const it in EN_OF){const e=EN_OF[it];if(ITEMS[it]&&(!ITEMS[e]||ITEMS[e].alias))ITEMS[e]=Object.assign({},ITEMS[it],{n:e,hidden:true,alias:it})}}
 const CATS=MENU.map(c=>c[0]);
 // "Specials" only shows when there's something on it (add them in ⭐ Manager → Edit menu & prices → Specials)
 const catHas=k=>{const c=MENU.find(x=>x[0]===k);return !!(c&&c[1].length)};
@@ -2415,16 +2415,16 @@ function renderOrder(){
       <div class="catrow">${CATS.filter(k=>BAR_CATS.has(k)===drinks&&showCat(k)).map(k=>{const n=mineC.filter(x=>ITEMS[x.n].cat===k).reduce((a,x)=>a+x.q,0);
       return `<button data-c="${esc(k)}" class="${k===ord.cat?"on":""}${k==="Specials"?" spc":""}">${k==="Specials"?"⭐ ":""}${esc(k)}${n?" · "+n:""}</button>`}).join("")}</div>`;
     const qq=(ord.q||"").trim().toLowerCase();
-    const list=qq?MENU.flatMap(([k,l])=>l.map(x=>[x[0],x[1],k+(x[2]?" · "+x[2]:"")])).filter(([n,p,d])=>(n+" "+d+" "+(IT_OF[n]||"")).toLowerCase().includes(qq)).slice(0,60):MENU.find(m=>m[0]===ord.cat)[1];
+    const list=qq?MENU.flatMap(([k,l])=>l.map(x=>[x[0],x[1],k+(x[2]?" · "+x[2]:"")])).filter(([n,p,d])=>(n+" "+d+" "+(EN_OF[n]||"")).toLowerCase().includes(qq)).slice(0,60):MENU.find(m=>m[0]===ord.cat)[1];
     if(ord.half&&(qq||ord.cat!=="Pizza"))ord.half=null;
     const hq=mineC.filter(x=>ITEMS[x.n]&&ITEMS[x.n].half).reduce((a,x)=>a+x.q,0);
     if(ord.half){const h=ord.half;
       body.innerHTML=`<div class="halfbar"><b>½ + ½</b> Tap the <b>${h.a?"second":"first"} half</b>${h.a?` · 1st: ${esc(halfShort(h.a))}`:""}<button data-halfx>Cancel</button></div>`+
-        halfChoices().filter(n=>n!==h.a).map(n=>`<div class="mi${outSet.has(n)?" out":""}" data-half="${esc(n)}"><div class="nm"><b>${esc(halfShort(n))}</b></div><div class="pr">${money(priceOf(n))}</div><div class="step">${outSet.has(n)?`<span class="oos">OUT</span>`:`<button class="add">½</button>`}</div></div>`).join("");
+        halfChoices().filter(n=>n!==h.a).map(n=>`<div class="mi${outSet.has(n)?" out":""}" data-half="${esc(n)}"><div class="nm"><b>${esc(halfShort(n))}</b>${EN_OF[n]?`<small>${esc(EN_OF[n])}</small>`:""}</div><div class="pr">${money(priceOf(n))}</div><div class="step">${outSet.has(n)?`<span class="oos">OUT</span>`:`<button class="add">½</button>`}</div></div>`).join("");
     }else
     body.innerHTML=(!qq&&ord.cat==="Pizza"&&halfChoices().length>1?`<div class="mi halfrow${hq?" has":""}" data-halfgo><div class="nm"><b>½ + ½ &nbsp;Half &amp; half pizza</b><small>Pick any two pizzas · charged at the dearer one${hq?` · ${hq} on this order`:""}</small></div><div class="step"><button class="add">+</button></div></div>`:"")+list.map(([n,p,d])=>{const q=mineC.filter(x=>x.n===n).reduce((a,x)=>a+x.q,0);
       const out=outSet.has(n);
-      return `<div class="mi${q?" has":""}${out?" out":""}" data-n="${esc(n)}"><div class="nm"><b>${esc(n)}</b>${d?`<small>${esc(d)}</small>`:""}</div><div class="pr">${priceOf(n)<p?`<s>${money(p)}</s> <b class="hhp">${money(priceOf(n))}</b>`:money(p)}</div>
+      return `<div class="mi${q?" has":""}${out?" out":""}" data-n="${esc(n)}"><div class="nm"><b>${esc(n)}</b>${EN_OF[n]||d?`<small>${esc([EN_OF[n],d].filter(Boolean).join(" · "))}</small>`:""}</div><div class="pr">${priceOf(n)<p?`<s>${money(p)}</s> <b class="hhp">${money(priceOf(n))}</b>`:money(p)}</div>
       <div class="step">${q?`<button data-a="dec">−</button><span>${q}</span>`:""}${out?`<span class="oos">OUT</span>`:`<button class="add" data-a="inc">+</button>`}</div></div>${ord.pop&&ord.pop.n===n?popHtml(n):""}`}).join("")+
       `<div class="empty" style="padding:18px">Allergies? Add a note on the next screen. Halal &amp; gluten free options available.</div>`;
     foot.innerHTML=count?`<button class="btn sec" data-f="clear">Clear</button><button class="btn pri" data-f="review">Review order · ${count} · ${money(sum)}</button>`
@@ -3371,7 +3371,7 @@ function renderGuest(){
     const list=MENU.find(m=>m[0]===gCat)[1];
     h+=`<div class="gsec"><h4>${esc(gCat.toUpperCase())}</h4>${list.map(([n,p,d])=>{const q=c.filter(x=>x.n===n).reduce((a,x)=>a+x.q,0);
       const out=outSet.has(n);
-      return `<div class="gitem${out?" out":""}" data-n="${esc(n)}"><div class="nm"><b>${esc(n)}</b>${d?`<small>${esc(d)}</small>`:""}</div><div class="pr">${priceOf(n)<p?`<s>${money(p)}</s> <b class="hhp">${money(priceOf(n))}</b>`:money(p)}</div>
+      return `<div class="gitem${out?" out":""}" data-n="${esc(n)}"><div class="nm"><b>${esc(n)}</b>${EN_OF[n]||d?`<small>${esc([EN_OF[n],d].filter(Boolean).join(" · "))}</small>`:""}</div><div class="pr">${priceOf(n)<p?`<s>${money(p)}</s> <b class="hhp">${money(priceOf(n))}</b>`:money(p)}</div>
         <div class="step">${q?`<button data-a="dec">−</button><span>${q}</span>`:""}${out?`<span class="oos">Sold out</span>`:`<button class="add" data-a="inc">+</button>`}</div></div>`}).join("")}</div>`;
     if(BAR_CATS.has(gCat)&&["Beer & Cider","Wine","Prosecco & Spritz","Spirits","Gin","Shots"].includes(gCat))h+=`<p class="trial">We operate Challenge 25 — we may ask for ID when we bring alcoholic drinks.</p>`;
     h+=`<p class="trial">Allergies? Add a note before sending, or ask a member of staff. Halal &amp; gluten-free options available.</p></div>`;
@@ -4602,7 +4602,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261114163950";const APP_VER=21;   // both stamped by the publish script
+const APP_BUILD="20261114164926";const APP_VER=22;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
