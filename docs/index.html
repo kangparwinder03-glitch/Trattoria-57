@@ -2014,7 +2014,13 @@ function mixFor(n){const c=ITEMS[n]&&ITEMS[n].cat;const l=c==="Spirits"||c==="Gi
 function syncMixers(c){for(let i=c.length-1;i>=0;i--){const x=c[i];if(!x.of)continue;const P=c.find(y=>y.lid===x.of);if(!P||P.mx!==x.n)c.splice(i,1);else x.q=P.q}}
 // quick options that drop down under a dish/drink the moment it's added
 // items where the customer has to pick one (shown first in the drop-down; the order can't be sent without it)
-const CHOICES={"Mineral Water":["Still","Sparkling"],"Salad":["Mixed","Green","Tomato"],"Liqueur Coffee":["Irish","Baileys","Tia Maria","Amaretto"]};
+// free side (fries, salad or mixed veg) with the chicken dishes that don't come with rice, the lamb shank and the steaks
+const FREE_SIDES=["Fries","Salad","Mixed veg"];
+function freeSide(n){const it=ITEMS[n];if(!it||it.half)return false;const t=n+" "+(it.d||"");
+  if(/strogonoff|stroganoff/i.test(t))return false;
+  return (it.cat==="Poultry"&&!/\brice\b/i.test(it.d||""))||/lamb shank|fracosta|filetto di bue|sirloin|fillet steak|rib ?eye|t-bone|rump/i.test(t)}
+const CHOICES=new Proxy({"Mineral Water":["Still","Sparkling"],"Salad":["Mixed","Green","Tomato"],"Liqueur Coffee":["Irish","Baileys","Tia Maria","Amaretto"]},
+  {get:(o,k)=>{const v=Reflect.get(o,k);return v!==undefined||typeof k!=="string"?v:(freeSide(k)?FREE_SIDES:undefined)}});
 // kids pizza or pasta: choose from every pizza and pasta dish on the menu (follows menu edits)
 Object.defineProperty(CHOICES,"Kids Pizza or Pasta",{enumerable:true,get(){const f=k=>(MENU.find(m=>m[0]===k)||[0,[]])[1].map(x=>x[0]);return [...f("Pizza"),...f("Pasta")]}});
 const reEsc=t=>String(t).replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
@@ -2023,17 +2029,17 @@ const DONENESS=["Blue","Rare","Medium rare","Medium","Medium well","Well done"];
 function optsFor(n){const it=ITEMS[n];if(!it)return {opts:[],cook:false,alg:false};const c=it.cat;
   if(c==="Hot Drinks")return {opts:["Oat milk","Soya milk","Decaf","Extra shot","Sugar on side","Extra hot"],alg:false};
   if(BAR_CATS.has(c))return {opts:drinkChips(c),mix:mixFor(n),alg:false};
-  if(/steak|fracosta|filetto di bue|sirloin|rib ?eye|t-bone|rump/i.test(n+" "+(it.d||"")))return {opts:["Peppercorn sauce","Diane sauce","Sauce on side","No sauce","Chips instead","Salad instead"],cook:true,alg:true};
+  if(/steak|fracosta|filetto di bue|sirloin|rib ?eye|t-bone|rump/i.test(n+" "+(it.d||"")))return {opts:["Peppercorn sauce","Diane sauce","Sauce on side","No sauce"],cook:true,alg:true};
   if(c==="Pizza"||c==="Garlic Pizzas")return {opts:["No onion","No chilli","No mushrooms","No olives","Extra cheese","Extra chilli","Well done","Halal","Gluten free base"],alg:true};
   if(c==="Pasta"||c==="Risotto")return {opts:["No onion","No garlic","No chilli","No mushrooms","Extra cheese","Gluten free pasta","Starter size"],alg:true};
-  if(c==="Meat"||c==="Poultry"||c==="Fish")return {opts:["Sauce on side","No sauce","Chips instead","Salad instead","Well done","Halal","No onion"],alg:true};
+  if(c==="Meat"||c==="Poultry"||c==="Fish")return {opts:["Sauce on side","No sauce","Chips instead","Salad instead","Well done","Halal","No onion"].filter(t=>!freeSide(n)||!/instead/.test(t)),alg:true};
   if(c==="Children")return {opts:["No sauce","Plain","No cheese","Chips on side"],alg:true};
   return {opts:["No onion","No chilli","Sauce on side","Halal","Extra hot"],alg:true}}
 function popHtml(n){const P=ord.pop,L=P.cur,have=new Set(L&&L.pc||[]),o=optsFor(n);
   const chip=(t,cls)=>`<button data-pq="${esc(t)}" class="${cls||""}${have.has(t)?" on":""}">${cls==="alg"?"⚠ ":""}${esc(t)}</button>`;
   const ch=CHOICES[n];
   const mx=o.mix&&o.mix.length?`<div class="pq mix"><span>Mixer?</span>${o.mix.map(([lab,m])=>`<button data-pmx="${esc(m)}" class="mx${L&&L.mx===m?" on":""}">${esc(lab)} <small>+${money(priceOf(m))}</small></button>`).join("")}</div>`:"";
-  return `<div class="mipop">${mx}${ch?`<div class="pq choice"><span>Which one?</span>${ch.map(t=>chip(t,"ch")).join("")}</div>`:""}${o.cook?`<div class="pq cook"><span>How cooked?</span>${DONENESS.map(t=>chip(t,"ck")).join("")}</div>`:""}
+  return `<div class="mipop">${mx}${ch?`<div class="pq choice"><span>${freeSide(n)?"Free side?":"Which one?"}</span>${ch.map(t=>chip(t,"ch")).join("")}</div>`:""}${o.cook?`<div class="pq cook"><span>How cooked?</span>${DONENESS.map(t=>chip(t,"ck")).join("")}</div>`:""}
     <div class="pq">${o.opts.map(t=>chip(t)).join("")}</div>${o.alg?`<div class="pq">${ALG_CHIPS.map(t=>chip(t,"alg")).join("")}</div>`:""}
     <div class="pqrow"><input data-pn placeholder="Anything else for this one?" maxlength="80" value="${esc(L&&L.px||"")}"><button class="pdone" data-pdone>${L&&L.note?"✓ Done":"No changes"}</button></div></div>`}
 function popLine(){const P=ord.pop,c=cart();if(P.cur&&c.includes(P.cur))return P.cur;
@@ -4603,7 +4609,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261114165230";const APP_VER=23;   // both stamped by the publish script
+const APP_BUILD="20261114171406";const APP_VER=24;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
