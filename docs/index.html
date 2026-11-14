@@ -877,6 +877,7 @@ body.mode-waiter #vKitchen,body.mode-waiter #vBar,body.mode-waiter #vReport{disp
 .mipop .pq.mix{border-bottom:1px dashed var(--parch2);padding-bottom:8px;margin-bottom:6px}
 .mipop .pq.mix button small{opacity:.75;font-weight:600}
 .tabchips .tcn{font-style:normal;display:inline-block;min-width:18px;padding:0 5px;margin-left:3px;border-radius:9px;background:#c79a2b;color:#fff;font-size:12px;line-height:18px;text-align:center}
+.enn{display:inline;font-style:normal;font-weight:400;font-size:.72em;opacity:.5;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -2420,11 +2421,11 @@ function renderOrder(){
     const hq=mineC.filter(x=>ITEMS[x.n]&&ITEMS[x.n].half).reduce((a,x)=>a+x.q,0);
     if(ord.half){const h=ord.half;
       body.innerHTML=`<div class="halfbar"><b>½ + ½</b> Tap the <b>${h.a?"second":"first"} half</b>${h.a?` · 1st: ${esc(halfShort(h.a))}`:""}<button data-halfx>Cancel</button></div>`+
-        halfChoices().filter(n=>n!==h.a).map(n=>`<div class="mi${outSet.has(n)?" out":""}" data-half="${esc(n)}"><div class="nm"><b>${esc(halfShort(n))}</b>${EN_OF[n]?`<small>${esc(EN_OF[n])}</small>`:""}</div><div class="pr">${money(priceOf(n))}</div><div class="step">${outSet.has(n)?`<span class="oos">OUT</span>`:`<button class="add">½</button>`}</div></div>`).join("");
+        halfChoices().filter(n=>n!==h.a).map(n=>`<div class="mi${outSet.has(n)?" out":""}" data-half="${esc(n)}"><div class="nm"><b>${esc(halfShort(n))}${EN_OF[n]?` <i class="enn">(${esc(EN_OF[n])})</i>`:""}</b></div><div class="pr">${money(priceOf(n))}</div><div class="step">${outSet.has(n)?`<span class="oos">OUT</span>`:`<button class="add">½</button>`}</div></div>`).join("");
     }else
     body.innerHTML=(!qq&&ord.cat==="Pizza"&&halfChoices().length>1?`<div class="mi halfrow${hq?" has":""}" data-halfgo><div class="nm"><b>½ + ½ &nbsp;Half &amp; half pizza</b><small>Pick any two pizzas · charged at the dearer one${hq?` · ${hq} on this order`:""}</small></div><div class="step"><button class="add">+</button></div></div>`:"")+list.map(([n,p,d])=>{const q=mineC.filter(x=>x.n===n).reduce((a,x)=>a+x.q,0);
       const out=outSet.has(n);
-      return `<div class="mi${q?" has":""}${out?" out":""}" data-n="${esc(n)}"><div class="nm"><b>${esc(n)}</b>${EN_OF[n]||d?`<small>${esc([EN_OF[n],d].filter(Boolean).join(" · "))}</small>`:""}</div><div class="pr">${priceOf(n)<p?`<s>${money(p)}</s> <b class="hhp">${money(priceOf(n))}</b>`:money(p)}</div>
+      return `<div class="mi${q?" has":""}${out?" out":""}" data-n="${esc(n)}"><div class="nm"><b>${esc(n)}${EN_OF[n]?` <i class="enn">(${esc(EN_OF[n])})</i>`:""}</b>${d?`<small>${esc(d)}</small>`:""}</div><div class="pr">${priceOf(n)<p?`<s>${money(p)}</s> <b class="hhp">${money(priceOf(n))}</b>`:money(p)}</div>
       <div class="step">${q?`<button data-a="dec">−</button><span>${q}</span>`:""}${out?`<span class="oos">OUT</span>`:`<button class="add" data-a="inc">+</button>`}</div></div>${ord.pop&&ord.pop.n===n?popHtml(n):""}`}).join("")+
       `<div class="empty" style="padding:18px">Allergies? Add a note on the next screen. Halal &amp; gluten free options available.</div>`;
     foot.innerHTML=count?`<button class="btn sec" data-f="clear">Clear</button><button class="btn pri" data-f="review">Review order · ${count} · ${money(sum)}</button>`
@@ -3371,7 +3372,7 @@ function renderGuest(){
     const list=MENU.find(m=>m[0]===gCat)[1];
     h+=`<div class="gsec"><h4>${esc(gCat.toUpperCase())}</h4>${list.map(([n,p,d])=>{const q=c.filter(x=>x.n===n).reduce((a,x)=>a+x.q,0);
       const out=outSet.has(n);
-      return `<div class="gitem${out?" out":""}" data-n="${esc(n)}"><div class="nm"><b>${esc(n)}</b>${EN_OF[n]||d?`<small>${esc([EN_OF[n],d].filter(Boolean).join(" · "))}</small>`:""}</div><div class="pr">${priceOf(n)<p?`<s>${money(p)}</s> <b class="hhp">${money(priceOf(n))}</b>`:money(p)}</div>
+      return `<div class="gitem${out?" out":""}" data-n="${esc(n)}"><div class="nm"><b>${esc(n)}${EN_OF[n]?` <i class="enn">(${esc(EN_OF[n])})</i>`:""}</b>${d?`<small>${esc(d)}</small>`:""}</div><div class="pr">${priceOf(n)<p?`<s>${money(p)}</s> <b class="hhp">${money(priceOf(n))}</b>`:money(p)}</div>
         <div class="step">${q?`<button data-a="dec">−</button><span>${q}</span>`:""}${out?`<span class="oos">Sold out</span>`:`<button class="add" data-a="inc">+</button>`}</div></div>`}).join("")}</div>`;
     if(BAR_CATS.has(gCat)&&["Beer & Cider","Wine","Prosecco & Spritz","Spirits","Gin","Shots"].includes(gCat))h+=`<p class="trial">We operate Challenge 25 — we may ask for ID when we bring alcoholic drinks.</p>`;
     h+=`<p class="trial">Allergies? Add a note before sending, or ask a member of staff. Halal &amp; gluten-free options available.</p></div>`;
@@ -4602,7 +4603,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261114164926";const APP_VER=22;   // both stamped by the publish script
+const APP_BUILD="20261114165230";const APP_VER=23;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
