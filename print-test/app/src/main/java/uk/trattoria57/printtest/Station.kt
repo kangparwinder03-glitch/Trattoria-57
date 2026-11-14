@@ -179,7 +179,16 @@ object Format {
             val b = o.optInt("b") == 1
             when {
                 o.has("rule") -> rule(o.optString("rule").firstOrNull() ?: '-')
-                o.has("l") -> bold(b).lr(o.optString("l"), o.optString("r")).bold(false)
+                o.has("l") -> {
+                    val l = o.optString("l"); val r = o.optString("r")
+                    if (o.optInt("s", 1) > 1) {
+                        // big line (TOTAL): double width + height, so it reads by torchlight
+                        val c2 = cols / 2; val room = c2 - r.length - 1
+                        val ll = if (l.length > room) l.substring(0, maxOf(0, room)) else l
+                        bold(true).size(2, 2).line(ll + " ".repeat(maxOf(1, c2 - ll.length - r.length)) + r).size(1, 1).bold(false)
+                    } else if (l.length + r.length + 1 > cols && r.isNotBlank()) bold(b).line(l).lr("", r).bold(false)   // long dish name: whole name, price underneath
+                    else bold(b).lr(l, r).bold(false)
+                }
                 else -> {
                     val s = o.optInt("s", 1)
                     align(when (o.optString("a")) { "c" -> 1; "r" -> 2; else -> 0 }).bold(b)

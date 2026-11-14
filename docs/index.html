@@ -4047,7 +4047,7 @@ function guestSplitLines(all){
   const part=(title,TB)=>{if(!TB.lines.length)return;L.push(PL.t(title,"l",1));TB.lines.forEach(l=>L.push(PL.lr(`${l.q} x ${itName(l.n)}`,money(l.q*l.p))));
     if(TB.itemDisc||TB.disc)L.push(PL.lr("  Discount","-"+money(Math.round((TB.sub-TB.total)*100)/100)));L.push(PL.lr("  Totale "+title,money(TB.total),1),PL.rule())};
   names.forEach(n=>part(n,tabBill(all,n)));part("Tavolo (shared)",tabBill(all,""));
-  L.push(PL.rule("="),PL.lr("TOTAL",money(B.total),1),PL.rule("="),PL.gap(),PL.t("Grazie! Thank you for","c"),PL.t("dining with us.","c"));return L}
+  L.push(PL.rule("="),PL.lr("TOTAL",money(B.total),1,2),PL.rule("="),PL.gap(),PL.t("Grazie! Thank you for","c"),PL.t("dining with us.","c"));return L}
 function printTab(n){const all=ordTickets(),TB=tabBill(all,n);if(!TB.lines.length)return;
   printJob(rcpPrinter(),"bill","Bill "+gname(curGroup())+" · "+(n||"Table"),billLines(TB,n||"Table"),"full",...qrPair());toast("Printing "+(n||"table")+"'s bill")}
 function payTab(n,m){
@@ -4249,7 +4249,7 @@ async function printJob(to,kind,title,lines,logo,social,review){
   try{await target.collection("printjobs").doc(id).set({to,kind,title,lines,logo:logo||"full",social:social||[],review:review||"",reviews:review?reviewLinks().filter(x=>x.u===review):[],date:dateKey,createdAt:Date.now(),by:waiter?waiter.name:""});
     toast(`🧾 Sent to the ${prName(to)} printer`)}catch(e){toast("Couldn't send to printer — try again")}
 }
-const PL={t:(t,a,b,s)=>({t:String(t),a:a||"l",b:b?1:0,s:s||1}),lr:(l,r,b)=>({l:String(l),r:String(r),b:b?1:0}),rule:c=>({rule:c||"-"}),gap:()=>({t:""})};
+const PL={t:(t,a,b,s)=>({t:String(t),a:a||"l",b:b?1:0,s:s||1}),lr:(l,r,b,s)=>Object.assign({l:String(l),r:String(r),b:b?1:0},s>1?{s}:{}),rule:c=>({rule:c||"-"}),gap:()=>({t:""})};
 function billLines(B,tab){
   const head=(ord.pickup?`Takeaway #${ord.pno}`:gnameLong(curGroup()))+(tab?" · "+tab:"");
   const L=[PL.lr(head,new Date().toLocaleString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})),PL.rule()];
@@ -4257,7 +4257,7 @@ function billLines(B,tab){
   L.push(PL.rule(),PL.lr("Subtotal",money(B.sub)));
   if(B.itemDisc)L.push(PL.lr("Item discounts","-"+money(B.itemDisc)));
   if(B.disc)L.push(PL.lr(`Discount ${B.disc.type==="pct"?B.disc.value+"%":""}${B.disc.reason?" ("+B.disc.reason+")":""}`,"-"+money(B.orderDiscAmt)));
-  L.push(PL.rule("="),PL.lr("TOTAL",money(B.total),1),PL.rule("="));
+  L.push(PL.rule("="),PL.lr("TOTAL",money(B.total),1,2),PL.rule("="));
   B.pays.forEach(p=>L.push(PL.lr(`Paid ${p.m}`,"-"+money(p.a))));
   if(B.pays.length)L.push(PL.lr("LEFT TO PAY",money(B.left),1));
   L.push(PL.gap(),PL.t("Grazie! Thank you for","c"),PL.t("dining with us.","c"));
@@ -4651,7 +4651,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261114194059";const APP_VER=30;   // both stamped by the publish script
+const APP_BUILD="20261114201500";const APP_VER=31;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
