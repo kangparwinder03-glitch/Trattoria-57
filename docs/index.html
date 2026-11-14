@@ -1245,7 +1245,8 @@ let view3d=true, zoom=1, panX=0, panY=0, kFit=1, rot=false;
 let db=null, unsub=null, loadTimer=null, readOnly=false;
 let dragging=null, sheetGroup=null;
 
-function todayKey(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+// the restaurant's "day" runs until 5am, so a late night stays on that night's floor, bills and kitchen tickets
+function todayKey(){const d=new Date(Date.now()-5*3600e3);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
 function homePos(id){return {x:T[id].x,y:T[id].y}}
 function defaultState(){const g=DEFAULT_GROUPS();return {groups:g,tables:layoutFrom(g).tables,bookings:{},done:[]}}
 function clone(o){return JSON.parse(JSON.stringify(o))}
@@ -2128,6 +2129,7 @@ async function flushOutbox(){
   finally{flushing=false}}
 setInterval(flushOutbox,5000);addEventListener("online",()=>setTimeout(flushOutbox,500));
 function withOutbox(list){   // show waiting orders/changes on screen even though the server hasn't got them yet
+  if(typeof tkPend!=="undefined"&&Object.keys(tkPend).length)list=list.map(t=>tkPend[t.id]?(cleanTicket(t.id,Object.assign({},t,tkPend[t.id]))||t):t);   // changes still on their way
   if(!outbox.length)return list;const by=new Map(list.map(t=>[t.id,t]));
   outbox.forEach(q=>{if(q.coll!=="tickets")return;const cur=by.get(q.id);
     if(q.op==="set"&&!cur&&q.data.date===dateKey){const t=cleanTicket(q.id,q.data);if(t)by.set(q.id,t)}
@@ -2145,13 +2147,19 @@ async function putTicket(t){
   try{await Promise.race([db.collection("tickets").doc(t.id).set(t),new Promise((_,no)=>setTimeout(()=>no({code:"unavailable",message:"timeout"}),10000))])}
   catch(e){if(hardErr(e))throw e;queueWrite("set",t.id,t);toast("⏳ Slow connection — order saved on this tablet, it'll send by itself")}
 }
+// the tablet's own copy changes at once; the cloud save happens in the background (in order, per ticket),
+// so paying or changing an order never waits on a slow or hung connection
+const tkChain={},tkBusy=new Set(),tkPend={};
 async function patchTicket(t,fields){
   Object.assign(t,fields,{updatedAt:Date.now()});
   if(!db){storeLocal();ticketsChanged();return}
   const f={...fields,updatedAt:t.updatedAt};
   if(outbox.length){queueWrite("update",t.id,f);flushOutbox();return}
-  try{await Promise.race([db.collection("tickets").doc(t.id).update(f),new Promise((_,no)=>setTimeout(()=>no({code:"unavailable",message:"timeout"}),10000))])}
-  catch(e){if(hardErr(e)){toast("View only — can't update");return}queueWrite("update",t.id,f);toast("⏳ No connection — saved here, will send when the Wi-Fi is back")}
+  tkBusy.add(t.id);tkPend[t.id]=Object.assign(tkPend[t.id]||{},f);
+  const run=async()=>{try{await Promise.race([db.collection("tickets").doc(t.id).update(f),new Promise((_,no)=>setTimeout(()=>no({code:"unavailable",message:"timeout"}),10000))])}
+    catch(e){if(hardErr(e)){toast("View only — can't update");return}queueWrite("update",t.id,f);toast("⏳ No connection — saved here, will send when the Wi-Fi is back")}};
+  const p=(tkChain[t.id]||Promise.resolve()).then(run);tkChain[t.id]=p;
+  p.finally(()=>{if(tkChain[t.id]===p){delete tkChain[t.id];tkBusy.delete(t.id);delete tkPend[t.id]}});
 }
 // ---- floor alerts: flash + chime when kitchen moves an order ----
 const prevSt={};let stInit=false;
@@ -2312,9 +2320,21 @@ function whenFree(f){if(touching){deferred.add(f);return}f()}
 // what this order screen shows from the cloud; if none of it changed, there's nothing to redraw
 function ordSig(){if(!ord)return "";try{return ordTickets().map(t=>t.id+":"+t.status+":"+(t.updatedAt||0)+":"+(t.closed?1:0)+":"+(t.wait?1:0)+":"+(t.printed?1:0)).join("|")+"#"+outbox.length}catch(e){return Math.random()+""}}
 function refreshOrderIfChanged(){if(ord&&$("ordOv").classList.contains("show")&&ordSig()!==ord._sig)renderOrder()}
+const strayFirst={};
+function strayOrders(){const now=Date.now();
+  groupsOf(state.tables).forEach(g=>{const L=leadOf(g);if(state.bookings[L]){delete strayFirst[L];return}
+    // only orders nobody has touched for a while (a table move or payment in progress on another tablet updates them)
+    const open=activeFor(g).filter(t=>!t.pickup&&t.date===dateKey&&now-Math.max(t.createdAt||0,t.updatedAt||0)>30000&&!tkBusy.has(t.id)&&!outbox.some(q=>q.id===t.id));
+    if(!open.length){delete strayFirst[L];return}
+    if(!strayFirst[L]){strayFirst[L]=now;setTimeout(()=>{try{strayOrders()}catch(e){}},21000);return}   // …and still like that 20s later
+    if(now-strayFirst[L]<20000)return;delete strayFirst[L];
+    const what=open.flatMap(t=>t.items.filter(x=>!x.v).map(x=>x.q+"× "+x.n)).slice(0,4).join(", ");
+    state.bookings[L]={time:new Date().toTimeString().slice(0,5),walkin:true,guests:[{name:"⚠ Unpaid order",phone:""}],size:1,status:"confirmed",notes:"Found unpaid after the Wi-Fi came back: "+what,email:""};
+    save();toast("⚠ "+gname(g)+" still has an unpaid order ("+what+") — it was added while the Wi-Fi was down",8000)})}
 function ticketsChanged(){
   checkStatusChanges();
   if(typeof view!=="undefined"&&view==="report")renderReport();
+  try{strayOrders()}catch(e){}
   if(!dragging)whenFree(render);
   whenFree(renderKitchen);
   whenFree(refreshOrderIfChanged);
@@ -2557,7 +2577,8 @@ $("oBody").addEventListener("input",e=>{if(!ord)return;
   if(e.target.id==="oNote"){ord.note=e.target.value;return}
   if(e.target.id==="pName"){ord.pname=e.target.value;return}if(e.target.id==="pPhone"){ord.pphone=e.target.value;return}
   if(e.target.classList.contains("ln")){const row=e.target.closest(".cl");cart()[+row.dataset.i].note=e.target.value}});
-$("oFoot").addEventListener("click",async e=>{
+let footLockUntil=0;
+$("oFoot").addEventListener("click",async e=>{if(Date.now()<footLockUntil){e.stopPropagation();return}
   const bt=e.target.closest("button");if(!bt||!ord)return;const f=bt.dataset.f;
   if(f==="review"){ord.pop=null;ord.review=true;renderOrder();$("oBody").scrollTop=0}
   else if(f==="back"){ord.review=false;renderOrder()}
@@ -2588,8 +2609,9 @@ $("oFoot").addEventListener("click",async e=>{
     const cartCopy=JSON.parse(JSON.stringify(c)),noteCopy=ord.note,leadNow=ord.lead;
     try{for(const t of made){await putTicket(t);if(!tickets.find(x=>x.id===t.id))tickets.push(t)}
       showUndo(made.map(t=>t.id),cartCopy,noteCopy,leadNow);alexaSay(made);
-      carts[leadNow]=[];keepCarts();if(ord&&ord.lead===leadNow){ord.note="";ord.review=false;ord.tab="sent"}
-      toast(pace?"Starters → kitchen · mains on hold — tap 🔥 Fire mains when ready":(ord&&ord.pickup?`Pickup #${ord.pno}: `:"")+(parts.length>1?"food → kitchen · drinks → bar":parts[0][0]==="bar"?"sent to bar":"sent to kitchen"));ticketsChanged()}
+      carts[leadNow]=[];keepCarts();footLockUntil=Date.now()+1200;if(ord&&ord.lead===leadNow){ord.note="";ord.review=false;ord.tab="sent"}
+      if(made.some(t=>outbox.some(q=>q.id===t.id)))toast("⚠ NO INTERNET — order saved on this tablet. The kitchen/bar will get it when the Wi-Fi is back. Tell the kitchen if it's urgent.",7000);
+      else toast(pace?"Starters → kitchen · mains on hold — tap 🔥 Fire mains when ready":(ord&&ord.pickup?`Pickup #${ord.pno}: `:"")+(parts.length>1?"food → kitchen · drinks → bar":parts[0][0]==="bar"?"sent to bar":"sent to kitchen"));ticketsChanged()}
     catch(err){bt.disabled=false;toast(err&&err.code==="invalid_argument"?"View only — can't send orders":"Couldn't send — try again")}
     finally{clearTimeout(unstick)}
   }
@@ -3581,7 +3603,7 @@ $("lblAll").onclick=()=>pickPrinter(to=>ask(`Print ${N} table labels?`,`One stic
 // ================= service-flow extras =================
 // generic sheet used by waiter login, out of stock, voids, move, split, reminders
 var xKind=null,xClick=null;
-function openX(kind,title,sub,onClick){xKind=kind;xClick=onClick;$("xTitle").textContent=title;$("xSub").textContent=sub||"";$("xBody").innerHTML="";$("xFoot").innerHTML="";$("xOv").classList.add("show");$("xBody").scrollTop=0}
+function openX(kind,title,sub,onClick){hideUndo();xKind=kind;xClick=onClick;$("xTitle").textContent=title;$("xSub").textContent=sub||"";$("xBody").innerHTML="";$("xFoot").innerHTML="";$("xOv").classList.add("show");$("xBody").scrollTop=0}
 function closeX(){$("xOv").classList.remove("show");xKind=null;xClick=null}
 $("xClose").onclick=closeX;
 $("xOv").addEventListener("pointerdown",e=>{if(e.target===$("xOv"))closeX()});
@@ -3819,6 +3841,9 @@ function tableTimer(act){if(!act||!act.length)return null;const now=Date.now(),l
   const fmt=m=>m>=60?Math.floor(m/60)+"h"+String(m%60).padStart(2,"0"):m+"m";
   return {sat,wait,held:held.length>0,hm,txt:`⏱ ${fmt(sat)}`+(wait?` · 🍳 ${fmt(wait)}`:"")+(held.length?` · ⏸ mains ${fmt(hm)}`:""),late:wait>=25||hm>=30}}
 setInterval(()=>{if(view==="floor"&&!dragging)whenFree(render)},60000);
+// at 5am a tablet that was showing "today" moves on to the new day by itself
+{let shownToday=todayKey();setInterval(()=>{const t=todayKey();if(t===shownToday)return;
+  if(dateKey===shownToday){if((ord&&$("ordOv").classList.contains("show"))||$("sheetOv").classList.contains("show"))return;setDate(t)}shownToday=t},60000)}
 
 // ---- delete a whole order (or one ticket) — manager only; kept on the day report under Voids ----
 const DEL_REASONS=["Wrong table","Customer left","Duplicate order","Test order","Mistake"];
@@ -3866,7 +3891,7 @@ async function doMove(from,to){
   const Lf=leadOf(from),Lt=leadOf(to),ids=to.slice().sort((a,b)=>a-b),lab=gname(to);
   const list=activeFor(from);for(const t of list)await patchTicket(t,{tables:ids,label:lab});
   if(state.bookings[Lf]){state.bookings[Lt]=state.bookings[Lf];delete state.bookings[Lf];save()}
-  if(carts[Lf]){carts[Lt]=carts[Lf];delete carts[Lf]}
+  if(carts[Lf]){carts[Lt]=carts[Lf];delete carts[Lf]}if(cartOwner[Lf]){cartOwner[Lt]=cartOwner[Lf];delete cartOwner[Lf]}keepCarts();
   for(const id in flashes){const f=flashes[id];if(f.tables.some(i=>from.includes(i))){f.tables=ids;f.label=lab}}
   if(ord&&!ord.pickup){ord.lead=Lt;sheetGroup=to}
   toast(`Moved to ${lab}`);ticketsChanged();renderAlerts();
@@ -4387,9 +4412,10 @@ addEventListener("hashchange",()=>setTimeout(keepAwake,50));document.addEventLis
 
 // confirm dialog
 let confCb=null;
-function ask(title,text,cb){$("confTitle").textContent=title;$("confText").textContent=text;confCb=cb;$("confOv").classList.add("show")}
+function hideUndo(){const b=$("undoBar");if(b){b.remove();clearInterval(undoT)}}   // a question or payment box never sits under the Undo bar
+let askAt=0;function ask(title,text,cb){hideUndo();$("confTitle").textContent=title;$("confText").textContent=text;confCb=cb;askAt=Date.now();$("confOv").classList.add("show")}
 $("confNo").onclick=()=>{$("confOv").classList.remove("show");confCb=null};
-$("confYes").onclick=()=>{$("confOv").classList.remove("show");const c=confCb;confCb=null;c&&c()};
+$("confYes").onclick=()=>{if(Date.now()-askAt<600)return;$("confOv").classList.remove("show");const c=confCb;confCb=null;c&&c()};
 
 // ---------- controls ----------
 (function(){let p=null;try{p=localStorage.getItem("t57-view")}catch(e){}
@@ -4468,7 +4494,11 @@ function rebase(server,key){let mine;
   const n=Object.keys(mine).length;state=n?applyPlanPatch(server,mine):clone(server);saveLocal();if(n&&!writing)save();else if(n)again=true}
 function applySnapshotLater(){if(pendingSnap&&!dragging&&!$("sheetOv").classList.contains("show")){const s=pendingSnap;pendingSnap=null;rebase(s,dateKey);afterRemote()}}
 // another tablet changed the floor: redraw, and if the table open here was paid & cleared over there, say so and close it
-function afterRemote(){whenFree(render);
+// a party moved tables on another tablet: anything not yet sent from this tablet follows them
+function followMoves(){for(const L in carts){if(!carts[L]||!carts[L].length||String(L).startsWith("P"))continue;const k=cartOwner[L];if(!k||k==="free"||partyKey(+L)===k)continue;
+  const to=Object.keys(state.bookings).find(id=>partyKey(+id)===k);if(to&&to!==L&&!(carts[to]&&carts[to].length)){carts[to]=carts[L];cartOwner[to]=k;delete carts[L];delete cartOwner[L];keepCarts();
+    if(ord&&!ord.pickup&&String(ord.lead)===String(L)){ord.lead=+to;sheetGroup=groupFor(+to);toast("Table moved to "+gname(groupFor(+to))+" — your items came too")}}}}
+function afterRemote(){try{followMoves()}catch(e){}whenFree(render);
   if(ord&&!ord.pickup&&$("ordOv").classList.contains("show")){const g=groupFor(ord.lead);
     if(!state.bookings[leadOf(g)]&&!activeFor(g).length){const n=gname(g);delete carts[ord.lead];closeOrder();toast("🔔 "+n+" was paid & cleared on another tablet",4000)}}}
 function subscribe(){
@@ -4572,7 +4602,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261114020331";const APP_VER=18;   // both stamped by the publish script
+const APP_BUILD="20261114123956";const APP_VER=19;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
@@ -4600,7 +4630,9 @@ if(!window.claude&&location.protocol.startsWith("http")&&APP_BUILD!=="dev"){
 // ---------- pop-ups: whichever opens last always sits on top (e.g. "Which printer?" over the QR screen) ----------
 (()=>{const ovs=[...document.querySelectorAll(".overlay")];const was=new WeakMap();
   const mo=new MutationObserver(list=>{list.forEach(m=>{const el=m.target,on=el.classList.contains("show");
-    if(on&&!was.get(el)){const top=Math.max(49,...ovs.filter(o=>o!==el&&o.classList.contains("show")).map(o=>+o.style.zIndex||50));el.style.zIndex=String(Math.min(79,top+1))}
+    // renumber from the bottom every time, so layers never creep up to the ceiling over a long service (a box could end up hidden behind the order screen)
+    if(on&&!was.get(el)){const shown=ovs.filter(o=>o!==el&&o.classList.contains("show")).sort((a,b)=>(+a.style.zIndex||50)-(+b.style.zIndex||50));
+      shown.forEach((o,i)=>o.style.zIndex=String(50+i));el.style.zIndex=String(Math.min(79,50+shown.length))}
     if(!on&&was.get(el))el.style.zIndex="";was.set(el,on)})});
   ovs.forEach(o=>{was.set(o,o.classList.contains("show"));mo.observe(o,{attributes:true,attributeFilter:["class"]})})})();
 // ---------- lockdown: tablets sign in once; customers' phones (QR menu) use a limited guest connection ----------

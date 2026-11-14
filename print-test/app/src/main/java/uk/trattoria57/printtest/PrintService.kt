@@ -99,7 +99,8 @@ class PrintService : Service() {
     private fun poll() {
         val st = prefs.getString("station", "kitchen") ?: "kitchen"
         val cols = prefs.getInt("cols", 32)
-        val today = SimpleDateFormat("yyyy-MM-dd", Locale.UK).format(Date())
+        // same rule as the tablets: the restaurant's day runs until 5am, so orders after midnight still print
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.UK).format(Date(System.currentTimeMillis() - 5 * 3600_000L))
         val since = prefs.getLong("since", 0L)
         val done = prefs.getStringSet("done", emptySet())!!.toMutableSet()
         val ready = "🟢 Printing ${stationName(st)} automatically"
