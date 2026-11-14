@@ -782,6 +782,7 @@ body.training{padding-top:30px}
 .med{display:block;width:100%;margin-top:4px;font-size:12px!important;padding:5px 8px!important}
 .acg{position:fixed;z-index:9990;pointer-events:none;color:#a99f88;white-space:pre;overflow:hidden;box-sizing:border-box;display:flex;align-items:center}
 .acok{position:fixed;z-index:9991;border:0;background:#3d4a1e;color:#fff;border-radius:8px;width:30px;height:30px;font-size:16px;font-weight:800;padding:0;display:none}
+.qnone{display:flex;flex-direction:column;gap:10px;padding:16px 12px}.qnone b{font-size:16px}
 .custbox{margin:10px 8px 0;padding:10px 12px;border:2px dashed #c9b98f;border-radius:14px;background:#fffdf6;display:flex;flex-direction:column;gap:7px}.custbox small{color:#8a8170;margin-top:-5px}
 #cuN{font-size:18px;padding:10px 12px;border:1.5px solid #c9b98f;border-radius:10px;width:100%;box-sizing:border-box}
 .cujump{border-style:dashed!important}
@@ -2002,7 +2003,25 @@ let noteLog=[];try{noteLog=JSON.parse(localStorage.getItem("t57-notes")||"[]").s
 function learnNote(t){String(t||"").split(/,\s*/).map(x=>x.trim()).filter(x=>x.length>2&&x.length<60).forEach(x=>{noteLog=[x,...noteLog.filter(y=>y.toLowerCase()!==x.toLowerCase())].slice(0,300)});try{localStorage.setItem("t57-notes",JSON.stringify(noteLog))}catch(e){}}
 function notePhrases(){const o=new Set([...noteLog,...(typeof ALG_CHIPS!=="undefined"?ALG_CHIPS:[]),...(typeof PREP_CHIPS!=="undefined"?PREP_CHIPS:[]),...CU_EXTRA,
   "no onions","no garlic","no chilli","no mushrooms","no olives","no tomatoes","no peppers","no sauce","no butter","no salt","no pepper","nut allergy","gluten allergy","dairy allergy","shellfish allergy","egg allergy","coeliac","vegetarian","vegan","halal","medium rare","medium","medium well","well done","rare","bring with mains","bring with starters","bring first","kids first","birthday","anniversary","cut into slices","cut in half","extra crispy","sauce on the side","dressing on the side","extra chilli flakes","extra cheese","extra sauce","small portion"]);return [...o]}
+function lev(a,b,max){if(Math.abs(a.length-b.length)>max)return max+1;let prev=[...Array(b.length+1).keys()];
+  for(let i=1;i<=a.length;i++){const cur=[i];let best=i;for(let j=1;j<=b.length;j++){cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));if(cur[j]<best)best=cur[j]}if(best>max)return max+1;prev=cur}return prev[b.length]}
+const acNorm=t=>t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
+function acDict(){const src=[...notePhrases(),...MENU.flatMap(c=>c[1].flatMap(x=>[x[0],x[2]||""])),...Object.values(EN_OF),...custLog.map(x=>x.n)];
+  const d=new Map();src.forEach(p=>String(p).split(/[\s,·&()\/]+/).forEach(w=>{const k=acNorm(w).replace(/[^a-z']/g,"");if(k.length>=2&&!d.has(k))d.set(k,w.replace(/[^A-Za-zÀ-ÿ']/g,""))}));return d}
+// autocorrect the word you just finished (after space or comma): "chese " → "cheese "
+function acFix(inp){const v=inp.value,m=v.match(/^(.*?)([A-Za-zÀ-ÿ']{3,})([\s,]+)$/);if(!m||inp.selectionStart!==v.length)return;
+  const w=acNorm(m[2]),d=acDict();if(d.has(w))return;const max=w.length>=6?2:1;let best=null,bd=max+1;
+  for(const [k,orig] of d){if(k.length<3)continue;const x=lev(w,k,max);if(x<bd||(x===bd&&best&&k.length===w.length&&best.length!==w.length)){bd=x;best=k}}
+  if(best&&bd<=max){const fixed=/^[A-Z]/.test(m[2])?best[0].toUpperCase()+best.slice(1):best;inp.value=m[1]+fixed+m[3];try{inp.setSelectionRange(inp.value.length,inp.value.length)}catch(e){}inp._fixed=m[2]+"→"+fixed}}
+function menuMatch(q){q=acNorm(q.trim());if(!q)return [];const rows=MENU.flatMap(([k,l])=>l.map(x=>[x[0],x[1],k+(x[2]?" · "+x[2]:"")]));
+  const txt=r=>acNorm(r[0]+" "+r[2]+" "+(EN_OF[r[0]]||""));let hit=rows.filter(r=>txt(r).includes(q));if(hit.length)return hit;
+  // nothing exact: forgive typos word by word ("margarita" → Margherita, "lasagne" → Lasagna)
+  const qw=q.split(/\s+/).filter(Boolean);return rows.filter(r=>{const ws=txt(r).split(/[\s,·&()\/']+/).filter(Boolean);
+    return qw.every(a=>ws.some(b=>b.startsWith(a)||lev(a,b.slice(0,Math.max(a.length,b.length)),a.length>=6?2:1)<=(a.length>=6?2:1)||(a.length>=4&&lev(a,b.slice(0,a.length),1)<=1)))})}
 function acBest(v,kind){if(!v||/\s$/.test(v)&&kind!=="note")return "";
+  if(kind==="search"){const lv=acNorm(v),names=[...MENU.flatMap(c=>c[1].map(x=>x[0])),...Object.values(EN_OF)];
+    const h=names.filter(n=>acNorm(n).startsWith(lv)&&n.length>v.length).sort((a,b)=>a.length-b.length)[0]||names.map(n=>n.split(/\s+/)).flat().filter(w=>acNorm(w).startsWith(acNorm(v.split(/\s+/).pop()))&&w.length>v.split(/\s+/).pop().length).sort((a,b)=>a.length-b.length).map(w=>v.replace(/\S+$/,"")+w)[0];
+    return h&&acNorm(h).startsWith(lv)?v+h.slice(v.length):""}
   if(kind==="custom"){const lv=v.toLowerCase();return cuSuggest(v).find(x=>x.toLowerCase().startsWith(lv)&&x.length>v.length)||""}
   const m=v.match(/^(.*,\s*)?([^,]*)$/),pre=m[1]||"",seg=m[2];if(seg.trim().length<2)return "";const ls=seg.toLowerCase();
   const all=notePhrases(),hit=all.filter(x=>x.toLowerCase().startsWith(ls)&&x.length>seg.length).sort((a,b)=>(noteLog.includes(b)-noteLog.includes(a))||a.length-b.length)[0];
@@ -2027,9 +2046,9 @@ function acTake(inp){if(!inp._ac)return;inp.value=inp._ac+(inp.dataset.ac==="not
   if(inp.id==="cuN"){const it=ITEMS[inp.value];if(it&&!it.hidden&&$("cuP")){$("cuP").value=priceOf(inp.value).toFixed(2);if(ord)ord.cu=Object.assign(ord.cu||{},{p:$("cuP").value})}}acShow(inp)}
 function acHide(){if(acG){acG.style.display="none";acB.style.display="none"}acCur=null}
 document.addEventListener("scroll",()=>{if(acCur&&document.activeElement===acCur)acShow(acCur);else acHide()},true);window.addEventListener("resize",()=>{if(acCur)acShow(acCur)});
-document.addEventListener("input",e=>{const t=e.target;if(t&&t.matches&&t.matches("input[data-ac]"))acShow(t)},true);
+document.addEventListener("input",e=>{const t=e.target;if(t&&t.matches&&t.matches("input[data-ac]")){if(!(e.inputType||"").startsWith("delete"))acFix(t);acShow(t)}},true);
 document.addEventListener("focusin",e=>{const t=e.target;if(t&&t.matches&&t.matches("input[data-ac]")&&t.value)acShow(t)});
-document.addEventListener("focusout",e=>{const t=e.target;if(t&&t.matches&&t.matches("input[data-ac]"))setTimeout(()=>{if(document.activeElement!==t)acHide()},150)});
+document.addEventListener("focusout",e=>{const t=e.target;if(t&&t.matches&&t.matches("input[data-ac]"))setTimeout(()=>{if(acCur===t&&document.activeElement!==t)acHide()},150)});
 document.addEventListener("keydown",e=>{const t=e.target;if(t&&t.matches&&t.matches("input[data-ac]")&&t._ac&&(e.key==="Tab"||e.key==="Enter"||e.key==="ArrowRight"&&t.selectionStart===t.value.length)){e.preventDefault();acTake(t)}},true);
 function linePrice(x){if(x.cp!=null&&isFinite(+x.cp))return Math.round(+x.cp*100)/100;const it=ITEMS[x.n];if(it&&it.xl&&x.xa!=null&&isFinite(+x.xa))return Math.round((priceOf(it.xl)+(+x.xa))*100)/100;return priceOf(x.n)}
 function cleanMenuOv(d){d=d&&typeof d==="object"?d:{};const o={price:{},desc:{},hide:[],add:[],xl:{}};
@@ -2483,7 +2502,7 @@ $("oCats").addEventListener("click",e=>{const bt=e.target.closest("button");if(!
     ord.pop=null;ord.cat=(d?ord.lastDrink:ord.lastFood)||(d?CATS.find(k=>BAR_CATS.has(k)):firstFood());renderOrder();$("oBody").scrollTop=0;return}
   ord.pop=null;ord.q="";ord.cat=bt.dataset.c;renderOrder();$("oBody").scrollTop=0});
 $("oCats").addEventListener("input",e=>{if(e.target.id!=="mSearch"||!ord)return;ord.q=e.target.value;ord.pop=null;const pos=e.target.selectionStart;renderOrder();
-  const i=$("mSearch");if(i){i.focus();try{i.setSelectionRange(pos,pos)}catch(_){}}$("oBody").scrollTop=0});
+  const i=$("mSearch");if(i){i.focus();try{i.setSelectionRange(pos,pos)}catch(_){}if(i.value)acShow(i);else acHide()}$("oBody").scrollTop=0});
 $("oCats").addEventListener("click",e=>{if(e.target.closest("[data-mq]")&&ord){ord.q="";renderOrder()}});
 function renderOrder(){
   $("ordOv").classList.toggle("barmode",!!(ord&&ord.barMode));   // bar staff: big, bold, full-screen drinks screen
@@ -2509,11 +2528,11 @@ function renderOrder(){
     cats.style.display="";
     const drinks=BAR_CATS.has(ord.cat),forTab=x=>ord.pickup||(x.g||"")===(((ITEMS[x.n]&&BAR_CATS.has(ITEMS[x.n].cat))?ord.gDrink:ord.gFood)||""),mineC=c.filter(forTab),
       cnt=d=>mineC.filter(x=>BAR_CATS.has(ITEMS[x.n].cat)===d).reduce((a,x)=>a+x.q,0);
-    cats.innerHTML=`<div class="msearch"><input id="mSearch" type="search" placeholder="🔎 Search the menu, e.g. peroni, diavola" value="${esc(ord.q||"")}" autocomplete="off">${ord.q?`<button data-mq>✕</button>`:""}</div>`+(hhActive()?`<div class="hhbar">🍹 Happy hour until ${settings.hh.to} · ${settings.hh.pct}% off ${settings.hh.cats.length>3?"drinks":settings.hh.cats.join(", ")}</div>`:"")+tabChips(drinks)+`<div class="sidetog">${ord.barMode?"":`<button data-side="food" class="${drinks?"":"on"}">🍝 Food${cnt(false)?` <b>${cnt(false)}</b>`:""}</button>`}<button data-side="drinks" class="${drinks?"on":""}">🍸 Drinks${cnt(true)?` <b>${cnt(true)}</b>`:""}</button></div>
+    cats.innerHTML=`<div class="msearch"><input id="mSearch" data-ac="search" type="search" placeholder="🔎 Search the menu, e.g. peroni, diavola" value="${esc(ord.q||"")}" autocomplete="off">${ord.q?`<button data-mq>✕</button>`:""}</div>`+(hhActive()?`<div class="hhbar">🍹 Happy hour until ${settings.hh.to} · ${settings.hh.pct}% off ${settings.hh.cats.length>3?"drinks":settings.hh.cats.join(", ")}</div>`:"")+tabChips(drinks)+`<div class="sidetog">${ord.barMode?"":`<button data-side="food" class="${drinks?"":"on"}">🍝 Food${cnt(false)?` <b>${cnt(false)}</b>`:""}</button>`}<button data-side="drinks" class="${drinks?"on":""}">🍸 Drinks${cnt(true)?` <b>${cnt(true)}</b>`:""}</button></div>
       <div class="catrow">${CATS.filter(k=>BAR_CATS.has(k)===drinks&&showCat(k)).map(k=>{const n=mineC.filter(x=>ITEMS[x.n].cat===k).reduce((a,x)=>a+x.q,0);
       return `<button data-c="${esc(k)}" class="${k===ord.cat?"on":""}${k==="Specials"?" spc":""}">${k==="Specials"?"⭐ ":""}${esc(k)}${n?" · "+n:""}</button>`}).join("")}<button data-cujump class="cujump">✏️ Custom</button></div>`;
     const qq=(ord.q||"").trim().toLowerCase();
-    const list=qq?MENU.flatMap(([k,l])=>l.map(x=>[x[0],x[1],k+(x[2]?" · "+x[2]:"")])).filter(([n,p,d])=>(n+" "+d+" "+(EN_OF[n]||"")).toLowerCase().includes(qq)).slice(0,60):MENU.find(m=>m[0]===ord.cat)[1];
+    const list=qq?menuMatch(qq).slice(0,60):MENU.find(m=>m[0]===ord.cat)[1];
     if(ord.half&&(qq||!HALF_CATS.has(ord.cat)))ord.half=null;
     const hq=mineC.filter(x=>ITEMS[x.n]&&ITEMS[x.n].half).reduce((a,x)=>a+x.q,0);
     if(ord.half){const h=ord.half;
@@ -2528,6 +2547,7 @@ function renderOrder(){
         <input id="cuN" data-ac="custom" placeholder="Start typing, e.g. pizza…" maxlength="60" autocomplete="off" autocapitalize="sentences" value="${esc((ord.cu&&ord.cu.n)||"")}">
         <div class="cusug" id="cuS">${cuChips((ord.cu&&ord.cu.n)||"")}</div>
         <div class="custrow"><label class="xla">£<input id="cuP" type="number" inputmode="decimal" min="0" max="999" step="0.10" placeholder="0.00" value="${esc((ord.cu&&ord.cu.p)||"")}"></label><button class="btn pri" data-cuadd>+ Add</button></div></div>`)+
+      (qq&&!list.length?`<div class="qnone"><b>No dish called “${esc(ord.q.trim())}”</b>${c.length?`<button class="btn pri" data-qnote>➕ Add “${esc(ord.q.trim())}” to ${esc(c[c.length-1].n)}</button>`:""}<button class="btn sec" data-qcust>✏️ Custom request “${esc(ord.q.trim())}”</button></div>`:"")+
       `<div class="empty" style="padding:18px">Allergies? Add a note on the next screen. Halal &amp; gluten free options available.</div>`;
     foot.innerHTML=count?`<button class="btn sec" data-f="clear">Clear</button><button class="btn pri" data-f="review">Review order · ${count} · ${money(sum)}</button>`
       :`<button class="btn pri" disabled style="opacity:.45">Tap dishes to add them</button>`;
@@ -2659,6 +2679,8 @@ $("oBody").addEventListener("click",e=>{if(ord&&ord.openedAt&&Date.now()-ord.ope
   const gb=e.target.closest("[data-g]");if(gb){ord.covers=Math.max(1,Math.min(40,(ord.covers||2)+(+gb.dataset.g)));renderOrder();return}
   const q=e.target.closest("[data-q]");
   if(q){const row=q.closest(".cl"),inp=row.querySelector(".ln"),t=q.dataset.q;if((inp.value||"").includes(t))return;inp.value=(inp.value?inp.value+", "+t:t).slice(0,120);c[+row.dataset.i].note=inp.value;inp.classList.toggle("alg",isAlg(inp.value));return}
+  if(e.target.closest("[data-qnote]")){const L=c[c.length-1],t=(ord.q||"").trim();if(!L||!t)return;L.pc=L.pc||[];if(!L.pc.length&&!L.px&&L.note)L.px=L.note;L.px=(L.px?L.px+", ":"")+t;L.note=popNote(L);learnNote(t);ord.q="";renderOrder();toast(`${L.n}: ${L.note}`);return}
+  if(e.target.closest("[data-qcust]")){const t=(ord.q||"").trim();ord.q="";ord.cu={n:t};renderOrder();const i=$("cuN");if(i){i.scrollIntoView({block:"center"});try{i.focus({preventScroll:true})}catch(e){}}return}
   const cs=e.target.closest("[data-cus]");if(cs){const i=$("cuN"),v=cs.dataset.cus;i.value=v;ord.cu=Object.assign(ord.cu||{},{n:v});
     const it=ITEMS[v];if(it&&!it.hidden){$("cuP").value=priceOf(v).toFixed(2);ord.cu.p=$("cuP").value}else{const lg=custLog.find(x=>x.n===v);if(lg){$("cuP").value=(+lg.p).toFixed(2);ord.cu.p=$("cuP").value}}
     $("cuS").innerHTML=cuChips(v);try{i.focus();i.setSelectionRange(v.length,v.length)}catch(e){}return}
@@ -4738,7 +4760,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261114222032";const APP_VER=35;   // both stamped by the publish script
+const APP_BUILD="20261114222501";const APP_VER=36;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
