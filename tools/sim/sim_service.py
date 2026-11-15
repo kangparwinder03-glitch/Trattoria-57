@@ -45,7 +45,11 @@ async def newpage(ctx, name, hash_=""):
 
 async def cart(w): return json.loads(await E(w, "JSON.stringify(ord?cart():[])"))
 async def login(w, sid, pin, btn="#waiterBtn"):
-    await w.locator(btn).tap(); await w.wait_for_timeout(300)
+    for tries in range(8):      # the staff list may still be syncing from the other tablet
+        await reset(w, await E(w, "location.hash||'#floor'")); await w.locator(btn).tap(); await w.wait_for_timeout(400)
+        if await w.locator(f'#xBody [data-w="{sid}"]').count(): break
+        say(f"{w._n}: waiting for staff list ({tries+1})"); await w.wait_for_timeout(4000)
+        if tries == 4: await w.reload(); await w.wait_for_timeout(2500)
     await w.locator(f'#xBody [data-w="{sid}"]').tap(); await w.wait_for_timeout(300)
     for d in pin: await w.locator(f'#padBody [data-d="{d}"]').tap(); await w.wait_for_timeout(60)
     await w.wait_for_timeout(600); return await E(w, "waiter&&waiter.name")
@@ -102,7 +106,9 @@ async def open_table(w, L):
     if not await E(w, "document.body.classList.contains('tiles')"): await w.locator("#modeBtn").tap(); await w.wait_for_timeout(300)
     await E(w, "area='all';applyArea();render()"); await w.wait_for_timeout(300)
     await w.locator(f'#tilesView .tile[data-t="{L}"]').first.tap(); await w.wait_for_timeout(700); return L
-async def bill_tab(w): await E(w, "ord.tab='bill';renderOrder()"); await w.wait_for_timeout(400)
+async def bill_tab(w):
+    if not await E(w, "!!ord"): raise Exception("bill not open (table already closed?)")
+    await E(w, "ord.tab='bill';renderOrder()"); await w.wait_for_timeout(400)
 async def pay_all(w, how):
     await bill_tab(w); await w.locator(f'#oFoot [data-f="close"][data-pay="{how}"]').tap(); await w.wait_for_timeout(300); await confirm(w)
 async def pay_guest(w, g, how):
@@ -278,8 +284,10 @@ async def main():
                             await w.locator('[data-xlhalf]').tap(); await w.locator('[data-xlmake]').tap(); await w.wait_for_timeout(900)
                             expected[pa.label]["Lasagna"] -= 1; expected[pa.label]["Lasagna (XL)"] += 1; stats["XL on the bill"] += 1
                         await E(w, "try{closeX()}catch(e){}")
+                if not await E(w, "!!ord"): raise Exception("table has nothing to pay")
                 if pa.pay == "guests" and pa.names:
                     for g in pa.names:
+                        if not await E(w, "!!ord"): break        # last guest paid → table reset itself
                         await bill_tab(w)
                         if await w.locator(f'[data-tpay="card"][data-tname={Q(g)}]').count(): await pay_guest(w, g, rnd.choice(["card", "cash"]))
                     if await E(w, "ord?billOf(ordTickets()).left:0") > 0.001: await pay_all(w, "card")
@@ -290,7 +298,12 @@ async def main():
                 return True
             if await act(w, f"pay {pa.label}", pay): stats["bills paid"] += 1; say(f"💳 {pa.label} paid ({pa.pay}) after {simnow()-pa.at:.0f} min")
         finally:
-            await asyncio.sleep(2); busy.difference_update(tb)
+            # only give the table to the next party once the app shows it free
+            for _ in range(30):
+                if not await E(A, f"!!state.bookings[leadOf(groupFor({int(tb[0])}))]"): break
+                await asyncio.sleep(10)
+            else: say(f"   (table {'+'.join(names[x] for x in tb)} kept back — still occupied in the app)"); return
+            busy.difference_update(tb)
 
     async def bar_walkups():
         t = rnd.uniform(5, 20)
