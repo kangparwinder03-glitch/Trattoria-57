@@ -889,6 +889,7 @@ body.mode-waiter #vKitchen,body.mode-waiter #vBar,body.mode-waiter #vReport{disp
 .mipop .pq.mix button small{opacity:.75;font-weight:600}
 .tabchips .tcn{font-style:normal;display:inline-block;min-width:18px;padding:0 5px;margin-left:3px;border-radius:9px;background:#c79a2b;color:#fff;font-size:12px;line-height:18px;text-align:center}
 .enn{display:inline;font-style:normal;font-weight:400;font-size:.72em;opacity:.5;white-space:nowrap}
+.bigflash.passthru{pointer-events:none}
 /* ── app feel: every press reacts, nothing behaves like a web page ── */
 html,body{overscroll-behavior:none}
 body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
@@ -2131,7 +2132,7 @@ function syncMixers(c){for(let i=c.length-1;i>=0;i--){const x=c[i];if(!x.of)cont
 // items where the customer has to pick one (shown first in the drop-down; the order can't be sent without it)
 // free side (fries, salad or mixed veg) with the chicken dishes that don't come with rice, the lamb shank and the steaks
 const FREE_SIDES=["Fries","Salad","Mixed veg"];
-function freeSide(n){const it=ITEMS[n];if(!it||it.half)return false;const t=n+" "+(it.d||"");
+function freeSide(n){const it=ITEMS[n];if(!it||it.half||it.custom)return false;const t=n+" "+(it.d||"");
   if(/strogonoff|stroganoff/i.test(t))return false;
   return (it.cat==="Poultry"&&!/\brice\b/i.test(it.d||""))||/lamb shank|fracosta|filetto di bue|sirloin|fillet steak|rib ?eye|t-bone|rump/i.test(t)}
 const CHOICES=new Proxy({"Mineral Water":["Still","Sparkling"],"Salad":["Mixed","Green","Tomato"],"Liqueur Coffee":["Irish","Baileys","Tia Maria","Amaretto"]},
@@ -2332,13 +2333,15 @@ function newOrderAlert(st){
   if(!loudOn[st]){chime("neworder");return}
   chime("alarm");
   const ov=$("bigFlash");ov.querySelector("b").textContent=st==="bar"?"🍸 NEW DRINKS ORDER":"🍝 NEW ORDER";ov.querySelector("span").textContent=HANDS_OFF[st]?"":"Tap anywhere to stop";
-  ov.className="bigflash";void ov.offsetWidth;ov.className="bigflash on";
+  ov.className="bigflash";void ov.offsetWidth;ov.className="bigflash on"+(HANDS_OFF[st]?" passthru":"");
   clearInterval(nagT);
   if(HANDS_OFF[st]){  // chefs don't touch the screen: ring for ~10 seconds, then stop on its own
     let n=0;nagT=setInterval(()=>{if(++n>=3||view!==st){stopNag();return}chime("alarm")},3400);clearTimeout(nagStopT);nagStopT=setTimeout(stopNag,10000);return}
   nagT=setInterval(()=>{if(view!==st){stopNag();return}chime("alarm")},20000);
 }
 $("bigFlash").addEventListener("click",()=>stopNag());
+// on the bar/kitchen screens the flash never eats a tap: the tap goes through to the button underneath and also stops the alarm
+document.addEventListener("pointerdown",()=>{const f=$("bigFlash");if(f&&f.classList.contains("passthru")&&f.classList.contains("on"))stopNag()},true);
 function updLoudFloor(){const b=$("loudFloor");if(b){b.textContent=loudOn.floor?"📢 Flash on":"🔉 Flash off";b.classList.toggle("on",loudOn.floor)}}
 $("loudFloor").onclick=()=>{loudOn.floor=!loudOn.floor;try{localStorage.setItem("t57-loud-floor",loudOn.floor?"1":"0")}catch(_){}updLoudFloor();
   if(loudOn.floor)waiterAlert("srv","🔔 Example — food ready");else toast("Screen flash off — chime only")};
@@ -4772,7 +4775,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261115001818";const APP_VER=37;   // both stamped by the publish script
+const APP_BUILD="20261115005717";const APP_VER=38;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}

@@ -1,0 +1,42 @@
+name: Overnight service simulation
+on:
+  workflow_dispatch:
+    inputs:
+      minutes: { description: "Length of service (minutes)", default: "345" }
+      speed:   { description: "1 = real time", default: "1" }
+      seed:    { description: "Random seed", default: "57" }
+jobs:
+  sim:
+    runs-on: ubuntu-latest
+    timeout-minutes: 358
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Install Playwright (uses the runner's Google Chrome)
+        run: pip install playwright==1.48.0
+      - name: Build a test copy of the live app
+        run: |
+          mkdir -p /tmp/site
+          python3 - <<'PY'
+          s=open("docs/index.html").read();i=s.rfind("})();")
+          open("/tmp/site/index.html","w").write(s[:i]+"window.__ev=s=>eval(s);\n"+s[i:])
+          PY
+          grep -o 'APP_VER=[0-9]*' /tmp/site/index.html
+      - name: Run the service
+        env:
+          MINUTES: ${{ github.event.inputs.minutes }}
+          SPEED: ${{ github.event.inputs.speed }}
+          SEED: ${{ github.event.inputs.seed }}
+          OUT: /tmp/sim
+          SITE: /tmp/site
+          CHROME: /usr/bin/google-chrome
+        run: python3 tools/sim/sim_service.py
+      - name: Summary
+        if: always()
+        run: |
+          echo '## Overnight service' >> $GITHUB_STEP_SUMMARY
+          grep -E 'RESULT|❌|day report' /tmp/sim/log.txt | head -80 | sed 's/^/    /' >> $GITHUB_STEP_SUMMARY || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: sim-results, path: /tmp/sim, retention-days: 7 }
