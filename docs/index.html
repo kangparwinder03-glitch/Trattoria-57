@@ -2127,6 +2127,7 @@ function drinkChips(c,n){
 const mixLabel=m=>String(m).replace(/\s*\(mixer\)\s*$/i,"");
 const MIXERS_NOW=()=>((MENU.find(c=>c[0]==="Mixers")||[0,[]])[1]).map(x=>[mixLabel(x[0]),x[0]]);
 const WINE_ADD=[["Lemonade (spritzer)","Add lemonade to wine"],["Soda","Add soda to wine"]];
+const WINE_ONLY=n=>WINE_ADD.some(x=>x[1]===n);   // only added by picking a wine, never on their own
 function mixFor(n){const c=ITEMS[n]&&ITEMS[n].cat;const l=c==="Spirits"||c==="Gin"?MIXERS_NOW():c==="Wine"&&!/^Add /.test(n)?WINE_ADD:[];return l.filter(([,m])=>ITEMS[m]&&!ITEMS[m].hidden&&!outSet.has(m))}
 function syncMixers(c){for(let i=c.length-1;i>=0;i--){const x=c[i];if(!x.of)continue;const P=c.find(y=>y.lid===x.of);if(!P||P.mx!==x.n)c.splice(i,1);else x.q=P.q}}
 // quick options that drop down under a dish/drink the moment it's added
@@ -2548,7 +2549,7 @@ function renderOrder(){
       <div class="catrow">${CATS.filter(k=>BAR_CATS.has(k)===drinks&&showCat(k)).map(k=>{const n=mineC.filter(x=>ITEMS[x.n].cat===k).reduce((a,x)=>a+x.q,0);
       return `<button data-c="${esc(k)}" class="${k===ord.cat?"on":""}${k==="Specials"?" spc":""}">${k==="Specials"?"⭐ ":""}${esc(k)}${n?" · "+n:""}</button>`}).join("")}<button data-cujump class="cujump">✏️ Custom</button></div>`;
     const qq=(ord.q||"").trim().toLowerCase();
-    const list=qq?menuMatch(qq).slice(0,60):MENU.find(m=>m[0]===ord.cat)[1];
+    const list=(qq?menuMatch(qq).slice(0,60):MENU.find(m=>m[0]===ord.cat)[1]).filter(([n])=>!WINE_ONLY(n));
     if(ord.half&&(qq||!HALF_CATS.has(ord.cat)))ord.half=null;
     const hq=mineC.filter(x=>ITEMS[x.n]&&ITEMS[x.n].half).reduce((a,x)=>a+x.q,0);
     if(ord.half){const h=ord.half;
@@ -3527,7 +3528,7 @@ function renderGuest(){
     if(!gCat||!showCat(gCat))gCat=CATS.find(showCat);
     h=`<div class="gcats">${CATS.filter(showCat).map(k=>`<button data-gc="${esc(k)}" class="${k===gCat?"on":""}">${BAR_CATS.has(k)?"🍷 ":k==="Specials"?"⭐ ":""}${esc(k)}</button>`).join("")}</div><div class="gwrap">`;
     if(mine.length)h+=`<div class="gcard"><h3>Your orders</h3>${mine.map(t=>{const [cl,tx]=stTxt(t);return `<div class="gord"><span>${t.items.map(x=>`${x.q}× ${esc(x.n)}`).join(", ")}</span><span class="gst ${cl}">${tx}</span></div>`}).join("")}</div>`;
-    const list=MENU.find(m=>m[0]===gCat)[1];
+    const list=MENU.find(m=>m[0]===gCat)[1].filter(([n])=>!WINE_ONLY(n));
     h+=`<div class="gsec"><h4>${esc(gCat.toUpperCase())}</h4>${list.map(([n,p,d])=>{const q=c.filter(x=>x.n===n).reduce((a,x)=>a+x.q,0);
       const out=outSet.has(n);
       return `<div class="gitem${out?" out":""}" data-n="${esc(n)}"><div class="nm"><b>${esc(n)}${EN_OF[n]?` <i class="enn">(${esc(EN_OF[n])})</i>`:""}</b>${d?`<small>${esc(d)}</small>`:""}</div><div class="pr">${priceOf(n)<p?`<s>${money(p)}</s> <b class="hhp">${money(priceOf(n))}</b>`:money(p)}</div>
@@ -4776,7 +4777,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261115214516";const APP_VER=39;   // both stamped by the publish script
+const APP_BUILD="20261115214759";const APP_VER=40;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
