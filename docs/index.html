@@ -1181,7 +1181,7 @@ a[href^="#"]:active{filter:brightness(.9)}
       <label style="display:flex;gap:10px;align-items:center;font-size:14px;margin-bottom:10px"><input type="checkbox" id="sAuto" style="width:20px;height:20px"> Show the emails after every booking is saved</label>
       <p class="trial">Nothing is connected yet, so emails are written for you and you send them from your own mail app. Customers confirm by replying YES; then set the booking to Confirmed.</p>
     </div>
-    <div class="sh-foot"><button class="btn sec" id="setQr">📱 Table QR codes</button><button class="btn pri" id="setSave">Save settings</button></div>
+    <div class="sh-foot"><button class="btn sec" id="setQr" hidden>📱 Table QR codes</button><button class="btn pri" id="setSave">Save settings</button></div>
   </div>
 </div>
 
@@ -3519,6 +3519,9 @@ $("report").addEventListener("click",e=>{
 });
 
 // ---------- QR table ordering (guest page) ----------
+// switched off (owner, 15 Nov): customers can't order from their phones; a scanned code just says to ask a waiter.
+// The code is kept so it can be switched back on by setting this to true.
+const QR_ORDERING=false;
 let guestId=null;const gCart={};let gCat=null;
 const CALL_WINDOW=12*3600e3;
 const callStore=useColl("calls",()=>{syncCalls();if(view==="guest")renderGuest()},q=>q.where("at",">=",Date.now()-CALL_WINDOW));
@@ -3537,7 +3540,8 @@ function guestFromHash(h){const m=/^#table-([a-z0-9]+)$/i.exec(h||"");if(!m)retu
 const tableHash=id=>"table-"+tname(id).toLowerCase();
 function gCartList(){return gCart[guestId]||(gCart[guestId]=[])}
 function renderGuest(){
-  if(!guestId)return;const g=groupFor(guestId),L=leadOf(g),b=state.bookings[L];
+  if(!guestId)return;
+  if(!QR_ORDERING){$("gTab").textContent="";$("gBody").innerHTML=`<div class="gcard" style="text-align:center;padding:28px 18px"><h3>Benvenuti!</h3><p>Please order with a member of staff — they'll be with you shortly.</p><p>Grazie · Thank you</p></div>`;$("gBar").innerHTML="";return}const g=groupFor(guestId),L=leadOf(g),b=state.bookings[L];
   const open=!!(b||activeFor(g).length);
   $("gTab").textContent=gnameLong(g);
   const mine=activeFor(g).slice().sort((a,c)=>a.createdAt-c.createdAt);
@@ -4518,7 +4522,7 @@ const HUB=[
   ["📊 Reports & money",[["rday","📅","Day report"],["rweek","📈","Weekly report"],["rmonth","🗓","Monthly report"],["allord","📋","All orders"],["hours","⏱","Staff hours"]]],
   ["🍽 Menu & prices",[["menu","✏️","Edit menu & prices"],["hh","🍹","Happy hour"],["pmenu","🖨","Print the menu"]]],
   ["👥 People",[["staff","🧑‍🍳","Staff & their PINs"],["mpin","🔑","Change manager PIN"],["guests","👤","Guest profiles"]]],
-  ["⚙ Restaurant",[["settings","✉️","Emails & restaurant settings"],["links","⭐","Review & social links"],["rcp","🧾","Receipts & printing"],["qr","📱","Table QR codes & labels"],["reset","↺","Reset floor layout"],["signin","🔐","Tablet sign-in"],["alexa","🔊","Kitchen Alexa"]]],
+  ["⚙ Restaurant",[["settings","✉️","Emails & restaurant settings"],["links","⭐","Review & social links"],["rcp","🧾","Receipts & printing"],["reset","↺","Reset floor layout"],["signin","🔐","Tablet sign-in"],["alexa","🔊","Kitchen Alexa"]]],
 ];
 function openHub(){
   const m=MODES[devMode]||MODES.manager;
