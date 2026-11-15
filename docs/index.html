@@ -889,6 +889,18 @@ body.mode-waiter #vKitchen,body.mode-waiter #vBar,body.mode-waiter #vReport{disp
 .mipop .pq.mix button small{opacity:.75;font-weight:600}
 .tabchips .tcn{font-style:normal;display:inline-block;min-width:18px;padding:0 5px;margin-left:3px;border-radius:9px;background:#c79a2b;color:#fff;font-size:12px;line-height:18px;text-align:center}
 .enn{display:inline;font-style:normal;font-weight:400;font-size:.72em;opacity:.5;white-space:nowrap}
+/* ── app feel: every press reacts, nothing behaves like a web page ── */
+html,body{overscroll-behavior:none}
+body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+input,textarea,select,[contenteditable]{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
+button,a,label,select,.mi,.tile,[role=button]{touch-action:manipulation}
+img,svg{-webkit-user-drag:none}
+button{transition:scale .07s ease-out,filter .07s ease-out,background-color .12s,opacity .12s}
+button:not(:disabled):active{scale:.96;filter:brightness(.9)}
+button:disabled{cursor:default}
+a[href^="#"]:active{filter:brightness(.9)}
+.mi{transition:background-color .12s}
+.mi:active{background-color:#f6efdc}
 </style>
 </head>
 <body>
@@ -4760,7 +4772,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261114222501";const APP_VER=36;   // both stamped by the publish script
+const APP_BUILD="20261115001818";const APP_VER=37;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
@@ -4865,6 +4877,11 @@ if(window.claude&&typeof window.claude.use==="function"){
   setStatus("saving","Connecting…");
   loadSupaLib().then(bootSupa).catch(()=>setStatus("local","Offline — this device only"));
 }
+
+// ── app feel: a tiny tick on the buttons that matter, no long-press copy menus ──
+document.addEventListener("pointerdown",e=>{const b=e.target.closest&&e.target.closest('[data-f="send"],[data-f="close"],[data-pay],#confYes,[data-cuadd],[data-xlmake],[data-tpay],[data-pdone],.add');
+  if(b&&!b.disabled&&navigator.vibrate)try{navigator.vibrate(b.classList.contains("add")?6:12)}catch(err){}},{passive:true,capture:true});
+document.addEventListener("contextmenu",e=>{if(!(e.target.closest&&e.target.closest("input,textarea")))e.preventDefault()});
 })();
 </script>
 </body>
