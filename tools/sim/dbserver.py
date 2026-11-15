@@ -10,6 +10,10 @@ class H(http.server.SimpleHTTPRequestHandler):
         elif op == "upsert":
             r = q["row"]; DB[r["coll"] + "/" + r["id"]] = r; out = {}
             if r["coll"].endswith("tickets"): open(os.environ.get("DBLOG","/tmp/dblog.txt"),"a").write("UPSERT "+r["id"]+" "+r["data"].get("label","")+" closed="+str(r["data"].get("closed"))+"\n")
+        elif op == "insert":      # like Postgres INSERT: refused if that id already exists
+            r = q["row"]; k = r["coll"] + "/" + r["id"]
+            if k in DB: out = {"dup": True}
+            else: DB[k] = r; out = {}
         elif op == "merge":
             k = q["c"] + "/" + q["i"]; cur = DB.get(k) or {"coll": q["c"], "id": q["i"], "data": {}}
             cur["data"] = {**cur["data"], **q["patch"]}; DB[k] = cur; out = {}

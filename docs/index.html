@@ -902,6 +902,8 @@ button:disabled{cursor:default}
 a[href^="#"]:active{filter:brightness(.9)}
 .mi{transition:background-color .12s}
 .mi:active{background-color:#f6efdc}
+.btn.needpat{opacity:.5}
+.patrow.need{outline:3px solid #c0392b;outline-offset:3px;border-radius:12px}
 </style>
 </head>
 <body>
@@ -1176,11 +1178,10 @@ a[href^="#"]:active{filter:brightness(.9)}
       <label style="display:flex;gap:10px;align-items:center;font-size:14px;margin-bottom:12px"><input type="checkbox" id="sAutoRc" style="width:20px;height:20px"> Print a receipt automatically when a bill is paid</label>
       <div class="fld" style="margin-bottom:12px"><label for="sIg">Instagram link or @username (printed on bills)</label><input id="sIg" maxlength="200" placeholder="@trattoria57" autocomplete="off"></div>
       <div class="fld" style="margin-bottom:12px"><label for="sFb">Facebook link (printed on bills)</label><input id="sFb" maxlength="200" placeholder="https://www.facebook.com/…" autocomplete="off"></div>
-      <div class="fld" style="margin-bottom:12px;display:none"><label for="sPick">Takeaway discount (%)</label><input id="sPick" type="number" inputmode="decimal" min="0" max="50" step="1" placeholder="10"></div>
       <label style="display:flex;gap:10px;align-items:center;font-size:14px;margin-bottom:10px"><input type="checkbox" id="sAuto" style="width:20px;height:20px"> Show the emails after every booking is saved</label>
       <p class="trial">Nothing is connected yet, so emails are written for you and you send them from your own mail app. Customers confirm by replying YES; then set the booking to Confirmed.</p>
     </div>
-    <div class="sh-foot"><button class="btn sec" id="setQr">📱 Table QR codes</button><button class="btn pri" id="setSave">Save settings</button></div>
+    <div class="sh-foot"><button class="btn sec" id="setQr" hidden>📱 Table QR codes</button><button class="btn pri" id="setSave">Save settings</button></div>
   </div>
 </div>
 
@@ -1852,7 +1853,7 @@ function fillHH(){const h=settings.hh||cleanHH({});$("hhOn").checked=!!(settings
 function readHH(){return cleanHH({on:$("hhOn").checked,from:$("hhFrom").value,to:$("hhTo").value,pct:$("hhPct").value,
   days:[...$("hhDays").querySelectorAll("input:checked")].map(i=>+i.value),cats:[...$("hhCats").querySelectorAll("input:checked")].map(i=>i.value)})}
 document.addEventListener("click",e=>{if(e.target.closest("#sDevMode")){const ov=document.querySelector(".overlay.show");if(ov)ov.classList.remove("show");openModePicker()}});
-function openSettings(){$("sPick").value=settings.pickupPct;$("sOwner").value=settings.ownerEmail;$("sAuto").checked=settings.auto;$("sIg").value=settings.ig||"";$("sReview").value=settings.review||"";$("sTa").value=settings.ta||"";fillHH();{const m=MODES[devMode];$("sDevModeLbl").textContent=m?m.icon+" "+m.name:"⭐ Manager (everything)"}$("sRcp").value=rcpPrinter();$("sAutoRc").checked=settings.autoRc!==false;$("sFb").value=settings.fb||"";$("setOv").classList.add("show")}
+function openSettings(){$("sOwner").value=settings.ownerEmail;$("sAuto").checked=settings.auto;$("sIg").value=settings.ig||"";$("sReview").value=settings.review||"";$("sTa").value=settings.ta||"";fillHH();{const m=MODES[devMode];$("sDevModeLbl").textContent=m?m.icon+" "+m.name:"⭐ Manager (everything)"}$("sRcp").value=rcpPrinter();$("sAutoRc").checked=settings.autoRc!==false;$("sFb").value=settings.fb||"";$("setOv").classList.add("show")}
 $("setBtn").onclick=()=>openHubGated();
 $("setClose").onclick=()=>$("setOv").classList.remove("show");
 $("setOv").addEventListener("pointerdown",e=>{if(e.target===$("setOv"))$("setOv").classList.remove("show")});
@@ -1860,7 +1861,7 @@ $("setSave").onclick=async()=>{
   const em=$("sOwner").value.trim();
   if(em&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){toast("That email doesn't look right");return}
   try{localStorage.setItem("t57-rcp",$("sRcp").value)}catch(_){}
-  settings={ownerEmail:em,auto:$("sAuto").checked,pickupPct:pickPct($("sPick").value),review:cleanLink($("sReview").value),autoRc:$("sAutoRc").checked,ig:cleanUrl($("sIg").value),fb:cleanUrl($("sFb").value),ta:cleanLink($("sTa").value),hh:readHH()};
+  settings={ownerEmail:em,auto:$("sAuto").checked,pickupPct:settings.pickupPct,   /* no automatic takeaway discount (owner's choice, 15 Nov); the old value is kept, unused */review:cleanLink($("sReview").value),autoRc:$("sAutoRc").checked,ig:cleanUrl($("sIg").value),fb:cleanUrl($("sFb").value),ta:cleanLink($("sTa").value),hh:readHH()};
   try{localStorage.setItem("t57-3d-settings",JSON.stringify(settings))}catch(e){}
   $("setOv").classList.remove("show");toast("Settings saved");
   if(db&&!readOnly){try{await db.doc("settings/main").set({ownerEmail:settings.ownerEmail,auto:settings.auto,pickupPct:settings.pickupPct,review:settings.review,autoRc:settings.autoRc,ig:settings.ig,fb:settings.fb,ta:settings.ta,hh:settings.hh})}catch(e){}}
@@ -2228,8 +2229,10 @@ let printers={};
 function updPrinters(){let el=$("prnLights");const st=Object.keys(printers);
   if(!st.length){if(el)el.remove();return}
   if(!el){el=document.createElement("button");el.id="prnLights";el.className="prnl";$("status").after(el);el.onclick=()=>{
-    toast(["kitchen","bar","till"].filter(k=>printers[k]).map(k=>{const p=printers[k],[c,t]=prnState(p);return `${prName(k)}: ${t}`}).join(" · "),5000)}}
+    toast(["kitchen","bar","till"].filter(k=>printers[k]).map(k=>{const p=printers[k],[c,t]=prnState(p);return `${prName(k)}: ${t}${+p.copies>1?` · ${p.copies} copies of each order`:""}`}).join(" · "),5000)}}
   el.innerHTML="🖨 "+["kitchen","bar","till"].filter(k=>printers[k]).map(k=>{const [c,t]=prnState(printers[k]);return `<span class="pd ${c}" title="${prName(k)}: ${esc(t)}"><i></i>${prName(k)}</span>`}).join("")}
+// why a printer can't print right now ("" = fine, or we've never heard from it)
+function prnDown(k){const p=printers&&printers[k];if(!p)return "";const [c,t]=prnState(p);return c==="red"?t.charAt(0).toUpperCase()+t.slice(1):""}
 function prnState(p){const age=Date.now()-(+p.at||0);
   if(p.off)return ["red","printing switched off"];if(p.down&&Date.now()-(+p.at||0)<=60000)return ["red",p.msg||"printer off or out of range"];if(age>60000)return ["red","not heard from for "+Math.round(age/60000)+" min — check the printer tablet"];
   if(p.ok===false)return ["amber",p.msg||"last print failed — check paper / power"];return ["green","printing OK"]}
@@ -2496,13 +2499,24 @@ function openOrder(id,tab){
 function curGroup(){if(ord&&ord.pickup)return [];return groupsOf(state.tables).find(g=>g.includes(ord.lead))||[ord.lead]}
 function pickupActive(pno){return tickets.filter(t=>t.pickup&&t.pno===pno&&!t.closed)}
 function ordTickets(){return ord&&ord.pickup?pickupActive(ord.pno):activeFor(curGroup())}
-function newPickupNo(){const used=new Set(tickets.filter(t=>t.pickup).map(t=>t.pno));const pool=[];for(let i=10;i<=99;i++)if(!used.has(i))pool.push(i);
-  if(!pool.length)for(let i=100;i<=999;i++)if(!used.has(i))pool.push(i);return pool[Math.floor(Math.random()*pool.length)]}
+function pickupPool(){const used=new Set(tickets.filter(t=>t.pickup).map(t=>t.pno));const pool=[];for(let i=10;i<=99;i++)if(!used.has(i))pool.push(i);
+  if(!pool.length)for(let i=100;i<=999;i++)if(!used.has(i))pool.push(i);
+  for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]]}return pool}
+function newPickupNo(){return pickupPool()[0]}
+// numbers that must never repeat between tablets (takeaway #, order #): the database hands each one out once.
+// No connection → keep the first one (as before), so taking orders never waits on the Wi-Fi.
+async function claimNo(kind,cands){if(!db||!db.claim||readOnly||!cands.length)return cands[0];
+  for(const n of cands.slice(0,30)){try{const ok=await Promise.race([db.claim("claims",kind+"-"+dateKey+"-"+n,{kind,n,date:dateKey,at:Date.now(),by:waiter?waiter.name:""}),new Promise((_,no)=>setTimeout(()=>no(new Error("timeout")),5000))]);if(ok)return n}catch(e){return n}}
+  return cands[0]}
 function openPickup(pno,tab){
-  const p=pno||newPickupNo();const ex=tickets.find(t=>t.pickup&&t.pno===p);
+  const pool=pno?[pno]:pickupPool(),p=pool[0];const ex=tickets.find(t=>t.pickup&&t.pno===p);
   if(!pno){delete carts["P"+p]}cartOwner["P"+p]="pickup";   // a brand-new pickup always starts with an empty basket
-  ord={pickup:true,pno:p,lead:"P"+p,tab:tab||"menu",cat:firstFood(),review:false,pname:ex?ex.pname:"",pphone:ex?ex.pphone:"",walk:!!(ex&&ex.walk),pat:ex?ex.pat||"":""};
+  ord={pickup:true,pno:p,lead:"P"+p,tab:tab||"menu",cat:firstFood(),review:false,pname:ex?ex.pname:"",pphone:ex?ex.pphone:"",walk:!!(ex&&ex.walk),pat:ex?ex.pat||"":"",patOk:!!ex};   // patOk: Now or a time was actually picked
   sheetGroup=null;$("ordOv").classList.add("show");renderOrder();
+  if(!pno){const o=ord;o.pnoClaim=claimNo("pno",pool).then(n=>{o.pnoClaim=null;if(n===p||o.pno!==p||pickupActive(p).length)return;
+    // another tablet got this number a moment earlier: move the basket over to the number this tablet was given
+    const c=carts["P"+p];delete carts["P"+p];delete cartOwner["P"+p];carts["P"+n]=c||[];cartOwner["P"+n]="pickup";o.pno=n;o.lead="P"+n;
+    if(ord===o){renderOrder();toast(`Takeaway number is #${n} (another tablet took #${p})`,4000)}})}
 }
 function cart(){return carts[ord.lead]||(carts[ord.lead]=[])}
 function closeOrder(){$("ordOv").classList.remove("show");ord=null;sheetGroup=null;render();applySnapshotLater()}
@@ -2526,7 +2540,7 @@ function renderOrder(){
   if(!ord)return;ord._sig=ordSig();syncMixers(cart());
   const g=curGroup(),ids=g.slice().sort((a,b)=>a-b),b=ord.pickup?null:state.bookings[leadOf(g)];
   if(ord.pickup){$("oTitle").innerHTML=ord.walk?`🍸 Bar walk-up <span style="color:var(--wine)">#${ord.pno}</span>`:`🍕 Takeaway <span style="color:var(--wine)">#${ord.pno}</span><span class="chip" style="background:#3f5f86">No table</span>`;
-    $("oSub").textContent=ord.walk?(ord.pname?ord.pname+" · ":"")+"Served and paid at the bar":(ord.pname?ord.pname+(ord.pphone?" · "+ord.pphone:""):"Collection order")+(ord.pat?" · ⏰ ready for "+ord.pat:" · ASAP")+" · tell the customer their number";}
+    $("oSub").textContent=ord.walk?(ord.pname?ord.pname+" · ":"")+"Served and paid at the bar":(ord.pname?ord.pname+(ord.pphone?" · "+ord.pphone:""):"Collection order")+(ord.pat?" · ⏰ ready for "+ord.pat:ord.patOk?" · ASAP":" · ⏰ pick Now or a time")+" · tell the customer their number";}
   else{$("oTitle").innerHTML=esc(gnameLong(g))+`<span class="chip">${seatsOf(g)} seats</span>`;
   const lead=b&&b.guests[0]&&b.guests[0].name;
   $("oSub").textContent=(b?`${lead||"Booked"}${b.time?" · "+b.time:""} · ${partyOf(b)} guests`:"Walk-in")+(waiter?" · 👤 "+waiter.name:"");}
@@ -2582,7 +2596,7 @@ function renderOrder(){
       ""+
       `<div class="cl"><b style="font-size:13px">Note for the whole table</b><input id="oNote" data-ac="note" placeholder="Allergies, timing…" maxlength="200" value="${esc(ord.note||"")}"></div>`
       :`<div class="empty">Nothing in this order yet.</div>`);
-    foot.innerHTML=`<button class="btn sec" data-f="back">‹ Menu</button><button class="btn pri" data-f="send"${c.length?"":" disabled"}>${c.every(x=>ITEMS[x.n].station==="bar")?"Send to bar":c.some(x=>ITEMS[x.n].station==="bar")?"Send to kitchen + bar":"Send to kitchen"} · ${money(sum)}</button>`;
+    foot.innerHTML=`<button class="btn sec" data-f="back">‹ Menu</button><button class="btn pri${ord.pickup&&!ord.walk&&!ord.patOk?" needpat":""}" data-f="send"${c.length?"":" disabled"}>${c.every(x=>ITEMS[x.n].station==="bar")?"Send to bar":c.some(x=>ITEMS[x.n].station==="bar")?"Send to kitchen + bar":"Send to kitchen"} · ${money(sum)}</button>`;
   }else{
     cats.style.display="none";
     const all=act.slice().sort((a,b)=>a.createdAt-b.createdAt);let total=0;
@@ -2621,10 +2635,14 @@ function receiptHtml(B){
 }
 function timeOf(ms){if(!ms)return "";const d=new Date(ms);return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")}
 function ago(ms){const m=Math.max(0,Math.round((Date.now()-ms)/60000));return m<1?"just now":m+" min ago"}
+// a QR order is priced from the menu when staff approve it (never from what the customer's phone sent)
+function qrFix(t){const items=t.items.filter(x=>x.v||(ITEMS[x.n]&&!ITEMS[x.n].custom)).map(x=>x.v?x:Object.assign({},x,{p:priceOf(x.n)}));return {items,dropped:t.items.length-items.length}}
+async function qrApprove(list){let dropped=0;for(const t of list){const f=qrFix(t);dropped+=f.dropped;await patchTicket(t,{hold:false,createdAt:Date.now(),items:f.items})}
+  if(dropped)toast(`⚠ ${dropped} item${dropped===1?"":"s"} not on the menu taken off the QR order`,4500);return dropped}
 async function qrDecision(bt){
   const t=tickets.find(x=>x.id===bt.dataset.id);if(!t)return;
   if(readOnly){toast("View only");return}
-  if(bt.dataset.f==="qrok"){await patchTicket(t,{hold:false,createdAt:Date.now()});alexaSay([Object.assign({},t,{hold:false})]);toast(stOf(t)==="bar"?"Approved → bar":"Approved → kitchen");ticketsChanged()}
+  if(bt.dataset.f==="qrok"){const d=await qrApprove([t]);alexaSay([Object.assign({},t,{hold:false})]);if(!d)toast(stOf(t)==="bar"?"Approved → bar":"Approved → kitchen");ticketsChanged()}
   else ask("Reject this QR order?","It won't be made or charged. Let the table know.",async()=>{await patchTicket(t,{hold:false,closed:true,rejected:true});toast("QR order rejected");ticketsChanged()});
 }
 // ---- discounts ----
@@ -2676,7 +2694,7 @@ $("oBody").addEventListener("click",e=>{if(ord&&ord.openedAt&&Date.now()-ord.ope
   if(e.target.closest('[data-f="tprint"]')){const B=billOf(ordTickets());printJob(rcpPrinter(),"bill","Bill "+(ord.pickup?"Takeaway "+ord.pno:gname(curGroup())),billLines(B),"full",...qrPair());return}
   if(e.target.closest('[data-f="rpdf"]')){const B=billOf(ordTickets());offerPdf(receiptPdf(B),`Trattoria57_Receipt_${ord.pickup?"Takeaway"+ord.pno:gname(curGroup()).replace(/[^A-Za-z0-9+]/g,"")}_${dateKey}.pdf`);return}
   const qa=e.target.closest('[data-f="qrall"]');if(qa&&ord){if(readOnly){toast("View only");return}
-    (async()=>{const list=ordTickets().filter(t=>t.hold);for(const t of list)await patchTicket(t,{hold:false,createdAt:Date.now()});alexaSay(list.map(t=>Object.assign({},t,{hold:false})));toast(`Approved ${list.length} → kitchen/bar`);ticketsChanged()})();return}
+    (async()=>{const list=ordTickets().filter(t=>t.hold);const d=await qrApprove(list);alexaSay(list.map(t=>Object.assign({},t,{hold:false})));if(!d)toast(`Approved ${list.length} → kitchen/bar`);ticketsChanged()})();return}
   const qb=e.target.closest('[data-f="qrok"],[data-f="qrno"]');if(qb){qrDecision(qb);return}
   if(!ord)return;const c=cart();
   const pm=e.target.closest("[data-pmx]");if(pm&&ord.pop){const L=popLine();if(!L)return;const m=pm.dataset.pmx,c=cart();
@@ -2750,11 +2768,15 @@ $("oFoot").addEventListener("click",async e=>{if(Date.now()<footLockUntil){e.sto
     const oos=c.find(x=>outSet.has(x.n));if(oos){toast(oos.n+" is out of stock — remove it");return}
     const nc=c.find(needsChoice);if(nc){toast(`${nc.n}: ${CHOICES[nc.n].join(" or ")}? Tap it to choose`);ord.review=false;ord.pop=null;
       ord.cat=ITEMS[nc.n].cat;ord.pop={n:nc.n,plain:nc,cur:nc.q===1?Object.assign(nc,{pc:nc.pc||[],px:nc.px||""}):null};renderOrder();return}
+    if(dateKey!==todayKey()){toast("You're looking at another day — tap “Back to today” to send orders",4000);return}
+    if(ord.pickup&&!ord.walk&&!ord.patOk&&!ordTickets().length){toast("⏰ Tap “Now” (ASAP) or pick a collection time first",3500);const w=$("patW");if(w){w.classList.add("need");w.scrollIntoView({block:"center",behavior:"smooth"})}return}
+    if(ord.pickup&&ord.pnoClaim){bt.disabled=true;try{await ord.pnoClaim}finally{bt.disabled=false}if(!ord)return}
     if(!ord.pickup&&!state.bookings[leadOf(curGroup())]&&!ordTickets().length){toast("Nobody is seated at "+gname(curGroup())+" — it was cleared. Seat the party first.",4000);return}
     if(!waiter&&staffList().length){toast("Who's serving? Pick your name");pickWaiter(()=>{const b2=$("oFoot").querySelector('[data-f="send"]');if(b2)b2.click()});return}
     const g=curGroup(),ids=g.slice().sort((a,b)=>a-b);
     const bkN=!ord.pickup&&state.bookings[leadOf(g)];const bkAlg=[bkN&&isAlg(bkN.notes)&&!(ord.note||"").includes(bkN.notes)?"Booking: "+bkN.notes:"",(()=>{const P=bkN&&bkProf(bkN);return P&&P.allergy&&!(bkN.notes||"").includes(P.allergy)&&!(ord.note||"").includes(P.allergy)?"On file: "+P.allergy:""})()].filter(Boolean).join(" · ");
-    const no=tickets.reduce((m,t)=>Math.max(m,t.no||0),0)+1;
+    const no0=tickets.reduce((m,t)=>Math.max(m,t.no||0),0)+1;bt.disabled=true;
+    const lead0=ord.lead,no=await claimNo("no",Array.from({length:30},(_,i)=>no0+i)).finally(()=>{bt.disabled=false});if(!ord||ord.lead!==lead0)return;
     const first=!ordTickets().length&&!ord.pickup;let coversLeft=first?(ord.covers||0):0;
     let parts=[["kitchen",c.filter(x=>ITEMS[x.n].station!=="bar")],["bar",c.filter(x=>ITEMS[x.n].station==="bar")]].filter(p=>p[1].length);
     const pace=false;   // everything goes to the kitchen together (one ticket, grouped STARTERS / MAINS / DESSERTS)
@@ -3497,6 +3519,9 @@ $("report").addEventListener("click",e=>{
 });
 
 // ---------- QR table ordering (guest page) ----------
+// switched off (owner, 15 Nov): customers can't order from their phones; a scanned code just says to ask a waiter.
+// The code is kept so it can be switched back on by setting this to true.
+const QR_ORDERING=false;
 let guestId=null;const gCart={};let gCat=null;
 const CALL_WINDOW=12*3600e3;
 const callStore=useColl("calls",()=>{syncCalls();if(view==="guest")renderGuest()},q=>q.where("at",">=",Date.now()-CALL_WINDOW));
@@ -3515,7 +3540,8 @@ function guestFromHash(h){const m=/^#table-([a-z0-9]+)$/i.exec(h||"");if(!m)retu
 const tableHash=id=>"table-"+tname(id).toLowerCase();
 function gCartList(){return gCart[guestId]||(gCart[guestId]=[])}
 function renderGuest(){
-  if(!guestId)return;const g=groupFor(guestId),L=leadOf(g),b=state.bookings[L];
+  if(!guestId)return;
+  if(!QR_ORDERING){$("gTab").textContent="";$("gBody").innerHTML=`<div class="gcard" style="text-align:center;padding:28px 18px"><h3>Benvenuti!</h3><p>Please order with a member of staff — they'll be with you shortly.</p><p>Grazie · Thank you</p></div>`;$("gBar").innerHTML="";return}const g=groupFor(guestId),L=leadOf(g),b=state.bookings[L];
   const open=!!(b||activeFor(g).length);
   $("gTab").textContent=gnameLong(g);
   const mine=activeFor(g).slice().sort((a,c)=>a.createdAt-c.createdAt);
@@ -3629,7 +3655,7 @@ function renderList(){
       <div class="amt">${money(p.total)}<small>to pay</small></div></div>`).join(""):"")+
     (wait.length?`<h4>SEATED OR BOOKED · NO ORDER YET (${wait.length})</h4>`+wait.map(row).join(""):"");
 }
-$("pickBtn").onclick=()=>openPickup(0,"menu");
+$("pickBtn").onclick=()=>{if(dateKey!==todayKey())setDate(todayKey());openPickup(0,"menu")};
 $("listBtn").onclick=()=>{$("listOv").classList.add("show");renderList()};
 $("listClose").onclick=()=>$("listOv").classList.remove("show");
 $("listOv").addEventListener("pointerdown",e=>{if(e.target===$("listOv"))$("listOv").classList.remove("show")});
@@ -3958,9 +3984,10 @@ function wheelHtml(id,pat){const h0=Math.min(new Date().getHours(),pat?+pat.slic
     <div class="wheel"><div class="wcol" data-w="h"><i></i>${hs.map(h=>`<b data-v="${h}">${pad2(h)}</b>`).join("")}<i></i></div><span class="wc">:</span>
     <div class="wcol" data-w="m"><i></i>${Array.from({length:12},(_,k)=>`<b data-v="${k*5}">${pad2(k*5)}</b>`).join("")}<i></i></div>
     <div class="wsel"></div></div></div>`}
-function wheelInit(root,pat,onPick){
+function wheelInit(root,pat,onPick,unset){
   const H=root.querySelector('[data-w="h"]'),M=root.querySelector('[data-w="m"]');let user=false,t=0;
-  const label=v=>{root.querySelector(".wsel").innerHTML=v?`Ready at<br><b>${v}</b>`:`<b>ASAP</b><br>cooked now`;root.querySelectorAll("[data-pq]").forEach(b=>b.classList.toggle("on",!v&&b.dataset.pq==="0"))};
+  const label=v=>{if(unset){root.querySelector(".wsel").innerHTML=`<b>Pick a time</b><br>or tap Now`;root.querySelectorAll("[data-pq]").forEach(b=>b.classList.remove("on"));unset=false;return}
+    root.classList.remove("need");root.querySelector(".wsel").innerHTML=v?`Ready at<br><b>${v}</b>`:`<b>ASAP</b><br>cooked now`;root.querySelectorAll("[data-pq]").forEach(b=>b.classList.toggle("on",!v&&b.dataset.pq==="0"))};
   const val=()=>{const hb=H.querySelectorAll("b"),mb=M.querySelectorAll("b");const hi=Math.max(0,Math.min(hb.length-1,Math.round(H.scrollTop/WH))),mi=Math.max(0,Math.min(11,Math.round(M.scrollTop/WH)));
     return pad2(+hb[hi].dataset.v)+":"+pad2(+mb[mi].dataset.v)};
   const go=(v,smooth)=>{user=false;const [h,m]=v.split(":").map(Number);const hb=[...H.querySelectorAll("b")];let hi=hb.findIndex(b=>+b.dataset.v===h);if(hi<0)hi=hb.length-1;
@@ -3973,8 +4000,8 @@ function wheelInit(root,pat,onPick){
   root.querySelector(".patq").addEventListener("click",e=>{const b=e.target.closest("[data-pq]");if(!b)return;e.stopPropagation();const n=+b.dataset.pq;
     if(!n){label("");onPick("");return}const v=soon(n);go(v,true);label(v);onPick(v)});
 }
-function patChips(){setTimeout(()=>{const el=$("patW");if(el&&!el._w){el._w=1;wheelInit(el,ord.pat,v=>{ord.pat=v;
-  $("oSub").textContent=(ord.pname?ord.pname+(ord.pphone?" · "+ord.pphone:""):"Collection order")+(v?" · ⏰ ready for "+v:" · ASAP")+" · tell the customer their number"})}},0);
+function patChips(){setTimeout(()=>{const el=$("patW");if(el&&!el._w){el._w=1;wheelInit(el,ord.pat,v=>{ord.pat=v;ord.patOk=true;{const sb=$("oFoot").querySelector('[data-f="send"]');if(sb)sb.classList.remove("needpat")}
+  $("oSub").textContent=(ord.pname?ord.pname+(ord.pphone?" · "+ord.pphone:""):"Collection order")+(v?" · ⏰ ready for "+v:" · ASAP")+" · tell the customer their number"},!ord.patOk)}},0);
   return wheelHtml("patW",ord.pat)}
 async function setPickupTime(pat){
   const list=ordTickets().filter(t=>!t.closed);
@@ -4127,7 +4154,7 @@ function barTake(){
   const gs=groupsOf(state.tables).slice().sort((a,b)=>(isBar(Math.min(...b))-isBar(Math.min(...a)))||Math.min(...a)-Math.min(...b));
   openX("bartake","Drinks order for…","Pick the table, or Walk-up for someone paying at the bar",e=>{
     const b=e.target.closest("[data-bt]");if(!b)return;closeX();
-    if(b.dataset.bt==="walk"){openPickup(0,"menu");ord.walk=true}else openOrder(+b.dataset.bt,"menu");
+    if(b.dataset.bt==="walk"){if(dateKey!==todayKey())setDate(todayKey());openPickup(0,"menu");ord.walk=true}else openOrder(+b.dataset.bt,"menu");
     ord.barMode=true;ord.cat=CATS.find(k=>BAR_CATS.has(k));renderOrder()});
   $("xBody").innerHTML=`<button class="btpick walk" data-bt="walk">🚶 Walk-up · pay now</button><div class="btgrid">${gs.map(g=>{const busy=activeFor(g).length;
     return `<button class="btpick${busy?" busy":""}${isBar(Math.min(...g))?" isbar":""}" data-bt="${leadOf(g)}">${esc(gname(g))}${busy?"<small>open</small>":""}</button>`}).join("")}</div>`;
@@ -4372,7 +4399,11 @@ async function printJob(to,kind,title,lines,logo,social,review){
   const id=uid(),target=TRAIN&&db.base?db.base:db;   // training still prints, clearly marked
   if(TRAIN){lines=[PL.t("** TRAINING - NOT REAL **","c",1),PL.rule()].concat(lines);title="TRAINING "+title}
   try{await target.collection("printjobs").doc(id).set({to,kind,title,lines,logo:logo||"full",social:social||[],review:review||"",reviews:review?reviewLinks().filter(x=>x.u===review):[],date:dateKey,createdAt:Date.now(),by:waiter?waiter.name:""});
-    toast(`🧾 Sent to the ${prName(to)} printer`)}catch(e){toast("Couldn't send to printer — try again")}
+    const bad=prnDown(to);if(!bad){toast(`🧾 Sent to the ${prName(to)} printer`);return}
+    const alt=["bar","kitchen","till"].find(k=>k!==to&&printers[k]&&!prnDown(k));
+    if(alt)ask(`⚠ The ${prName(to)} printer isn't working`,`${bad}. Print “${title}” on the ${prName(alt)} printer instead? (Cancel = it waits and prints when the ${prName(to)} printer is back.)`,async()=>{
+      try{await target.collection("printjobs").doc(id).update({to:alt});toast(`🧾 Sent to the ${prName(alt)} printer`)}catch(e){toast("Couldn't move it — try again")}});
+    else toast(`⚠ The ${prName(to)} printer isn't working (${bad}) — this will print when it's back on`,6000)}catch(e){toast("Couldn't send to printer — try again")}
 }
 const PL={t:(t,a,b,s)=>({t:String(t),a:a||"l",b:b?1:0,s:s||1}),lr:(l,r,b,s)=>Object.assign({l:String(l),r:String(r),b:b?1:0},s>1?{s}:{}),rule:c=>({rule:c||"-"}),gap:()=>({t:""})};
 function billLines(B,tab){
@@ -4491,7 +4522,7 @@ const HUB=[
   ["📊 Reports & money",[["rday","📅","Day report"],["rweek","📈","Weekly report"],["rmonth","🗓","Monthly report"],["allord","📋","All orders"],["hours","⏱","Staff hours"]]],
   ["🍽 Menu & prices",[["menu","✏️","Edit menu & prices"],["hh","🍹","Happy hour"],["pmenu","🖨","Print the menu"]]],
   ["👥 People",[["staff","🧑‍🍳","Staff & their PINs"],["mpin","🔑","Change manager PIN"],["guests","👤","Guest profiles"]]],
-  ["⚙ Restaurant",[["settings","✉️","Emails & takeaway discount"],["links","⭐","Review & social links"],["rcp","🧾","Receipts & printing"],["qr","📱","Table QR codes & labels"],["reset","↺","Reset floor layout"],["signin","🔐","Tablet sign-in"],["alexa","🔊","Kitchen Alexa"]]],
+  ["⚙ Restaurant",[["settings","✉️","Emails & restaurant settings"],["links","⭐","Review & social links"],["rcp","🧾","Receipts & printing"],["reset","↺","Reset floor layout"],["signin","🔐","Tablet sign-in"],["alexa","🔊","Kitchen Alexa"]]],
 ];
 function openHub(){
   const m=MODES[devMode]||MODES.manager;
@@ -4740,18 +4771,21 @@ function makeSupaDb(sb){
     update:async fields=>{inflight[k]=(inflight[k]||0)+1;try{const {error}=await sb.rpc("t57_merge",{c:coll,i:id,patch:fields});if(error)throw err(error)}finally{inflight[k]--}},
     delete:async()=>{const {error}=await sb.from(TB).delete().eq("coll",coll).eq("id",id);if(error)throw err(error)},
     onSnapshot:(cb,ecb)=>listen(coll,id,null,cb,ecb)}}
+  // true = this tablet got it; false = another tablet already has it
+  async function claim(coll,id,data){const {error}=await sb.from(TB).insert({coll,id,data:data||{},updated_at:new Date().toISOString()});
+    if(!error)return true;if(error.code==="23505"||/duplicate|conflict/i.test(error.message||""))return false;throw err(error)}
   function query(coll,w){return {where:(f,op,v)=>query(coll,w.concat([[f,op,v]])),doc:id=>docRef(coll,id),
     get:async()=>{const rows=await fetchColl(coll,w);return {docs:rows.map(r=>snapDoc(coll,r.id,r,false)),size:rows.length,empty:!rows.length}},
     onSnapshot:(cb,ecb)=>listen(coll,null,w,cb,ecb)}}
-  return {collection:name=>query(name,[]),doc:path=>{const [c,i]=path.split("/");return docRef(c,i)},supa:true};
+  return {collection:name=>query(name,[]),doc:path=>{const [c,i]=path.split("/");return docRef(c,i)},claim,supa:true};
 }
 
 if(TRAIN){document.body.classList.add("training");$("trainBar").hidden=false;$("trainOff").onclick=()=>ask("Back to live on this device?","Real orders and bookings will show again.",()=>setTraining(false))}
 
 // ---------- training mode & going live ----------
-const NS_COLLS=["tickets","plan23","printjobs","calls","shifts","stock","guests"];   // kept separate in training
+const NS_COLLS=["tickets","plan23","printjobs","calls","shifts","stock","guests","claims"];   // kept separate in training
 function nsDb(d){const m=n=>NS_COLLS.includes(n)?"train_"+n:n;
-  return {collection:n=>d.collection(m(n)),doc:p=>{const i=p.indexOf("/");return d.doc(m(p.slice(0,i))+p.slice(i))},supa:d.supa,guest:d.guest,base:d}}
+  return {collection:n=>d.collection(m(n)),doc:p=>{const i=p.indexOf("/");return d.doc(m(p.slice(0,i))+p.slice(i))},claim:d.claim?(c,i,x)=>d.claim(m(c),i,x):undefined,supa:d.supa,guest:d.guest,base:d}}
 function setTraining(on){try{on?localStorage.setItem("t57-train","1"):localStorage.removeItem("t57-train")}catch(e){}location.reload()}
 function wipeLocalData(prefix){try{const ks=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&["tk-","p23-","c-"].some(x=>k.startsWith(prefix+x)))ks.push(k)}ks.forEach(k=>localStorage.removeItem(k))}catch(e){}}
 let liveSince=0;try{liveSince=+localStorage.getItem("t57-liveSeen")||0}catch(e){}
@@ -4777,7 +4811,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261115214759";const APP_VER=40;   // both stamped by the publish script
+const APP_BUILD="20261115230534";const APP_VER=41;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}

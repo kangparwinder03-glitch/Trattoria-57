@@ -85,7 +85,8 @@ class PrintService : Service() {
             if (System.currentTimeMillis() - lastBeat > 15000) try {
                 val st = prefs.getString("station", "kitchen") ?: "kitchen"
                 Cloud.merge("printers", st, org.json.JSONObject().put("at", System.currentTimeMillis()).put("ok", Bt.lastOk).put("msg", Bt.lastMsg).put("off", false).put("down", Bt.down)
-                    .put("paper", if (prefs.getInt("cols", 32) >= 48) "80mm" else "58mm").put("dev", Build.MODEL ?: ""))
+                    .put("paper", if (prefs.getInt("cols", 32) >= 48) "80mm" else "58mm").put("dev", Build.MODEL ?: "")
+                    .put("copies", if (st == "till") 1 else copiesFor(prefs, st)))
                 lastBeat = System.currentTimeMillis()
             } catch (_: Exception) {}
             // self-update: check once an hour (only between 3am and 3pm, never during service)
@@ -93,6 +94,12 @@ class PrintService : Service() {
             try { Thread.sleep(3000) } catch (_: InterruptedException) { break }
         }
     }
+
+    /** 5am today (or yesterday, before 5am): the restaurant's day, same rule as the tablets. */
+    private fun dayStart(): Long = java.util.Calendar.getInstance().apply {
+        timeInMillis = System.currentTimeMillis() - 5 * 3600_000L
+        set(java.util.Calendar.HOUR_OF_DAY, 5); set(java.util.Calendar.MINUTE, 0); set(java.util.Calendar.SECOND, 0); set(java.util.Calendar.MILLISECOND, 0)
+    }.timeInMillis
 
     private fun logos(cols: Int) = if (prefs.getBoolean("logo", true)) Logo.forPaper(this, cols) else Logos.NONE
 
@@ -118,8 +125,14 @@ class PrintService : Service() {
                 EscPos.hasCutter = cutterFor(prefs, st)
                 val copies = copiesFor(prefs, st)
                 val lg = logos(cols)
-                val bytes = (1..copies).map { Format.ticket(d, cols, lg, it, copies, training, bigFor(prefs, prefs.getString("station", "kitchen") ?: "kitchen")) }.reduce { a, b -> a + b }
-                if (!Bt.print(this, bytes, (if (training) "TRAINING " else "") + "$label · order #${d.optInt("no")}" + if (copies > 1) " (x$copies)" else "")) return
+                // one copy at a time: if the printer cuts out, only the copies that didn't come out print again
+                val doneKey = "copies_done_$id"
+                for (c in (prefs.getInt(doneKey, 0) + 1)..copies) {
+                    val bytes = Format.ticket(d, cols, lg, c, copies, training, bigFor(prefs, st))
+                    if (!Bt.print(this, bytes, (if (training) "TRAINING " else "") + "$label · order #${d.optInt("no")}" + if (copies > 1) " (copy $c of $copies)" else "")) return
+                    prefs.edit().putInt(doneKey, c).apply()
+                }
+                prefs.edit().remove(doneKey).apply()
                 Hub.say(ready, true)
                 markDone(done, coll, id, st)
                 Alexa.announce(label, st, training)
@@ -128,7 +141,8 @@ class PrintService : Service() {
         }
         // bills, receipts and reports sent from the website to this printer
         val jobs = Cloud.list("printjobs", listOf("to" to st))
-            .filter { (id, d) -> id !in done && d.optLong("printed", 0L) == 0L && d.optLong("createdAt") >= System.currentTimeMillis() - 2 * 3600_000L }
+            // anything sent today still prints when the printer comes back (it used to be dropped after 2 hours)
+            .filter { (id, d) -> id !in done && d.optLong("printed", 0L) == 0L && d.optLong("createdAt") >= dayStart() }
             .sortedBy { it.second.optLong("createdAt") }
         for ((id, d) in jobs) {
             if (!running) return

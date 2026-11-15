@@ -96,8 +96,10 @@ async def halfx(w, a, b, cat="Pizza"):
     await w.locator(f'#oCats .catrow button[data-c="{cat}"]').tap(); await w.wait_for_timeout(150)
     await w.locator("[data-halfgo]").tap(); await w.locator(f'[data-half={Q(a)}]').tap(); await w.locator(f'[data-half={Q(b)}]').tap(); await w.wait_for_timeout(200)
     stats["half & half"] += 1; return [await E(w, f"halfName({Q(a)},{Q(b)})")]
-async def send(w):
+async def send(w, pat=None):
     await w.locator('#oFoot [data-f="review"]').tap(); await w.wait_for_timeout(300)
+    if pat is not None:     # takeaway: tap "Now" or "+30 min" on the real time wheel, like a waiter
+        await w.locator(f'#patW [data-pq="{pat}"]').tap(); await w.wait_for_timeout(400)
     await w.locator('#oFoot [data-f="send"]').tap(); await w.wait_for_timeout(1500)
     left = await cart(w)
     if left: raise Exception(f"basket not empty after Send: {left}")
@@ -200,7 +202,8 @@ async def main():
     plan = []
     fixed = [(3, 240), (12, 210), (25, 120), (35, 30)]          # 4 h, 3.5 h, 2 h, 30 min
     for t, d in fixed: plan.append((t, d))
-    for _ in range(26): plan.append((rnd.uniform(0, MIN - 60), rnd.choice([30, 45, 60, 75, 90, 105, 120, 150])))
+    # arrivals spread over the whole evening (a short run used to squeeze them all into the first few minutes)
+    for _ in range(26): plan.append((rnd.uniform(0, max(MIN * 0.7, MIN - 60)), rnd.choice([30, 45, 60, 75, 90, 105, 120, 150])))
     plan.sort()
     parties = []
     for i, (t, d) in enumerate(plan):
@@ -213,12 +216,6 @@ async def main():
     def free_table(pa):
         pool = bars if pa.bar else rest
         cands = [t for t in pool if t not in busy]
-        if pa.join:
-            for t in cands:
-                # a neighbour to join with (same area, next number)
-                pool2 = bars if pa.bar else rest; i = pool2.index(t)
-                if i + 1 < len(pool2) and pool2[i + 1] in cands: return [t, pool2[i + 1]]
-            return cands[:1] or None
         return [rnd.choice(cands)] if cands else None
 
     async def until(m):
@@ -233,12 +230,15 @@ async def main():
         try:
             async def seat():
                 L = await open_table(w, tb[0])
-                if len(tb) > 1:
+                if pa.join:
+                    # join with a table the app offers (it only offers ones that really fit next to this one)
                     await w.locator("#shJoin").tap(); await w.wait_for_timeout(400)
-                    L2 = tb[1]; jb = w.locator(f'#xBody [data-jn="{L2}"]')
-                    if await jb.count(): await jb.tap(); await w.wait_for_timeout(700); stats["joined tables"] += 1
-                    else: raise Exception(f"{names[tb[1]]} not offered to join with {names[tb[0]]}")
-                    await open_table(w, tb[0])
+                    offers = [x for x in await w.locator('#xBody [data-jn]').evaluate_all("bs=>bs.map(b=>b.dataset.jn)") if not any(i in busy for i in x.split(","))]
+                    if offers:
+                        await w.locator(f'#xBody [data-jn="{offers[0]}"]').tap(); await w.wait_for_timeout(700); stats["joined tables"] += 1
+                        for i in offers[0].split(","): tb.append(i); busy.add(i)
+                    else: say(f"   (nothing free fits next to {names[tb[0]]} — party {pa.i} squeezes onto one table)")
+                    await E(w, "try{closeX()}catch(e){}"); await open_table(w, tb[0])
                 if pa.booked:
                     gs = [{"name": n, "phone": ""} for n in (pa.names or [rnd.choice(NAMES)])]
                     await E(w, f"state.bookings[leadOf(groupFor({L}))]={{time:{Q(clock(pa.at))},walkin:false,guests:{Q(gs)},size:{pa.size},status:'seated',notes:'',email:''}};save();render()")
@@ -322,14 +322,16 @@ async def main():
     async def takeaways():
         t = rnd.uniform(10, 25)
         while t < MIN - 15:
-            await until(t); w = rnd.choice([A, B]); at = None
-            if rnd.random() < .4: m = simnow() + rnd.choice([30, 45, 60]); at = clock(m)
+            await until(t); w = rnd.choice([A, B]); at = None; pq = 0
+            if rnd.random() < .4: pq = rnd.choice([20, 30, 45, 60]); at = f"+{pq} min"
             async def go():
                 await reset(w); await w.locator("#pickBtn").tap(); await w.wait_for_timeout(600)
                 if await cart(w): raise Exception("takeaway opened with items already in it")
                 its = await place(w, pick_items("food", rnd.randint(1, 3)) + ([("d", "Coke · Regular")] if rnd.random() < .3 else []), [])
-                if at: await E(w, f"ord.pat={Q(at)}")
-                await send(w); lab = await E(w, "ordTickets()[0].label"); expected[lab].update(its)
+                await send(w, pq); lab = await E(w, "ordTickets()[0].label"); expected[lab].update(its)
+                tk = json.loads(await E(w, "JSON.stringify(ordTickets().map(t=>({pat:t.pat,wait:t.wait,printed:t.printed})))"))
+                if pq and not all(x["pat"] for x in tk): raise Exception(f"takeaway time {at} was not saved on the ticket")
+                if any(x["wait"] for x in tk): raise Exception("takeaway held back instead of going to the kitchen now")
                 await pay_all(w, rnd.choice(["card", "cash"])); return lab
             lab = await act(w, "takeaway", go)
             if lab: stats["takeaways"] += 1; say(f"🍕 {lab}{' for '+at if at else ''} by {w._waiter}, paid")
@@ -381,6 +383,12 @@ async def main():
         if pays and not all(t.get("paid") for t in T):
             paid = round(sum(p["a"] for p in pays), 2)
             if abs(paid - tot) > 0.02: bad(f"{lab}: payments £{paid:.2f} vs bill £{tot:.2f}")
+    # everything on a ticket must be printable on the thermal printers (code page 437, like the printer app)
+    PRINTABLE = set(map(chr, range(32, 127))) | set("£·½¼°éèêëàáâäìíîïòóôöùúûüñçÉÄÖÜÑÇ×—–−’‘“”…€")
+    for t in ts:
+        for x in t["items"]:
+            odd = {c for c in x["n"] + (x.get("note") or "") if c not in PRINTABLE}
+            if odd: bad(f"{t['label']}: '{x['n']}' has letters the printer can't print: {''.join(sorted(odd))}")
     rep = json.loads(await E(A, "(()=>{const r=buildReport({tk:tickets,ds:dateKey,de:dateKey,bk:[]});return JSON.stringify({sales:r.sales,paid:r.paidAmt,card:r.card,cash:r.cash,open:r.openAmt})})()"))
     sold = round(sum(x["q"] * x["p"] for t in ts if not t.get("rejected") for x in t["items"] if not x.get("v")), 2)
     say(f"day report: {rep} · everything sold £{sold:.2f}")
