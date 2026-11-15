@@ -1,6 +1,7 @@
 name: Build print-test app
 on:
   push:
+    branches: [main]   # only the real app: a test branch must never reach the tablets' auto-update
     paths: ["print-test/**", ".github/workflows/print-test-apk.yml"]
   workflow_dispatch:
 permissions:

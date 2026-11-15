@@ -10,15 +10,7 @@ class EscPos(val cols: Int) {
 
     fun raw(vararg b: Int): EscPos { b.forEach { out.write(it) }; return this }
 
-    private fun enc(s: String): ByteArray = s.map { ch ->
-        when (ch) {
-            '£' -> 0x9C.toByte(); '·' -> 0xFA.toByte(); '×' -> 'x'.code.toByte()
-            '█' -> 0xDB.toByte(); '▓' -> 0xB2.toByte(); '░' -> 0xB0.toByte(); '▲' -> '+'.code.toByte(); '▼' -> '-'.code.toByte()
-            '—', '–', '−' -> '-'.code.toByte(); '’', '‘' -> '\''.code.toByte()
-            'é' -> 0x82.toByte(); 'è' -> 0x8A.toByte(); 'à' -> 0x85.toByte(); 'ä' -> 0x84.toByte(); 'ù' -> 0x97.toByte(); 'ò' -> 0x95.toByte()
-            else -> if (ch.code in 32..126) ch.code.toByte() else '?'.code.toByte()
-        }
-    }.toByteArray()
+    private fun enc(s: String): ByteArray = Text.cp437(s)
 
     fun align(a: Int): EscPos = raw(0x1B, 0x61, a)          // 0 left, 1 centre, 2 right
     /** When set (kitchen tickets), every line prints bold — bold(false) can't switch it off. */
@@ -26,9 +18,13 @@ class EscPos(val cols: Int) {
     fun bold(on: Boolean): EscPos = raw(0x1B, 0x45, if (on || allBold) 1 else 0)
     /** Everything bold + double-strike: thicker, darker print. */
     fun heavy(): EscPos { allBold = true; return raw(0x1B, 0x45, 1).raw(0x1B, 0x47, 1) }
-    fun size(w: Int, h: Int): EscPos = raw(0x1D, 0x21, ((w - 1) shl 4) or (h - 1))
+    fun size(w: Int, h: Int): EscPos { curW = w; return raw(0x1D, 0x21, ((w - 1) shl 4) or (h - 1)) }
     fun text(s: String): EscPos { out.write(enc(s)); return this }
     fun line(s: String = ""): EscPos = text(s).raw(0x0A)
+    /** Current character width (1 = normal, 2 = double width): wrapping uses it to know how many letters fit. */
+    private var curW = 1
+    /** A line that may be too long for the paper: broken between words (never mid-word), later lines indented. */
+    fun wline(s: String, indent: String = "  "): EscPos { Text.wrap(s, maxOf(8, cols / curW), indent).forEach { line(it) }; return this }
     fun feed(n: Int): EscPos = raw(0x1B, 0x64, n)
     /** End of a ticket: cut on printers with a cutter; otherwise feed extra paper so it all clears the tear edge. */
     fun cut(): EscPos = if (hasCutter) raw(0x1D, 0x56, 0x42, 0x00) else feed(3)
@@ -108,6 +104,56 @@ class EscPos(val cols: Int) {
     }
 
     fun bytes(): ByteArray = out.toByteArray()
+}
+
+/** Text helpers for the printer: its own alphabet (code page 437) and word wrapping. */
+object Text {
+    private val MAP = mapOf(
+        '£' to 0x9C, '·' to 0xFA, '█' to 0xDB, '▓' to 0xB2, '░' to 0xB0, '½' to 0xAB, '¼' to 0xAC, '°' to 0xF8,
+        'é' to 0x82, 'è' to 0x8A, 'ê' to 0x88, 'ë' to 0x89, 'à' to 0x85, 'á' to 0xA0, 'â' to 0x83, 'ä' to 0x84,
+        'ì' to 0x8D, 'í' to 0xA1, 'î' to 0x8C, 'ï' to 0x8B, 'ò' to 0x95, 'ó' to 0xA2, 'ô' to 0x93, 'ö' to 0x94,
+        'ù' to 0x97, 'ú' to 0xA3, 'û' to 0x96, 'ü' to 0x81, 'ñ' to 0xA4, 'ç' to 0x87, 'É' to 0x90, 'Ä' to 0x8E,
+        'Ö' to 0x99, 'Ü' to 0x9A, 'Ñ' to 0xA5, 'Ç' to 0x80)
+    private val PLAIN = mapOf('×' to "x", '▲' to "+", '▼' to "-", '—' to "-", '–' to "-", '−' to "-", '’' to "'", '‘' to "'",
+        '“' to "\"", '”' to "\"", '…' to "...", '€' to "EUR", 'À' to "A", 'È' to "E", 'Ì' to "I", 'Ò' to "O", 'Ù' to "U", 'œ' to "oe")
+
+    /** Bytes the printer understands. Emoji are left out (they used to print as "?"); anything else unknown prints as "?". */
+    fun cp437(s: String): ByteArray {
+        val out = java.io.ByteArrayOutputStream()
+        var i = 0
+        while (i < s.length) {
+            val cp = s.codePointAt(i); i += Character.charCount(cp)
+            val ch = if (cp <= 0xFFFF) cp.toChar() else '\u0000'
+            when {
+                cp in 32..126 -> out.write(cp)
+                MAP.containsKey(ch) -> out.write(MAP[ch]!!)
+                PLAIN.containsKey(ch) -> out.write(PLAIN[ch]!!.toByteArray())
+                cp == 0x200D || cp in 0xFE00..0xFE0F || cp in 0x1F000..0x1FFFF || cp in 0x2600..0x27BF || cp in 0x2B00..0x2BFF || cp in 0xE0000..0xE007F -> {}  // emoji & joiners
+                else -> out.write('?'.code)
+            }
+        }
+        return out.toByteArray()
+    }
+
+    /** Breaks text into lines of at most [width] letters, between words. Leading spaces are kept; a word longer than a line is split. */
+    fun wrap(s: String, width: Int, indent: String = "  "): List<String> {
+        if (s.length <= width) return listOf(s)
+        val lead = s.takeWhile { it == ' ' }.take(width / 2)
+        val out = mutableListOf<String>()
+        var cur = StringBuilder(lead); var hasWord = false
+        fun flush() { out += cur.toString(); cur = StringBuilder(indent); hasWord = false }
+        for (w0 in s.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }) {
+            var w = w0
+            while (w.isNotEmpty()) {
+                val sep = if (hasWord) 1 else 0
+                if (cur.length + sep + w.length <= width) { if (sep == 1) cur.append(' '); cur.append(w); hasWord = true; w = "" }
+                else if (hasWord) flush()
+                else { val r = maxOf(1, width - cur.length); cur.append(w.substring(0, minOf(r, w.length))); w = w.substring(minOf(r, w.length)); hasWord = true; if (w.isNotEmpty()) flush() }
+            }
+        }
+        if (hasWord) out += cur.toString()
+        return out
+    }
 }
 
 /** A 1-bit picture: true = black dot. */

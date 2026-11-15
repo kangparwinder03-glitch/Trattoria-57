@@ -101,7 +101,7 @@ object Format {
             else if (pat.isNotBlank()) size(2, 2).line("FOR $pat").size(1, 1)
             line("TAKEAWAY").size(2, 2).line("#" + t.optInt("pno")).size(1, 1)
             val who = listOf(t.optString("pname"), t.optString("pphone")).filter { it.isNotBlank() }.joinToString(" · ")
-            if (who.isNotBlank()) line(who)
+            if (who.isNotBlank()) wline(who)
         } else size(2, 2).line(t.optString("label").uppercase(Locale.UK)).size(1, 1)
         bold(false)
         val time = SimpleDateFormat("HH:mm", Locale.UK).format(Date(t.optLong("createdAt", System.currentTimeMillis())))
@@ -139,20 +139,20 @@ object Format {
             val note = x.optString("note")
             if (big) {
                 // extra-large: dish name double width + double height (the printer wraps long names), price small underneath
-                bold(true).size(2, 2).line(name).size(1, 1).bold(false)
+                bold(true).size(2, 2).wline(name).size(1, 1).bold(false)
                 lr(if (guest.isNotBlank()) "   for: $guest" else "", price)
                 if (note.isNotBlank()) {
                     if (ALG.containsMatchIn(note)) alg = true
-                    bold(true).size(1, 2).line((if (ALG.containsMatchIn(note)) " > !! " else " > ") + note).size(1, 1).bold(false)
+                    bold(true).size(1, 2).wline((if (ALG.containsMatchIn(note)) " > !! " else " > ") + note, "   ").size(1, 1).bold(false)
                 }
                 feed(1)
             } else {
                 bold(true).size(1, 2)
-                if (name.length + price.length + 1 > cols) line(name).lr("", price) else lr(name, price)
+                if (name.length + price.length + 1 > cols) wline(name).lr("", price) else lr(name, price)
                 size(1, 1).bold(false)
                 if (guest.isNotBlank()) line("   for: $guest")
                 if (note.isNotBlank()) {
-                    if (ALG.containsMatchIn(note)) { alg = true; bold(true).line("   > !! $note").bold(false) } else line("   > $note")
+                    if (ALG.containsMatchIn(note)) { alg = true; bold(true).wline("   > !! $note", "     ").bold(false) } else wline("   > $note", "     ")
                 }
             }
         }
@@ -160,7 +160,7 @@ object Format {
         bold(true).lr("TOTAL", money(total)).bold(false)
         rule()
         val tn = t.optString("note")
-        if (tn.isNotBlank()) { bold(true); if (big) size(1, 2); line("NOTE: $tn").size(1, 1).bold(false); rule() }
+        if (tn.isNotBlank()) { bold(true); if (big) size(1, 2); wline("NOTE: $tn").size(1, 1).bold(false); rule() }
         if (alg) align(1).bold(true).size(1, 2).line("!! ALLERGY - CHECK NOTES !!").size(1, 1).bold(false).align(0)
         feed(4); cut()
     }.bytes()
@@ -186,14 +186,15 @@ object Format {
                         val c2 = cols / 2; val room = c2 - r.length - 1
                         val ll = if (l.length > room) l.substring(0, maxOf(0, room)) else l
                         bold(true).size(2, 2).line(ll + " ".repeat(maxOf(1, c2 - ll.length - r.length)) + r).size(1, 1).bold(false)
-                    } else if (l.length + r.length + 1 > cols && r.isNotBlank()) bold(b).line(l).lr("", r).bold(false)   // long dish name: whole name, price underneath
+                    } else if (l.length + r.length + 1 > cols && r.isNotBlank()) bold(b).wline(l).lr("", r).bold(false)   // long dish name: whole name (wrapped between words), price underneath
+                    else if (l.length > cols) bold(b).wline(l).bold(false)
                     else bold(b).lr(l, r).bold(false)
                 }
                 else -> {
                     val s = o.optInt("s", 1)
                     align(when (o.optString("a")) { "c" -> 1; "r" -> 2; else -> 0 }).bold(b)
                     if (s > 1) size(1, 2)
-                    line(o.optString("t"))
+                    wline(o.optString("t"), "")
                     if (s > 1) size(1, 1)
                     bold(false).align(0)
                 }
