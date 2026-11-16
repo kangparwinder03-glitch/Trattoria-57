@@ -1171,6 +1171,7 @@ a[href^="#"]:active{filter:brightness(.9)}
       <div class="fld" style="margin-bottom:12px"><label for="sOwner">Owner's email</label><input id="sOwner" type="email" inputmode="email" placeholder="owner@example.com" maxlength="80"></div>
       <div class="fld" style="margin-bottom:12px"><label for="sReview">Google review link (QR printed on receipts)</label><input id="sReview" maxlength="300" placeholder="https://g.page/r/…/review" autocomplete="off"></div>
       <button type="button" class="btn sec" id="sDevMode" style="max-width:none;width:100%;margin-bottom:12px">📱 This tablet is for: <b id="sDevModeLbl"></b> — change</button>
+      <div id="sApp"></div>
       <div class="hhbox"><label class="hhon"><input type="checkbox" id="hhOn"> 🍹 <b>Happy hour</b> — drink prices drop automatically</label>
         <div class="row3"><div class="fld"><label for="hhFrom">From</label><input id="hhFrom" type="time"></div><div class="fld"><label for="hhTo">To</label><input id="hhTo" type="time"></div><div class="fld"><label for="hhPct">% off</label><input id="hhPct" type="number" min="1" max="90" inputmode="numeric"></div></div>
         <div class="hhchips" id="hhDays"></div><div class="hhchips" id="hhCats"></div></div>
@@ -1854,7 +1855,16 @@ function fillHH(){const h=settings.hh||cleanHH({});$("hhOn").checked=!!(settings
 function readHH(){return cleanHH({on:$("hhOn").checked,from:$("hhFrom").value,to:$("hhTo").value,pct:$("hhPct").value,
   days:[...$("hhDays").querySelectorAll("input:checked")].map(i=>+i.value),cats:[...$("hhCats").querySelectorAll("input:checked")].map(i=>i.value)})}
 document.addEventListener("click",e=>{if(e.target.closest("#sDevMode")){const ov=document.querySelector(".overlay.show");if(ov)ov.classList.remove("show");openModePicker()}});
-function openSettings(){$("sOwner").value=settings.ownerEmail;$("sAuto").checked=settings.auto;$("sIg").value=settings.ig||"";$("sReview").value=settings.review||"";$("sTa").value=settings.ta||"";fillHH();{const m=MODES[devMode];$("sDevModeLbl").textContent=m?m.icon+" "+m.name:"⭐ Manager (everything)"}$("sRcp").value=rcpPrinter();$("sAutoRc").checked=settings.autoRc!==false;$("sFb").value=settings.fb||"";$("setOv").classList.add("show")}
+// ---- the Trattoria 57 Android app: install button in Chrome, app version + update check inside the app ----
+const APK_URL="https://github.com/kangparwinder03-glitch/Trattoria-57/releases/download/app-latest/Trattoria-57.apk";
+const IN_APP=/ T57App\//.test(navigator.userAgent)||!!window.T57App;
+function fillAppBox(){const el=$("sApp");if(!el)return;
+  if(IN_APP){let v="";try{v=window.T57App&&T57App.version?T57App.version():""}catch(_){}
+    el.innerHTML=`<button type="button" class="btn sec" id="sAppUpd" style="max-width:none;width:100%;margin-bottom:12px">📲 Trattoria 57 app${v?" · version "+esc(String(v)):""} — check for app update</button>`;
+    $("sAppUpd").onclick=()=>{try{T57App.checkUpdate();toast("Checking for an app update…")}catch(_){toast("Couldn't check right now")}};return}
+  if(!/Android/i.test(navigator.userAgent)){el.innerHTML="";return}
+  el.innerHTML=`<a class="btn sec" id="sAppGet" href="${APK_URL}" style="max-width:none;width:100%;margin-bottom:6px;display:block;text-align:center;text-decoration:none;box-sizing:border-box">📲 Install Trattoria 57 app</a><p class="trial" style="margin:0 0 12px">Opens this app full screen, keeps the screen awake and keeps orders syncing. Install it once on each tablet, then sign in once inside the app.</p>`}
+function openSettings(){fillAppBox();$("sOwner").value=settings.ownerEmail;$("sAuto").checked=settings.auto;$("sIg").value=settings.ig||"";$("sReview").value=settings.review||"";$("sTa").value=settings.ta||"";fillHH();{const m=MODES[devMode];$("sDevModeLbl").textContent=m?m.icon+" "+m.name:"⭐ Manager (everything)"}$("sRcp").value=rcpPrinter();$("sAutoRc").checked=settings.autoRc!==false;$("sFb").value=settings.fb||"";$("setOv").classList.add("show")}
 $("setBtn").onclick=()=>openHubGated();
 $("setClose").onclick=()=>$("setOv").classList.remove("show");
 $("setOv").addEventListener("pointerdown",e=>{if(e.target===$("setOv"))$("setOv").classList.remove("show")});
@@ -3175,6 +3185,10 @@ function pdfHeader(P,title,sub){
 async function offerPdf(P,filename){
   const bytes=P.bytes();window.__t57lastPdf={filename,bytes};
   let dl=null;try{dl=window.claude&&typeof window.claude.use==="function"?await window.claude.use("downloads"):null}catch(_){}
+  if(!dl&&window.T57App&&T57App.savePdf){   // inside the Trattoria 57 app: Android's share sheet (email, print, save)
+    try{let b="";for(let i=0;i<bytes.length;i+=32768)b+=String.fromCharCode.apply(null,bytes.subarray(i,i+32768));T57App.savePdf(btoa(b),filename);toast("PDF ready — choose where to send it")}
+    catch(_){toast("Couldn't make the PDF here")}
+    return}
   if(!dl){
     try{const f=new File([bytes],filename,{type:"application/pdf"});
       if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:filename.replace(/_/g," ").replace(/\.pdf$/,""),text:"Trattoria 57"});toast("PDF shared");return}}
@@ -4848,7 +4862,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261116224301";const APP_VER=45;   // both stamped by the publish script
+const APP_BUILD="20261116230245";const APP_VER=46;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
