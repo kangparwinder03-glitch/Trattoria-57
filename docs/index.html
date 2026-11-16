@@ -1960,6 +1960,8 @@ const EN_SHOW=Object.assign({},EN_OF,{"Bruschetta Ezios":"Tomato, Garlic & Parme
  "Scampi alla Provinciale":"Scampi in Tomato & Garlic","Salmone Aurora":"Salmon with Prawns in Pink Sauce","Salmone Navona":"Salmon in Asparagus Cream",
  "Sauce: Pizzaiola":"Sauce: Tomato & Oregano","Sauce: Diana":"Sauce: Mushroom & Brandy Cream","Sauce: Rossini":"Sauce: Pâté & Red Wine",
  "Tiramisù":"Coffee & Mascarpone Dessert","Coppa":"Ice Cream Sundae","Affogato":"Ice Cream with Espresso","Affogato with a spirit":"Ice Cream with Espresso & a Spirit","Limoncello":"Lemon Liqueur","Sambuca":"Aniseed Liqueur","Lasagna":""});
+// no # where the English line underneath already says the same thing
+for(const n of ["Cocktail di Gamberetti","Melone Fresco","Melone & Prosciutto","Pasticcio de Fegato","Brie Fritto","Costolette di Maiale in Salsa","Alette di Pollo in Salsa","Funghi Andreas","Calamari Fritti","Gamberoni in Tempura","Sardine Fritte","Bruschetta Ezios","Pizza all'Aglio e Pomodoro","Pizza all'Aglio e Mozzarella","Pizza Garibaldi","Pizza Trastevere","Spaghetti Carbonara","Spaghetti Amatriciana","Penne Napoli","Penne Mascarpone","Lasagna Vegetariana","Lasagna","Cannelloni Contadina","Fracosta di Bue","Filetto di Bue Extra Mature","Scampi alla Provinciale","Scampi Fritti","Salmone Aurora","Salmone Navona","Maionese all'Aglio","Pomodoro dip","Affogato","Affogato with a spirit"])EN_SHOW[n]="";
 const enTag=n=>EN_SHOW[n]?` <i class="enn"># ${esc(EN_SHOW[n])}</i>`:"";
 const IT_OF={};for(const k in EN_OF)IT_OF[EN_OF[k]]=k;          // English name → Italian (menu shows Italian, English underneath)
 const enName=n=>IT_OF[n]||n;                                  // English name saved by v15–v21 (prices, stock lists…) → today's Italian one
