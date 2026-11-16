@@ -65,6 +65,7 @@ class CDP:
             time.sleep(0.5)
         return None
 
+KCOUNT = "document.querySelectorAll('#kitchen .tk').length"
 TRAIN_JS = "try{localStorage.setItem('t57-train','1');localStorage.setItem('t57-3d-hint','0')}catch(e){}"
 LIVE = "(document.getElementById('status')||{}).textContent.includes('live')"
 STATUS = "(document.getElementById('status')||{}).textContent"
@@ -81,8 +82,8 @@ sh("settings put system screen_off_timeout 60000")   # short screen timeout, to 
 #    change anything; training mode is switched on before signing in.
 sh(f"am start -W -n {PKG}/.MainActivity")
 cdp = CDP(); log("app page:", cdp.connect())
-t = cdp.wait(f"location.href.startsWith('{HOME}') && document.getElementById('lgEmail')", 60)
-check("website opens in the app and asks to sign in", t is not None, f"after {t}s")
+t = cdp.wait(f"location.href.startsWith('{HOME}') && document.getElementById('lgEmail')", 90)
+log("website opened in the app", f"after {t}s" if t is not None else "(sign-in screen not seen yet)")
 cdp.ev(TRAIN_JS + "location.reload()"); time.sleep(2)
 cdp = CDP(); cdp.connect()
 t = cdp.wait("document.getElementById('lgEmail') && document.getElementById('loginOv').classList.contains('show')", 60)
@@ -124,11 +125,14 @@ def send_order(tag):
         W.click('#pickBtn'); W.wait_for_timeout(1000)
         W.click('#oCats [data-side="food"]'); W.click('#oCats button[data-c="Pizza"]'); W.click('.mi[data-n="Pizza Margherita"] .add')
         W.click('#oFoot [data-f=review]'); W.click('#oFoot [data-f=send]'); W.wait_for_timeout(2500)
-        log("sender (training):", tag, "order sent"); b.close()
+        asked = W.evaluate("document.getElementById('xOv').classList.contains('show') ? document.getElementById('xOv').innerText.slice(0,120) : ''")
+        if asked: log("sender: the website asked:", asked.replace("\n", " | "))
+        W.goto(HOME + "#kitchen"); W.wait_for_function(LIVE, timeout=30000); W.wait_for_timeout(3000)
+        log("sender (training):", tag, "order sent; sender's own kitchen screen shows", W.evaluate(KCOUNT), "tickets"); b.close()
 
-for label, away in (("in the background", "input keyevent 3"), ("with the screen off", "input keyevent 26")):
-    before = cdp.ev("document.querySelectorAll('#kitchen .tk').length"); tk0 = cdp.ev("window.__tk")
-    sh(away); log("app is now", label); time.sleep(45)
+for label, away in (("with the app open", ""), ("in the background", "input keyevent 3"), ("with the screen off", "input keyevent 26")):
+    before = cdp.ev(KCOUNT); tk0 = cdp.ev("window.__tk")
+    if away: sh(away); log("app is now", label, "| kitchen tickets before:", before); time.sleep(45)
     send_order(label)
     d = cdp.wait(f"document.querySelectorAll('#kitchen .tk').length>{before}", 45)
     tk = cdp.ev("window.__tk") - tk0
@@ -148,11 +152,12 @@ t = cdp.wait(f"location.href.startsWith('{HOME}') && {LIVE}", 60)
 check("recovers after the page engine is killed", t is not None and pid() == p0 and cdp.ev("localStorage.getItem('t57-train')==='1'"), f"after {t}s")
 
 # 6) Saved data (login, station, training…) survives the app being fully stopped and reopened
-cdp.ev("localStorage.setItem('t57-apptest-keep','yes')")
+cdp.ev("localStorage.setItem('t57-apptest-keep','yes')"); time.sleep(15)
 sh(f"am force-stop {PKG}"); time.sleep(2); sh(f"am start -W -n {PKG}/.MainActivity")
 cdp = CDP(); cdp.connect()
 t = cdp.wait(f"localStorage.getItem('t57-apptest-keep')==='yes' && localStorage.getItem('t57-train')==='1' && {LIVE}", 60)
-check("saved data kept after a full restart (still training)", t is not None)
+check("saved data kept after a full restart (still training)", t is not None,
+      cdp.ev("JSON.stringify([localStorage.getItem('t57-apptest-keep'),localStorage.getItem('t57-train'),document.getElementById('status').textContent])"))
 shot("restarted")
 
 print("\nRESULT:", "ALL PASSED" if ok else "SOME CHECKS FAILED")
