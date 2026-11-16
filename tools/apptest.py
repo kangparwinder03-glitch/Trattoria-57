@@ -4,7 +4,8 @@
 # "running" service, keeps syncing orders while in the background and with the screen off,
 # recovers when Android kills the page engine, Back never closes the app, saved data survives a restart.
 import json, re, subprocess, sys, time, urllib.request
-import websocket
+import websocket, atexit
+atexit.register(lambda: subprocess.run("adb logcat -d -t 4000 > logcat.txt", shell=True, timeout=60))
 
 PKG = "uk.trattoria57.app"
 HOME = "https://kangparwinder03-glitch.github.io/Trattoria-57/"
@@ -144,6 +145,5 @@ t = cdp.wait(f"localStorage.getItem('t57-apptest-keep')==='yes' && localStorage.
 check("saved data kept after a full restart (still training)", t is not None)
 shot("restarted")
 
-subprocess.run("adb logcat -d -t 3000 > logcat.txt", shell=True)
 print("\nRESULT:", "ALL PASSED" if ok else "SOME CHECKS FAILED")
 sys.exit(0 if ok else 1)
