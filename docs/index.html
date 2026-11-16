@@ -1912,7 +1912,8 @@ const MENU=[
 ["Pizza Diavola",12.90,"Mozzarella, tomato & hot salami"],["Pizza Garibaldi",13.90,"Hot salami, onion & peppers"],["Pizza Margherita",11.50,"Mozzarella & tomato"],
 ["Pizza Capricciosa",12.90,"Mushrooms & ham"],["Pizza Hawaiana",12.90,"Ham & pineapple"],["Pizza House Special",15.90,"Peppers, onions, ham, salami, mushrooms, seafood"],
 ["Pizza 4 Formaggi",13.90,"Mozzarella, parmesan, dolce latte, stilton"],["Pizza Vegetariana",12.90,"Courgettes, onion, peppers, olives, sweetcorn, mushrooms"],
-["Pizza Trastevere",14.90,"Stilton & Parma ham"],["Pizza 4 Stagioni",14.50,"Ham, mushrooms, olives & artichokes"],["Pizza Vulcano",13.90,"Wurstel, bacon & chilli"]]],
+["Pizza Trastevere",14.90,"Stilton & Parma ham"],["Pizza 4 Stagioni",14.50,"Ham, mushrooms, olives & artichokes"],["Pizza Vulcano",13.90,"Wurstel, bacon & chilli"],
+["Extra Vegetables (pizza)",1.50,""],["Extra Meat (pizza)",2.00,""],["Extra Fish (pizza)",2.50,""],["Gluten free pizza base",2.00,""]]],
 ["Pasta",[
 ["Spaghetti Mario's",13.90,"Onions, courgettes, prawns, garlic, white wine, tomato"],["Spaghetti Carbonara",12.90,"Bacon, egg, cream & black pepper"],
 ["Spaghetti Bolognese",11.90,"Bolognese sauce"],["Spaghetti Amatriciana",12.90,"Bacon, onion & tomato"],["Linguine Marinara",14.90,"Seafood, white wine, tomato & garlic"],
@@ -1938,8 +1939,7 @@ const MENU=[
 ["Italian style courgettes",4.50,""],["2 Veg of the Day & Potatoes",3.00,""],["Salad",3.90,"Mixed, green or tomato"],["Fries",3.50,""],["Bowl of Olives",4.50,""]]],
 ["Sauces & Extras",[
 ["Sauce: Pepe",3.00,""],["Sauce: Pizzaiola",3.00,""],["Sauce: Diana",3.00,""],["Sauce: Rossini",3.00,""],["Sauce: All'Aglio",3.00,""],
-["Sauce: Stilton",3.00,""],["Sauce: Panna",3.00,""],["Maionese all'Aglio",1.50,"Garlic mayo dip"],["Pomodoro dip",1.50,"Tomato dip"],
-["Extra Vegetables (pizza)",1.50,""],["Extra Meat (pizza)",2.00,""],["Extra Fish (pizza)",2.50,""],["Gluten free pizza base",2.00,""]]],
+["Sauce: Stilton",3.00,""],["Sauce: Panna",3.00,""],["Maionese all'Aglio",1.50,"Garlic mayo dip"],["Pomodoro dip",1.50,"Tomato dip"]]],
 ["Children",[
 ["Kids Pizza or Pasta",8.90,"Includes ice cream"],["Kids Chicken Nuggets & Fries",8.90,"Includes ice cream"],["Kids Fish Fingers & Fries",8.90,"Includes ice cream"],
 ["Kids Mozzarella Sticks & Fries",8.90,"Includes ice cream"],["Kids Chicken Strips & Fries",8.90,"Includes ice cream"]]],
@@ -1977,10 +1977,12 @@ const ITEMS={};MENU.forEach(([cat,list])=>list.forEach(([n,p,d])=>{ITEMS[n]={n,p
 // ---- half & half pizzas: "½ Margherita / ½ Diavola", charged at the dearer of the two ----
 function halfShort(n){return String(n).replace(/^Pizza all'/,"").replace(/^Pizza /,"").replace(/ Pizza$/,"")}
 const HALF_CATS=new Set(["Pizza","Garlic Pizzas"]);
+// pizza add-ons (extra toppings, gluten free base) sit at the bottom of the Pizza tab but are not pizzas themselves
+const isPizzaAddon=n=>/\(pizza\)$|^gluten free pizza base$/i.test(String(n));
 function halfName(a,b){return "½ "+halfShort(a)+" / ½ "+halfShort(b)}
-function halfBases(){return Object.values(ITEMS).filter(x=>HALF_CATS.has(x.cat)&&!x.custom&&!x.half&&!x.alias&&!x.xl&&!/calzone/i.test(x.n)).map(x=>x.n)}
+function halfBases(){return Object.values(ITEMS).filter(x=>HALF_CATS.has(x.cat)&&!x.custom&&!x.half&&!x.alias&&!x.xl&&!/calzone/i.test(x.n)&&!isPizzaAddon(x.n)).map(x=>x.n)}
 // pizza tab: any two pizzas · garlic pizza tab: garlic pizzas first, then the normal pizzas (half garlic, half any)
-function halfChoices(cat){const f=k=>(MENU.find(m=>m[0]===k)||[0,[]])[1].map(x=>x[0]).filter(n=>!/calzone/i.test(n));
+function halfChoices(cat){const f=k=>(MENU.find(m=>m[0]===k)||[0,[]])[1].map(x=>x[0]).filter(n=>!/calzone/i.test(n)&&!isPizzaAddon(n));
   return cat==="Garlic Pizzas"?[...f("Garlic Pizzas"),...f("Pizza")]:f("Pizza")}
 function addHalves(){for(const k in ITEMS)if(ITEMS[k].half)delete ITEMS[k];const ps=halfBases();
   for(const a of ps)for(const b of ps)if(a!==b){const n=halfName(a,b);ITEMS[n]={n,p:Math.max(ITEMS[a].p,ITEMS[b].p),d:"Half & half",cat:ITEMS[a].cat==="Garlic Pizzas"&&ITEMS[b].cat==="Garlic Pizzas"?"Garlic Pizzas":"Pizza",station:"kitchen",half:[a,b]}}}
@@ -2151,7 +2153,7 @@ function freeSide(n){const it=ITEMS[n];if(!it||it.half||it.custom)return false;c
 const CHOICES=new Proxy({"Mineral Water":["Still","Sparkling"],"Salad":["Mixed","Green","Tomato"],"Liqueur Coffee":["Irish","Baileys","Tia Maria","Amaretto"]},
   {get:(o,k)=>{const v=Reflect.get(o,k);return v!==undefined||typeof k!=="string"?v:(freeSide(k)?FREE_SIDES:undefined)}});
 // kids pizza or pasta: choose from every pizza and pasta dish on the menu (follows menu edits)
-Object.defineProperty(CHOICES,"Kids Pizza or Pasta",{enumerable:true,get(){const f=k=>(MENU.find(m=>m[0]===k)||[0,[]])[1].map(x=>x[0]);return [...f("Pizza"),...f("Pasta")]}});
+Object.defineProperty(CHOICES,"Kids Pizza or Pasta",{enumerable:true,get(){const f=k=>(MENU.find(m=>m[0]===k)||[0,[]])[1].map(x=>x[0]);return [...f("Pizza").filter(n=>!isPizzaAddon(n)),...f("Pasta")]}});
 const reEsc=t=>String(t).replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
 const needsChoice=x=>CHOICES[x.n]&&!CHOICES[x.n].some(c=>(x.pc||[]).includes(c)||new RegExp("(^|[^\\w])"+reEsc(c)+"($|[^\\w])","i").test(x.note||""));
 const DONENESS=["Blue","Rare","Medium rare","Medium","Medium well","Well done"];
@@ -2163,7 +2165,7 @@ function optsBase(n){const it=ITEMS[n];if(!it)return {opts:[],cook:false,alg:fal
   if(c==="Hot Drinks")return {opts:["Oat milk","Soya milk","Decaf","Extra shot","Sugar on side","Extra hot"],alg:false};
   if(BAR_CATS.has(c))return {opts:drinkChips(c,n),mix:mixFor(n),alg:false};
   if(/steak|fracosta|filetto di bue|sirloin|rib ?eye|t-bone|rump/i.test(n+" "+(it.d||"")))return {opts:["Peppercorn sauce","Diane sauce","Sauce on side","No sauce"],cook:true,alg:true};
-  if(c==="Pizza"||c==="Garlic Pizzas")return {opts:["No onion","No chilli","No mushrooms","No olives","Extra cheese","Extra chilli","Well done","Halal","Gluten free base"],alg:true};
+  if((c==="Pizza"||c==="Garlic Pizzas")&&!isPizzaAddon(n))return {opts:["No onion","No chilli","No mushrooms","No olives","Extra cheese","Extra chilli","Well done","Halal","Gluten free base"],alg:true};
   if(c==="Pasta"||c==="Risotto")return {opts:["No onion","No garlic","No chilli","No mushrooms","Extra cheese","Gluten free pasta","Starter size"],alg:true};
   if(c==="Meat"||c==="Poultry"||c==="Fish")return {opts:["Sauce on side","No sauce","Chips instead","Salad instead","Well done","Halal","No onion"].filter(t=>!freeSide(n)||!/instead/.test(t)),alg:true};
   if(c==="Children")return {opts:["No sauce","Plain","No cheese","Chips on side"],alg:true};
