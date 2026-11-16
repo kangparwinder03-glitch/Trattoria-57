@@ -77,15 +77,16 @@ log("installing", APK); adb("install", "-r", "-g", APK, check_=True)
 sh(f"dumpsys deviceidle whitelist +{PKG}")   # what the app's first-start question does on a real tablet
 sh("settings put system screen_off_timeout 60000")   # short screen timeout, to prove the app keeps the screen on
 
-# 1) Start with no internet: nothing loads, so training mode is switched on before the website ever runs.
-sh("svc wifi disable; svc data disable"); time.sleep(3)
+# 1) Start. The restaurant's data is locked until a tablet signs in, so this first load can't read or
+#    change anything; training mode is switched on before signing in.
 sh(f"am start -W -n {PKG}/.MainActivity")
 cdp = CDP(); log("app page:", cdp.connect())
-cdp.send("Page.enable"); cdp.send("Page.addScriptToEvaluateOnNewDocument", {"source": TRAIN_JS})
-time.sleep(4); shot("offline")
-sh("svc wifi enable; svc data enable")
-t = cdp.wait(f"location.href.startsWith('{HOME}') && document.getElementById('lgEmail')", 90)
-check("comes back by itself when the internet returns and asks to sign in", t is not None, f"after {t}s")
+t = cdp.wait(f"location.href.startsWith('{HOME}') && document.getElementById('lgEmail')", 60)
+check("website opens in the app and asks to sign in", t is not None, f"after {t}s")
+cdp.ev(TRAIN_JS + "location.reload()"); time.sleep(2)
+cdp = CDP(); cdp.connect()
+t = cdp.wait("document.getElementById('lgEmail') && document.getElementById('loginOv').classList.contains('show')", 60)
+shot("signin")
 check("signed in", cdp.ev(SIGN_IN))
 t = cdp.wait(LIVE, 40)
 check("connected to the restaurant's data", t is not None, f"after {t}s; status: {cdp.ev(STATUS)}")
