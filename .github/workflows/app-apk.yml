@@ -29,7 +29,7 @@ jobs:
   test:
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -40,18 +40,37 @@ jobs:
           sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
       - run: pip install websocket-client==1.8.0 playwright==1.47.0 && python -m playwright install --with-deps chromium
       - name: Test on an Android tablet emulator (training mode)
+        id: t1
+        continue-on-error: true
+        timeout-minutes: 16
         env:
           T57_EMAIL: ${{ secrets.T57_EMAIL }}
           T57_PASSWORD: ${{ secrets.T57_PASSWORD }}
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 34
+          api-level: 33
           target: google_apis
           arch: x86_64
           ram-size: 4096M
           cores: 4
           disable-animations: true
-          emulator-options: -no-window -gpu guest -noaudio -no-boot-anim -no-snapshot -skin 1280x800
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -skin 1280x800
+          script: python3 tools/apptest.py app-debug.apk
+      - name: Test again if the emulator itself crashed (it sometimes does on GitHub)
+        if: steps.t1.outcome != 'success'
+        timeout-minutes: 16
+        env:
+          T57_EMAIL: ${{ secrets.T57_EMAIL }}
+          T57_PASSWORD: ${{ secrets.T57_PASSWORD }}
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          target: google_apis
+          arch: x86_64
+          ram-size: 4096M
+          cores: 4
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -skin 1280x800
           script: python3 tools/apptest.py app-debug.apk
       - uses: actions/upload-artifact@v4
         if: always()
