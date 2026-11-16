@@ -3,7 +3,7 @@
 # Checks: opens full screen with the screen kept awake, survives no-internet at start, keeps the
 # "running" service, keeps syncing orders while in the background and with the screen off,
 # recovers when Android kills the page engine, Back never closes the app, saved data survives a restart.
-import json, re, subprocess, sys, time, urllib.request
+import json, os, re, subprocess, sys, time, urllib.request
 import websocket, atexit
 atexit.register(lambda: subprocess.run("adb logcat -d -t 4000 > logcat.txt", shell=True, timeout=60))
 
@@ -67,6 +67,11 @@ class CDP:
 
 TRAIN_JS = "try{localStorage.setItem('t57-train','1');localStorage.setItem('t57-3d-hint','0')}catch(e){}"
 LIVE = "(document.getElementById('status')||{}).textContent.includes('live')"
+STATUS = "(document.getElementById('status')||{}).textContent"
+# The restaurant login, from the repository's secrets: a tablet signs in once, like staff do. Never printed.
+CREDS = json.dumps([os.environ.get("T57_EMAIL", ""), os.environ.get("T57_PASSWORD", "")])
+SIGN_IN = ("(()=>{const e=document.getElementById('lgEmail');if(!e||!document.getElementById('loginOv').classList.contains('show'))return false;"
+           "const c=" + CREDS + ";e.value=c[0];document.getElementById('lgPass').value=c[1];document.querySelector('#loginOv form').requestSubmit();return true})()")
 
 log("installing", APK); adb("install", "-r", "-g", APK, check_=True)
 sh(f"dumpsys deviceidle whitelist +{PKG}")   # what the app's first-start question does on a real tablet
@@ -79,8 +84,11 @@ cdp = CDP(); log("app page:", cdp.connect())
 cdp.send("Page.enable"); cdp.send("Page.addScriptToEvaluateOnNewDocument", {"source": TRAIN_JS})
 time.sleep(4); shot("offline")
 sh("svc wifi enable; svc data enable")
-t = cdp.wait(f"location.href.startsWith('{HOME}') && {LIVE}", 90)
-check("comes back by itself when the internet returns, and connects", t is not None, f"after {t}s")
+t = cdp.wait(f"location.href.startsWith('{HOME}') && document.getElementById('lgEmail')", 90)
+check("comes back by itself when the internet returns and asks to sign in", t is not None, f"after {t}s")
+check("signed in", cdp.ev(SIGN_IN))
+t = cdp.wait(LIVE, 40)
+check("connected to the restaurant's data", t is not None, f"after {t}s; status: {cdp.ev(STATUS)}")
 check("website is in TRAINING mode", cdp.ev("localStorage.getItem('t57-train')==='1' && !document.getElementById('trainBar').hidden"))
 ua = cdp.ev("navigator.userAgent"); ver = cdp.ev("window.T57App && T57App.version()")
 check("website knows it's inside the app", " T57App/" in ua and ver, f"app version {ver}")
@@ -109,6 +117,7 @@ def send_order(tag):
         b = p.chromium.launch(); ctx = b.new_context(viewport={"width": 1100, "height": 850})
         ctx.add_init_script(TRAIN_JS + "localStorage.setItem('t57-waiter',JSON.stringify({id:'apptest',name:'App test'}))")
         W = ctx.new_page(); W.goto(HOME + "?v=" + str(int(time.time())))
+        W.wait_for_selector("#lgEmail", timeout=30000); W.wait_for_timeout(300); W.evaluate(SIGN_IN)
         W.wait_for_function(LIVE, timeout=30000)
         assert W.evaluate("localStorage.getItem('t57-train')==='1' && !document.getElementById('trainBar').hidden"), "sender not in training"
         W.click('#pickBtn'); W.wait_for_timeout(1000)

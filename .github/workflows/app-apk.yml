@@ -40,6 +40,9 @@ jobs:
           sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
       - run: pip install websocket-client==1.8.0 playwright==1.47.0 && python -m playwright install --with-deps chromium
       - name: Test on an Android tablet emulator (training mode)
+        env:
+          T57_EMAIL: ${{ secrets.T57_EMAIL }}
+          T57_PASSWORD: ${{ secrets.T57_PASSWORD }}
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
