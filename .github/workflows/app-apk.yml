@@ -8,7 +8,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
-concurrency: { group: app-apk-${{ github.ref }}, cancel-in-progress: true }
+concurrency:
+  group: app-apk-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   build:
     runs-on: ubuntu-latest
