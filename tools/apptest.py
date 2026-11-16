@@ -5,7 +5,7 @@
 # recovers when Android kills the page engine, Back never closes the app, saved data survives a restart.
 import json, os, re, subprocess, sys, time, urllib.request
 import websocket, atexit
-atexit.register(lambda: subprocess.run("adb logcat -d -t 4000 > logcat.txt", shell=True, timeout=60))
+atexit.register(lambda: subprocess.run("adb logcat -d -t 4000 > logcat.txt", shell=True, timeout=20))
 
 PKG = "uk.trattoria57.app"
 HOME = "https://kangparwinder03-glitch.github.io/Trattoria-57/"
@@ -124,7 +124,9 @@ def send_order(tag):
         assert W.evaluate("localStorage.getItem('t57-train')==='1' && !document.getElementById('trainBar').hidden"), "sender not in training"
         W.click('#pickBtn'); W.wait_for_timeout(1000)
         W.click('#oCats [data-side="food"]'); W.click('#oCats button[data-c="Pizza"]'); W.click('.mi[data-n="Pizza Margherita"] .add')
-        W.click('#oFoot [data-f=review]'); W.click('#oFoot [data-f=send]'); W.wait_for_timeout(2500)
+        W.click('#oFoot [data-f=review]'); W.wait_for_timeout(400)
+        W.evaluate("(()=>{const b=document.querySelector('#ordOv [data-pq=\"0\"]');if(b)b.click()})()")   # takeaway: ready 'Now'
+        W.wait_for_timeout(400); W.click('#oFoot [data-f=send]'); W.wait_for_timeout(2500)
         asked = W.evaluate("document.getElementById('xOv').classList.contains('show') ? document.getElementById('xOv').innerText.slice(0,120) : ''")
         if asked: log("sender: the website asked:", asked.replace("\n", " | "))
         W.goto(HOME + "#kitchen"); W.wait_for_function(LIVE, timeout=30000); W.wait_for_timeout(3000)
