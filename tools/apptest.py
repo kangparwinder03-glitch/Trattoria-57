@@ -4,7 +4,9 @@
 # "running" service, keeps syncing orders while in the background and with the screen off,
 # recovers when Android kills the page engine, Back never closes the app, saved data survives a restart.
 import json, os, re, subprocess, sys, time, urllib.request
-import websocket, atexit
+import websocket, atexit, signal
+signal.signal(signal.SIGALRM, lambda *a: (_ for _ in ()).throw(SystemExit("test took too long — the emulator stopped responding")))
+signal.alarm(18 * 60)
 atexit.register(lambda: subprocess.run("adb logcat -d -t 4000 > logcat.txt", shell=True, timeout=20))
 
 PKG = "uk.trattoria57.app"
@@ -23,7 +25,7 @@ def sh(cmd): return adb("shell", cmd)
 shots = 0
 def shot(name):
     global shots; shots += 1
-    with open(f"shot-{shots}-{name}.png", "wb") as f: f.write(subprocess.run(["adb", "exec-out", "screencap", "-p"], capture_output=True).stdout)
+    with open(f"shot-{shots}-{name}.png", "wb") as f: f.write(subprocess.run(["adb", "exec-out", "screencap", "-p"], capture_output=True, timeout=60).stdout)
 def pid(): return sh(f"pidof {PKG}").strip()
 
 class CDP:
