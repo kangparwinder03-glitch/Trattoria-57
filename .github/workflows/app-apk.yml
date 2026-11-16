@@ -1,0 +1,68 @@
+name: Build Trattoria 57 app
+# The Trattoria 57 Android app (the website full screen). Every build is tested on an Android
+# emulator in TRAINING mode first; only a passing build on main is published for the tablets.
+# The T57 Printer app has its own workflow and is not touched by this one.
+on:
+  push:
+    paths: ["android-app/**", ".github/workflows/app-apk.yml", "tools/apptest.py"]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency: { group: app-apk-${{ github.ref }}, cancel-in-progress: true }
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17" }
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: "8.9" }
+      - name: Build APK
+        run: gradle -p android-app :app:assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Trattoria-57-APK
+          path: android-app/app/build/outputs/apk/debug/app-debug.apk
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: Trattoria-57-APK }
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - run: pip install websocket-client==1.8.0 playwright==1.47.0 && python -m playwright install --with-deps chromium
+      - name: Test on an Android tablet emulator (training mode)
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_tablet
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          script: python3 tools/apptest.py app-debug.apk
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: app-test-screens, path: "shot-*.png", if-no-files-found: ignore }
+  publish:
+    needs: test
+    if: github.ref == 'refs/heads/main'   # a test branch must never reach the tablets' auto-update
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: Trattoria-57-APK }
+      - name: Publish APK as a public download (no GitHub login needed)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          cp app-debug.apk Trattoria-57.apk
+          gh release delete app-latest --yes --cleanup-tag || true
+          echo "${GITHUB_RUN_NUMBER}" > version.txt
+          gh release create app-latest Trattoria-57.apk version.txt --title "Trattoria 57 app (latest)" --notes "The Trattoria 57 app for the restaurant tablets: the live website full screen, screen kept awake, keeps syncing. On the tablet open this link, download Trattoria-57.apk and install it. It updates itself after that."
