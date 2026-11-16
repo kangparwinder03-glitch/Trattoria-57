@@ -52,9 +52,12 @@ jobs:
           script: python3 tools/apptest.py app-debug.apk
       - uses: actions/upload-artifact@v4
         if: always()
-        with: { name: app-test-screens, path: |
+        with:
+          name: app-test-screens
+          if-no-files-found: ignore
+          path: |
             shot-*.png
-            logcat.txt, if-no-files-found: ignore }
+            logcat.txt
   publish:
     needs: test
     if: github.ref == 'refs/heads/main'   # a test branch must never reach the tablets' auto-update
