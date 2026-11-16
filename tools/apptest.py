@@ -56,6 +56,10 @@ class CDP:
         while time.time() - t0 < secs:
             try:
                 if self.ev(js): return round(time.time() - t0, 1)
+            except websocket.WebSocketConnectionClosedException:
+                log("  lost the page connection; devices:", adb("devices").split("\n")[1:2], "app pid:", pid() or "none")
+                try: self.connect(20)
+                except BaseException as e: log("  reconnect failed:", e)
             except Exception: pass
             time.sleep(0.5)
         return None
@@ -140,5 +144,6 @@ t = cdp.wait(f"localStorage.getItem('t57-apptest-keep')==='yes' && localStorage.
 check("saved data kept after a full restart (still training)", t is not None)
 shot("restarted")
 
+subprocess.run("adb logcat -d -t 3000 > logcat.txt", shell=True)
 print("\nRESULT:", "ALL PASSED" if ok else "SOME CHECKS FAILED")
 sys.exit(0 if ok else 1)
