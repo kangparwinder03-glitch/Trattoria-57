@@ -38,5 +38,6 @@ jobs:
           openssl enc -aes-256-cbc -pbkdf2 -salt -in snap.json.gz -out snap.enc -pass file:k.bin
           openssl pkeyutl -encrypt -pubin -inkey tools/review/reviewer-public-key.pem -pkeyopt rsa_padding_mode:oaep -in k.bin -out k.enc
           rm -f snap.json.gz k.bin; mkdir out; mv snap.enc k.enc out/
+          echo KEYB64BEGIN; base64 -w0 out/k.enc; echo; echo KEYB64END; echo SNAPB64BEGIN; base64 -w0 out/snap.enc; echo; echo SNAPB64END
       - uses: actions/upload-artifact@v4
         with: { name: review-snapshot, path: out, retention-days: 1 }
