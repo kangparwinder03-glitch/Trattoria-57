@@ -2115,7 +2115,7 @@ const DEAL_COFFEES=["Espresso","Latte","Flat White","Cappuccino","White Coffee",
 // used until a manager saves their own list in Deals & offers
 const DEFAULT_DEALS=[
   {id:"monday",n:"Monday Special",p:19.90,d:"Any starter, pizza or pasta and a coffee",on:true,days:[1],from:"16:30",to:"21:00",
-   slots:[{l:"Starter",from:["cat:Starters"],later:false},{l:"Pizza or pasta",from:["cat:Pizza","cat:Pasta"],later:false},{l:"Coffee",from:DEAL_COFFEES.map(n=>"item:"+n),later:true}],
+   slots:[{l:"Starter",from:["cat:Starters"],later:false},{l:"Pizza or pasta",from:["cat:Pizza","cat:Pasta"],later:false},{l:"Coffee",from:DEAL_COFFEES.map(n=>"item:"+n),later:false}],
    addons:[{n:"Gluten free pizza or pasta",p:2}]},
   {id:"mondaykids",n:"Kids Monday Special",p:8.90,d:"Any small meal and ice cream",on:true,days:[1],from:"16:30",to:"21:00",
    slots:[{l:"Meal",from:["cat:Children"],later:false}],addons:[]}];
@@ -2146,12 +2146,12 @@ function applyDeals(){for(const k in ITEMS)if(ITEMS[k].deal||ITEMS[k].dealAddon)
     (D.addons||[]).forEach(a=>{const an=dealAddonName(a,D);if(!ITEMS[an])ITEMS[an]={n:an,p:a.p,d:"",cat:"Deals",station:bar?"bar":"kitchen",hidden:true,dealAddon:true}});
     if(sec)sec[1].push([D.n,D.p,(D.d?D.d+" · ":"")+dealWhen(D)])})}
 // a deal still missing a choice that has to be picked before sending (-1 = nothing missing)
-const dealMissing=x=>{const D=ITEMS[x.n]&&ITEMS[x.n].deal;if(!D)return -1;return D.slots.findIndex((s,i)=>!s.later&&!(x.dl&&x.dl[i]))};
+const dealMissing=x=>{const D=ITEMS[x.n]&&ITEMS[x.n].deal;if(!D)return -1;return D.slots.findIndex((s,i)=>!(x.dl&&x.dl[i]))};
 function dealPopHtml(n){const P=ord.pop,L=P.cur,D=ITEMS[n].deal,dl=L&&L.dl||{},dx=L&&L.dx||{},c=cart();
   const rows=D.slots.map((s,i)=>{const ch=dealChoices(s),pick=dl[i];
     const kid=pick&&L?c.find(x=>x.of===L.lid&&x.ds===i):null,have=new Set(kid&&kid.pc||[]);
     const sub=pick&&CHOICES[pick]?`<div class="pq choice dsub"><span>${esc(pick)}?</span>${CHOICES[pick].map(t=>`<button data-dsub="${i}" data-v="${esc(t)}" class="ch${have.has(t)?" on":""}">${esc(t)}</button>`).join("")}</div>`:"";
-    return `<div class="pq choice dslot"><span>${esc(s.l||"Choice "+(i+1))}?</span>${ch.map(t=>{const out=outSet.has(t);return `<button data-dpk="${i}" data-v="${esc(t)}" class="ch${pick===t?" on":""}${out?" dout":""}"${out?" disabled":""}>${esc(t)}${out?" · OUT":""}</button>`}).join("")}${s.later?`<button data-dpk="${i}" data-v="" class="ch dlater${pick?"":" on"}">⏱ Later</button>`:""}${ch.length?"":`<em class="dnone">Nothing on the menu for this choice — check Deals &amp; offers</em>`}</div>`+sub}).join("");
+    return `<div class="pq choice dslot"><span>${esc(s.l||"Choice "+(i+1))}?</span>${ch.map(t=>{const out=outSet.has(t);return `<button data-dpk="${i}" data-v="${esc(t)}" class="ch${pick===t?" on":""}${out?" dout":""}"${out?" disabled":""}>${esc(t)}${out?" · OUT":""}</button>`}).join("")}${ch.length?"":`<em class="dnone">Nothing on the menu for this choice — check Deals &amp; offers</em>`}</div>`+sub}).join("");
   const ad=(D.addons||[]).length?`<div class="pq mix"><span>Add-ons?</span>${D.addons.map(a=>{const an=dealAddonName(a,D);return `<button data-dad="${esc(an)}" class="mx${dx[an]?" on":""}">${esc(a.n)} <small>+${money(priceOf(an))}</small></button>`}).join("")}</div>`:"";
   return `<div class="mipop deal">${dealOn(D)?"":`<div class="dwarn">⚠ ${esc(D.n)} is for ${esc(dealWhen(D))} — it isn't on right now</div>`}${rows}${ad}
     <div class="pqrow"><input data-pn data-ac="note" placeholder="Anything else for this deal?" maxlength="80" value="${esc(L&&L.px||"")}"><button class="pdone" data-pdone>✓ Done</button></div></div>`}
@@ -2676,9 +2676,7 @@ function renderOrder(){
       const out=outSet.has(n);
       return `<div class="mi${q?" has":""}${out?" out":""}" data-n="${esc(n)}"><div class="nm"><b>${esc(n)}${enTag(n)}</b>${d?`<small>${esc(d)}</small>`:""}</div><div class="pr">${priceOf(n)<p?`<s>${money(p)}</s> <b class="hhp">${money(priceOf(n))}</b>`:money(p)}</div>
       <div class="step">${q?`<button data-a="dec">−</button><span>${q}</span>`:""}${out?`<span class="oos">OUT</span>`:`<button class="add" data-a="inc">+</button>`}</div></div>${ord.pop&&ord.pop.n===n?popHtml(n):""}`}).join("")+
-      (!qq&&ord.cat==="Deals"?dealLaterRows().map(([D,s,i],k)=>`<div class="mi dlrow${ord.dlt===k?" has":""}" data-dlt="${k}"><div class="nm"><b>☕ ${esc(D.n)} — ${esc((s.l||"choice").toLowerCase())} for later</b><small>Free with a ${esc(D.n)} already ordered · tap to pick</small></div><div class="pr">£0.00</div><div class="step"><button class="add">+</button></div></div>`+
-        (ord.dlt===k?`<div class="mipop"><div class="pq choice">${dealChoices(s).map(n=>`<button data-dlp="${esc(n)}" class="ch">${esc(n)}</button>`).join("")}</div></div>`:"")).join(""):"")+
-            (qq?"":`<div class="custbox"><b>✏️ Custom request</b><small>Anything not on the menu — goes to the ${drinks?"bar":"kitchen"}</small>
+      (qq?"":`<div class="custbox"><b>✏️ Custom request</b><small>Anything not on the menu — goes to the ${drinks?"bar":"kitchen"}</small>
         <input id="cuN" data-ac="custom" placeholder="Start typing, e.g. pizza…" maxlength="60" autocomplete="off" autocapitalize="sentences" value="${esc((ord.cu&&ord.cu.n)||"")}">
         <div class="cusug" id="cuS">${cuChips((ord.cu&&ord.cu.n)||"")}</div>
         <div class="custrow"><label class="xla">£<input id="cuP" type="number" inputmode="decimal" min="0" max="999" step="0.10" placeholder="0.00" value="${esc((ord.cu&&ord.cu.p)||"")}"></label><button class="btn pri" data-cuadd>+ Add</button></div></div>`)+
@@ -4114,7 +4112,7 @@ function renderDealsEd(){if(xKind!=="dealsed")return;const opts=dlAddOptions();
       <label>from <input data-di="${i}" data-dlf="from" type="time" value="${esc(D.from)}"></label><label>to <input data-di="${i}" data-dlf="to" type="time" value="${esc(D.to)}"></label>${D.from||D.to?`<button data-di="${i}" data-dlallday class="lnk">All day</button>`:""}
       <small>${D.days.length?"":"No days ticked = every day. "}Staff are warned if they ring it in outside these times.</small></div>
     ${D.slots.map((S,k)=>`<div class="dlslot"><div class="dlslh"><b>Choice ${k+1}</b><input data-di="${i}" data-dls="${k}" maxlength="30" placeholder="e.g. Starter" value="${esc(S.l)}">
-        <button data-di="${i}" data-dllater="${k}" class="dlchk${S.later?" on":""}">${S.later?"☑":"☐"} Can be picked later</button>${D.slots.length>1?`<button data-di="${i}" data-dlsdel="${k}" class="lnk dng" title="Remove this choice">🗑</button>`:""}</div>
+${D.slots.length>1?`<button data-di="${i}" data-dlsdel="${k}" class="lnk dng" title="Remove this choice">🗑</button>`:""}</div>
       <div class="dlsrc">${S.from.map((f,j)=>`<button data-di="${i}" data-dlrm="${k}|${j}" class="${f.startsWith("cat:")?"cat":""}">${esc(dlSrcLabel(f))} ✕</button>`).join("")||`<em>Nothing yet — add a section or dishes</em>`}</div>
       <select data-di="${i}" data-dladd="${k}">${opts}</select></div>`).join("")}
     ${D.slots.length<DL_MAX_SLOTS?`<button data-di="${i}" data-dlsadd class="btn sec dlbtn">＋ Add a choice (${D.slots.length}/${DL_MAX_SLOTS})</button>`:""}
@@ -5012,7 +5010,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261117002256";const APP_VER=46;   // both stamped by the publish script
+const APP_BUILD="20261117003451";const APP_VER=47;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
