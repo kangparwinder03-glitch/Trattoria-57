@@ -1,0 +1,25 @@
+name: Version stamp check
+# Fails if docs/version.json and the stamp inside docs/index.html don't match.
+# If they differ, every tablet thinks a new version is out and the update banner never goes away.
+on:
+  pull_request:
+    paths: ["docs/index.html", "docs/version.json"]
+  push:
+    branches: [main]
+    paths: ["docs/index.html", "docs/version.json"]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python3 - <<'PY'
+          import json, re, sys
+          v = json.load(open("docs/version.json"))
+          m = re.search(r'const APP_BUILD="(\d+)";const APP_VER=(\d+);', open("docs/index.html").read())
+          if not m: sys.exit("APP_BUILD/APP_VER stamp not found in docs/index.html")
+          b, n = m.group(1), int(m.group(2))
+          print(f"index.html: build {b} ver {n} | version.json: build {v['build']} ver {v['ver']}")
+          if b != v["build"] or n != v["ver"]:
+              sys.exit("Mismatch: stamp docs/index.html with the same build and ver as docs/version.json")
+          PY
