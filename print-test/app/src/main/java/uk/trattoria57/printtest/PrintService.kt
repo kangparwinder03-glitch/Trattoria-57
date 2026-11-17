@@ -26,6 +26,8 @@ class PrintService : Service() {
         fun stationName(st: String) = when (st) { "bar" -> "BAR"; "till" -> "TILL"; else -> "KITCHEN" }
         fun cutterFor(prefs: android.content.SharedPreferences, st: String) = prefs.getBoolean("cutter_$st", st == "kitchen")
         fun bigFor(prefs: android.content.SharedPreferences, st: String) = prefs.getBoolean("big_$st", st == "kitchen")
+        /** Buzzer & flashing light on new order tickets (kitchen printers that have one). Off unless switched on. */
+        fun buzzFor(prefs: android.content.SharedPreferences, st: String) = prefs.getBoolean("buzz_$st", false)
         fun copiesFor(prefs: android.content.SharedPreferences, st: String) =
             prefs.getInt("copies_$st", if (st == "kitchen") 2 else 1).coerceIn(1, 3)
     }
@@ -128,7 +130,7 @@ class PrintService : Service() {
                 // one copy at a time: if the printer cuts out, only the copies that didn't come out print again
                 val doneKey = "copies_done_$id"
                 for (c in (prefs.getInt(doneKey, 0) + 1)..copies) {
-                    val bytes = Format.ticket(d, cols, lg, c, copies, training, bigFor(prefs, st))
+                    val bytes = Format.ticket(d, cols, lg, c, copies, training, bigFor(prefs, st), buzz = c == 1 && buzzFor(prefs, st))
                     if (!Bt.print(this, bytes, (if (training) "TRAINING " else "") + "$label · order #${d.optInt("no")}" + if (copies > 1) " (copy $c of $copies)" else "")) return
                     prefs.edit().putInt(doneKey, c).apply()
                 }

@@ -29,6 +29,12 @@ class EscPos(val cols: Int) {
     /** End of a ticket: cut on printers with a cutter; otherwise feed extra paper so it all clears the tear edge. */
     fun cut(): EscPos = if (hasCutter) raw(0x1D, 0x56, 0x42, 0x00) else feed(3)
     companion object { @Volatile var hasCutter = true }
+    /**
+     * Kitchen printers with a buzzer and flashing light: beep [times] times (each beep ~[len] x 50ms).
+     * ESC B n t is the standard "sound the buzzer" command on these printers; the light flashes with it.
+     * Printers without a buzzer ignore it.
+     */
+    fun buzz(times: Int = 3, len: Int = 3): EscPos = raw(0x1B, 0x42, times.coerceIn(1, 9), len.coerceIn(1, 9))
     fun rule(ch: Char = '-'): EscPos = line(ch.toString().repeat(cols))
 
     /** Left text and right text on one line, e.g. "2 x Pizza ..... £25.80". */
