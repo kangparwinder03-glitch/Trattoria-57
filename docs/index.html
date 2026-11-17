@@ -889,7 +889,7 @@ body.mode-waiter #vKitchen,body.mode-waiter #vBar,body.mode-waiter #vReport{disp
 .mipop.deal .dslot{border-bottom:1px dashed var(--parch2);padding-bottom:8px;margin-bottom:6px}
 .mipop.deal .dslot>span{min-width:100%;font-size:13px;color:var(--olive-dk)}
 .pq button.dout{opacity:.45;text-decoration:line-through}.pq button.dlater{border-style:dashed}
-.pq.dsub{margin:-2px 0 8px 14px}.dnone{font-size:13px;color:var(--wine)}
+.pq.dsub{margin:-2px 0 8px 14px}.dcus{margin:-2px 0 8px 14px}.dcusb{border:1px dashed #9db3cf;background:#fff;border-radius:16px;padding:7px 12px;font-size:14px;font-weight:800;color:#3f5f86}.dcusb.on{background:#3f5f86;color:#fff;border-style:solid}.dcusb small{font-weight:600;opacity:.85}.dcusbox{margin-top:8px;padding:8px 10px;border-left:3px solid #9db3cf;background:#fff;border-radius:0 10px 10px 0}.dnone{font-size:13px;color:var(--wine)}
 .dwarn{background:#fff1d6;border:1px solid #c79a2b;border-radius:8px;padding:6px 10px;margin-bottom:8px;font-size:13px;font-weight:700;color:#7a5600}
 .mi.dlrow .nm b{color:#3f5f86}
 .dlcard{border:1px solid var(--parch2);border-left:5px solid var(--olive);border-radius:12px;padding:10px 12px;margin:0 0 14px;background:#fff}.dlcard.off{opacity:.6;border-left-color:#9a917a}
@@ -2147,11 +2147,22 @@ function applyDeals(){for(const k in ITEMS)if(ITEMS[k].deal||ITEMS[k].dealAddon)
     if(sec)sec[1].push([D.n,D.p,(D.d?D.d+" · ":"")+dealWhen(D)])})}
 // a deal still missing a choice that has to be picked before sending (-1 = nothing missing)
 const dealMissing=x=>{const D=ITEMS[x.n]&&ITEMS[x.n].deal;if(!D)return -1;return D.slots.findIndex((s,i)=>!(x.dl&&x.dl[i]))};
+// a dish picked in a deal can be customised like any other: priced pizza extras, quick options, allergies, a note
+function dealCusHtml(D,P,kid,i,pick){const open=P.dcus===i,sum=(kid.note||"").split(", ").filter(t=>t&&t!==D.n).join(", ");
+  let h=`<div class="dcus"><button data-dcus="${i}" class="dcusb${open?" on":""}">✏️ ${open?"Close":"Customise"} ${esc(pick)}${sum&&!open?` <small>· ${esc(sum)}</small>`:""}</button>`;
+  if(open){const dealGf=(D.addons||[]).some(a=>/gluten/i.test(a.n)),pex=pizzaExtras(pick).filter(k=>!(dealGf&&/gluten/i.test(k))),exOn=kid.ex||{},o=optsFor(pick),have=new Set(kid.pc||[]);
+    h+=`<div class="dcusbox">`+(pex.length?`<div class="pq mix pex"><span>Extras?</span>${pex.map(k=>`<button data-dkex="${i}" data-v="${esc(k)}" class="mx${k in exOn?" on":""}">${esc(exLabel(k))} <small>+${money(priceOf(k))}</small></button>`).join("")}</div>`+
+      pex.filter(k=>k in exOn&&exAsk(k)).map(k=>`<div class="pqrow pexw"><label>${esc(exLabel(k))}:</label><input data-dkexn="${i}" data-v="${esc(k)}" data-ac="note" placeholder="${/meat/i.test(k)?"Which meat? e.g. chicken":/fish/i.test(k)?"Which fish? e.g. prawns":"Which veg? e.g. pineapple"}" maxlength="40" value="${esc(exOn[k]||"")}"></div>`).join(""):"")+
+      (o.opts.length?`<div class="pq">${o.opts.map(t=>`<button data-dkq="${i}" data-v="${esc(t)}" class="${have.has(t)?"on":""}">${esc(t)}</button>`).join("")}</div>`:"")+
+      (o.alg?`<div class="pq">${ALG_CHIPS.map(t=>`<button data-dkq="${i}" data-v="${esc(t)}" class="alg${have.has(t)?" on":""}">⚠ ${esc(t)}</button>`).join("")}</div>`:"")+
+      `<div class="pqrow"><input data-dkn="${i}" data-ac="note" placeholder="Anything else for the ${esc(pick)}?" maxlength="80" value="${esc(kid.px||"")}"></div></div>`}
+  return h+`</div>`}
 function dealPopHtml(n){const P=ord.pop,L=P.cur,D=ITEMS[n].deal,dl=L&&L.dl||{},dx=L&&L.dx||{},c=cart();
   const rows=D.slots.map((s,i)=>{const ch=dealChoices(s),pick=dl[i];
     const kid=pick&&L?c.find(x=>x.of===L.lid&&x.ds===i):null,have=new Set(kid&&kid.pc||[]);
     const sub=pick&&CHOICES[pick]?`<div class="pq choice dsub"><span>${esc(pick)}?</span>${CHOICES[pick].map(t=>`<button data-dsub="${i}" data-v="${esc(t)}" class="ch${have.has(t)?" on":""}">${esc(t)}</button>`).join("")}</div>`:"";
-    return `<div class="pq choice dslot"><span>${esc(s.l||"Choice "+(i+1))}?</span>${ch.map(t=>{const out=outSet.has(t);return `<button data-dpk="${i}" data-v="${esc(t)}" class="ch${pick===t?" on":""}${out?" dout":""}"${out?" disabled":""}>${esc(t)}${out?" · OUT":""}</button>`}).join("")}${ch.length?"":`<em class="dnone">Nothing on the menu for this choice — check Deals &amp; offers</em>`}</div>`+sub}).join("");
+    const cus=kid?dealCusHtml(D,P,kid,i,pick):"";
+    return `<div class="pq choice dslot"><span>${esc(s.l||"Choice "+(i+1))}?</span>${ch.map(t=>{const out=outSet.has(t);return `<button data-dpk="${i}" data-v="${esc(t)}" class="ch${pick===t?" on":""}${out?" dout":""}"${out?" disabled":""}>${esc(t)}${out?" · OUT":""}</button>`}).join("")}${ch.length?"":`<em class="dnone">Nothing on the menu for this choice — check Deals &amp; offers</em>`}</div>`+sub+cus}).join("");
   const ad=(D.addons||[]).length?`<div class="pq mix"><span>Add-ons?</span>${D.addons.map(a=>{const an=dealAddonName(a,D);return `<button data-dad="${esc(an)}" class="mx${dx[an]?" on":""}">${esc(a.n)} <small>+${money(priceOf(an))}</small></button>`}).join("")}</div>`:"";
   return `<div class="mipop deal">${dealOn(D)?"":`<div class="dwarn">⚠ ${esc(D.n)} is for ${esc(dealWhen(D))} — it isn't on right now</div>`}${rows}${ad}
     <div class="pqrow"><input data-pn data-ac="note" placeholder="Anything else for this deal?" maxlength="80" value="${esc(L&&L.px||"")}"><button class="pdone" data-pdone>✓ Done</button></div></div>`}
@@ -2818,12 +2829,23 @@ $("oBody").addEventListener("click",e=>{if(ord&&ord.openedAt&&Date.now()-ord.ope
   if(e.target.closest("[data-pxh]")&&ord.pop){const L=popLine();if(!L||!ITEMS[L.n]||!ITEMS[L.n].xl)return;L.xa=xlHalf(ITEMS[L.n].xl);renderOrder();return}
   const dk=e.target.closest("[data-dpk]");if(dk&&ord.pop){const L=popLine();if(!L)return;const D=ITEMS[L.n]&&ITEMS[L.n].deal;if(!D)return;const i=+dk.dataset.dpk,v=dk.dataset.v,c=cart();
     L.lid=L.lid||newLid();L.dl=L.dl||{};const old=c.findIndex(x=>x.of===L.lid&&x.ds===i);if(old>=0)c.splice(old,1);
+    if(ord.pop.dcus===i)ord.pop.dcus=null;
     if(!v||L.dl[i]===v)delete L.dl[i];
-    else{L.dl[i]=v;let at=c.indexOf(L)+1;while(at<c.length&&c[at].of===L.lid&&c[at].ds!=null&&c[at].ds<i)at++;   // dishes in choice order, right under the deal
+    else{L.dl[i]=v;const kids=new Set(c.filter(x=>x.of===L.lid&&x.lid).map(x=>x.lid));let at=c.indexOf(L)+1;   // dishes in choice order, right under the deal (each with its own extras)
+      while(at<c.length&&((c[at].of===L.lid&&c[at].ds!=null&&c[at].ds<i)||kids.has(c[at].of)))at++;
       c.splice(at,0,Object.assign({n:v,q:L.q,note:D.n,cp:0,of:L.lid,ds:i,dn:D.n,pc:[],px:""},L.g?{g:L.g}:{}))}
     L.pc=L.pc||[];L.px=L.px||"";L.note=popNote(L);renderOrder();return}
   const dsb=e.target.closest("[data-dsub]");if(dsb&&ord.pop){const L=popLine();if(!L)return;const i=+dsb.dataset.dsub,v=dsb.dataset.v,k=cart().find(x=>x.of===L.lid&&x.ds===i);if(!k)return;
-    k.pc=(k.pc||[]).includes(v)?[]:[v];k.px=k.px||"";k.note=popNote(k);renderOrder();return}
+    const had=(k.pc||[]).includes(v),chs=CHOICES[k.n]||[];k.pc=(k.pc||[]).filter(x=>!chs.includes(x));if(!had)k.pc.push(v);k.px=k.px||"";k.note=popNote(k);renderOrder();return}
+  const dcu=e.target.closest("[data-dcus]");if(dcu&&ord.pop){const i=+dcu.dataset.dcus;ord.pop.dcus=ord.pop.dcus===i?null:i;renderOrder();return}
+  const dkx=e.target.closest("[data-dkex]");if(dkx&&ord.pop){const L=popLine();if(!L)return;const i=+dkx.dataset.dkex,k=dkx.dataset.v,c=cart(),kid=c.find(x=>x.of===L.lid&&x.ds===i);if(!kid)return;
+    kid.lid=kid.lid||newLid();kid.ex=kid.ex||{};kid.pc=kid.pc||[];kid.px=kid.px||"";
+    if(k in kid.ex){delete kid.ex[k];const j=c.findIndex(x=>x.of===kid.lid&&x.n===k);if(j>=0)c.splice(j,1)}
+    else{kid.ex[k]="";let at=c.indexOf(kid)+1;while(at<c.length&&c[at].of===kid.lid)at++;c.splice(at,0,Object.assign({n:k,q:kid.q,note:exLineNote(kid,k),of:kid.lid},kid.g?{g:kid.g}:{}))}
+    if(!Object.keys(kid.ex).length)delete kid.ex;kid.note=popNote(kid);renderOrder();
+    if(kid.ex&&k in kid.ex&&exAsk(k))requestAnimationFrame(()=>{const f=[...$("oBody").querySelectorAll("[data-dkexn]")].find(x=>x.dataset.v===k);if(f)try{f.focus()}catch(e){}});return}
+  const dkq=e.target.closest("[data-dkq]");if(dkq&&ord.pop){const L=popLine();if(!L)return;const i=+dkq.dataset.dkq,t=dkq.dataset.v,kid=cart().find(x=>x.of===L.lid&&x.ds===i);if(!kid)return;
+    kid.pc=kid.pc||[];kid.px=kid.px||"";const j=kid.pc.indexOf(t);if(j>=0)kid.pc.splice(j,1);else kid.pc.push(t);kid.note=popNote(kid);renderOrder();return}
   const dad=e.target.closest("[data-dad]");if(dad&&ord.pop){const L=popLine();if(!L||!isDeal(L.n))return;const an=dad.dataset.dad,c=cart();L.lid=L.lid||newLid();L.dx=L.dx||{};
     if(L.dx[an]){delete L.dx[an];const i=c.findIndex(x=>x.of===L.lid&&x.n===an);if(i>=0)c.splice(i,1)}
     else{L.dx[an]=1;let at=c.indexOf(L)+1;while(at<c.length&&c[at].of===L.lid)at++;c.splice(at,0,Object.assign({n:an,q:L.q,note:"",of:L.lid,da:1},L.g?{g:L.g}:{}))}
@@ -2874,6 +2896,10 @@ $("oBody").addEventListener("input",e=>{if(!ord)return;
   if(e.target.id==="cuP"){ord.cu=Object.assign(ord.cu||{},{p:e.target.value});return}
   if(e.target.matches("[data-pxa]")&&ord.pop){const L=popLine();if(!L)return;const v=Math.round(+e.target.value*100)/100;if(e.target.value!==""&&isFinite(v)&&v>=0&&v<100)L.xa=v;{const h=e.target.closest(".pq")&&e.target.closest(".pq").querySelector("[data-pxh]");if(h&&ITEMS[L.n])h.classList.toggle("on",Math.abs((+L.xa||0)-xlHalf(ITEMS[L.n].xl))<0.005)}
     const f=$("oFoot").querySelector('[data-f="review"]'),c=cart();if(f)f.textContent=`Review order · ${c.reduce((a,x)=>a+x.q,0)} · ${money(c.reduce((a,x)=>a+x.q*linePrice(x),0))}`;return}
+  if(e.target.matches("[data-dkexn],[data-dkn]")&&ord.pop){const L=popLine();if(!L)return;const t=e.target,i=+(t.dataset.dkexn!=null?t.dataset.dkexn:t.dataset.dkn),c=cart(),kid=c.find(x=>x.of===L.lid&&x.ds===i);if(!kid)return;
+    kid.pc=kid.pc||[];kid.px=kid.px||"";
+    if(t.dataset.dkn!=null)kid.px=t.value;else{const k=t.dataset.v;if(!kid.ex||!(k in kid.ex))return;kid.ex[k]=t.value.slice(0,40);const x=c.find(y=>y.of===kid.lid&&y.n===k);if(x)x.note=exLineNote(kid,k)}
+    kid.note=popNote(kid);return}
   if(e.target.matches("[data-pexn]")&&ord.pop){const L=popLine();if(!L||!L.ex)return;const k=e.target.dataset.pexn;if(!(k in L.ex))return;
     L.ex[k]=e.target.value.slice(0,40);L.note=popNote(L);const x=cart().find(y=>y.of===L.lid&&y.n===k);if(x)x.note=exLineNote(L,k);
     const b=$("oBody").querySelector("[data-pdone]");if(b)b.textContent=L.note?"✓ Done":"No changes";return}
@@ -5010,7 +5036,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261117003451";const APP_VER=47;   // both stamped by the publish script
+const APP_BUILD="20261117003644";const APP_VER=48;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
