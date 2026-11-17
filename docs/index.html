@@ -885,6 +885,25 @@ body.mode-waiter #vKitchen,body.mode-waiter #vBar,body.mode-waiter #vReport{disp
   body:not(.g) #rotateMsg span{font-size:64px;display:inline-block;transform:rotate(90deg)}
   body:not(.g) #rotateMsg small{font-weight:400;font-size:15px;opacity:.85;max-width:420px}
 }
+/* deals & offers */
+.mipop.deal .dslot{border-bottom:1px dashed var(--parch2);padding-bottom:8px;margin-bottom:6px}
+.mipop.deal .dslot>span{min-width:100%;font-size:13px;color:var(--olive-dk)}
+.pq button.dout{opacity:.45;text-decoration:line-through}.pq button.dlater{border-style:dashed}
+.pq.dsub{margin:-2px 0 8px 14px}.dnone{font-size:13px;color:var(--wine)}
+.dwarn{background:#fff1d6;border:1px solid #c79a2b;border-radius:8px;padding:6px 10px;margin-bottom:8px;font-size:13px;font-weight:700;color:#7a5600}
+.mi.dlrow .nm b{color:#3f5f86}
+.dlcard{border:1px solid var(--parch2);border-left:5px solid var(--olive);border-radius:12px;padding:10px 12px;margin:0 0 14px;background:#fff}.dlcard.off{opacity:.6;border-left-color:#9a917a}
+.dlhead{display:flex;gap:8px}.dlhead>input{flex:1;font-weight:800;font-size:16px}.dldesc{width:100%;margin:6px 0}
+.dlwhen{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0 8px}.dlwhen>span{font-size:12px;font-weight:800;color:#6d6448}
+.dlwhen>button,.dlsrc button,.dlchk{border:1px solid var(--parch2);background:#fff;border-radius:16px;padding:6px 11px;font-size:13px;font-weight:700;color:#4d4733}
+.dlwhen>button.on,.dlchk.on{background:var(--olive-dk);border-color:var(--olive-dk);color:#fff}.dlwhen label{font-size:13px}.dlwhen small{flex-basis:100%;color:#6d6448;font-size:12px}
+.dlslot{border:1px dashed var(--parch2);border-radius:10px;padding:8px;margin:6px 0;background:#fffaf0}
+.dlslh{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.dlslh>input{flex:1;min-width:120px}
+.dlsrc{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.dlsrc button.cat{background:#eef3f9;border-color:#9db3cf}.dlsrc em{font-size:13px;color:#9a917a}
+.dlslot select{width:100%;padding:8px;border-radius:8px;border:1px solid var(--parch2);background:#fff;font-size:14px}
+.dlbtn{max-width:none;margin:4px 0}.dladdons{margin:8px 0}.dladdons small{color:#6d6448}.dlad{display:flex;gap:8px;align-items:center;margin:4px 0}.dlad>input{flex:1}
+.dlfoot{display:flex;gap:8px;margin-top:8px}.dlfoot .btn{max-width:none;flex:1}
+button.lnk{background:none;border:0;color:var(--olive-dk);font-weight:800;padding:6px;cursor:pointer}button.lnk.dng{color:var(--wine)}
 .mipop .pq.mix{border-bottom:1px dashed var(--parch2);padding-bottom:8px;margin-bottom:6px}
 .mipop .pq.mix button small{opacity:.75;font-weight:600}
 .mipop .pq.pex{border-bottom:0;margin-bottom:4px}.pexw{display:flex;align-items:center;gap:8px;margin:0 0 6px}.pexw label{font-size:13px;font-weight:800;color:#6d6448;white-space:nowrap;min-width:86px}
@@ -1894,6 +1913,7 @@ const MENU=[
 ["Shots",[["Baby Guinness",3.90,""],["Tequila",3.50,""],["Jäger",3.50,""],["Disaronno shot",3.50,""],["Tia Maria",3.50,""],["Limoncello",3.00,""],["Sambuca",3.00,""],["Baileys",3.00,""]]],
 ["Hot Drinks",[["Liqueur Coffee",7.30,""],["Espresso",3.50,""],["Latte",3.50,""],["Flat White",3.50,""],["Cappuccino",3.50,""],["White Coffee",3.10,""],["Americano",3.00,""],["Black Coffee",2.50,""],["Tea",2.80,""],["Milk",2.00,"Glass"]]],
 ["Specials",[]],
+["Deals",[]],
 ["Starters",[
 ["Antipasto Misto",11.90,"Mixed hors d'oeuvres, parmesan & olives"],["Polpette della Casa",9.00,"Homemade meatballs, tomato, garlic, white sauce & mozzarella"],
 ["Cocktail di Gamberetti",9.00,"Prawn cocktail"],["Melone Fresco",6.50,"Fresh melon with seasonal fruit"],["Melone & Prosciutto",9.50,"Melon & Parma ham"],
@@ -1972,7 +1992,7 @@ function addAliases(){for(const it in EN_OF){const e=EN_OF[it];if(ITEMS[it]&&(!I
 const CATS=MENU.map(c=>c[0]);
 // "Specials" only shows when there's something on it (add them in ⭐ Manager → Edit menu & prices → Specials)
 const catHas=k=>{const c=MENU.find(x=>x[0]===k);return !!(c&&c[1].length)};
-const showCat=k=>k!=="Specials"||catHas(k);
+const showCat=k=>(k!=="Specials"&&k!=="Deals")||catHas(k);
 const firstFood=()=>CATS.find(k=>!BAR_CATS.has(k)&&catHas(k))||CATS.find(k=>!BAR_CATS.has(k));
 const ITEMS={};MENU.forEach(([cat,list])=>list.forEach(([n,p,d])=>{ITEMS[n]={n,p,d,cat,station:BAR_CATS.has(cat)?"bar":"kitchen"}}));
 // ---- half & half pizzas: "½ Margherita / ½ Diavola", charged at the dearer of the two ----
@@ -1998,7 +2018,7 @@ function xlAdd(p,r){return /%$/.test(r)?Math.round(p*parseFloat(r))/100:+r}
 const xlName=n=>n+" (XL)";
 function addXL(){for(const k in ITEMS)if(ITEMS[k].xl)delete ITEMS[k];
   // every food dish can go extra large; the waiter types the extra (or it uses the manager's preset for that dish)
-  for(const n of Object.keys(ITEMS)){const b=ITEMS[n];if(!b||b.half||b.alias||b.xl||b.custom||BAR_CATS.has(b.cat))continue;const r=(menuOv.xl||{})[n]||"";
+  for(const n of Object.keys(ITEMS)){const b=ITEMS[n];if(!b||b.half||b.alias||b.xl||b.custom||b.deal||b.dealAddon||BAR_CATS.has(b.cat))continue;const r=(menuOv.xl||{})[n]||"";
     ITEMS[xlName(n)]=Object.assign({},b,{n:xlName(n),p:Math.round((b.p+(r?xlAdd(b.p,r):0))*100)/100,hidden:true,xl:n,xlr:r})}}
 const XL_DEFAULT=2;
 const xlHalf=b=>Math.round(priceOf(b)*50)/100;   // +50% of the dish
@@ -2083,16 +2103,68 @@ function cleanMenuOv(d){d=d&&typeof d==="object"?d:{};const o={price:{},desc:{},
   if(d.price&&typeof d.price==="object")for(const k in d.price){const v=Math.round(+d.price[k]*100)/100;if(isFinite(v)&&v>=0&&v<1000)o.price[enName(str(k,60))]=v}
   if(d.desc&&typeof d.desc==="object")for(const k in d.desc)o.desc[enName(str(k,60))]=str(d.desc[k],80);
   if(Array.isArray(d.hide))o.hide=d.hide.map(x=>enName(str(x,60))).filter(Boolean).slice(0,500);
-  if(Array.isArray(d.add))o.add=d.add.filter(a=>a&&a.n&&BASE_MENU.some(c=>c[0]===a.cat)).map(a=>({n:str(a.n,60).trim(),cat:a.cat,p:Math.max(0,Math.min(999,Math.round(+a.p*100)/100||0)),d:str(a.d||"",80)})).slice(0,300);
+  if(Array.isArray(d.deals))o.deals=d.deals.slice(0,30).map(cleanDeal).filter(Boolean);
+  if(Array.isArray(d.add))o.add=d.add.filter(a=>a&&a.n&&a.cat!=="Deals"&&BASE_MENU.some(c=>c[0]===a.cat)).map(a=>({n:str(a.n,60).trim(),cat:a.cat,p:Math.max(0,Math.min(999,Math.round(+a.p*100)/100||0)),d:str(a.d||"",80)})).slice(0,300);
   return o}
+// ================= deals & offers (⭐ Manager → 🏷 Deals & offers) =================
+// a deal is one priced line (e.g. Monday Special £19.90) with 1–5 choices underneath (starter, pizza or pasta, coffee…).
+// staff pick one dish per choice; each picked dish goes to the kitchen/bar as its own £0.00 line, so starters print under
+// STARTERS, mains under MAINS and the coffee goes to the bar. Priced add-ons (gluten free +£2) are their own lines on the bill.
+const DAY_NAMES=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],DAY_LONG=["Sundays","Mondays","Tuesdays","Wednesdays","Thursdays","Fridays","Saturdays"];
+const DEAL_COFFEES=["Espresso","Latte","Flat White","Cappuccino","White Coffee","Americano","Black Coffee"];
+// used until a manager saves their own list in Deals & offers
+const DEFAULT_DEALS=[
+  {id:"monday",n:"Monday Special",p:19.90,d:"Any starter, pizza or pasta and a coffee",on:true,days:[1],from:"16:30",to:"21:00",
+   slots:[{l:"Starter",from:["cat:Starters"],later:false},{l:"Pizza or pasta",from:["cat:Pizza","cat:Pasta"],later:false},{l:"Coffee",from:DEAL_COFFEES.map(n=>"item:"+n),later:true}],
+   addons:[{n:"Gluten free pizza or pasta",p:2}]},
+  {id:"mondaykids",n:"Kids Monday Special",p:8.90,d:"Any small meal and ice cream",on:true,days:[1],from:"16:30",to:"21:00",
+   slots:[{l:"Meal",from:["cat:Children"],later:false}],addons:[]}];
+const hhmmOk=v=>/^([01]\d|2[0-3]):[0-5]\d$/.test(String(v||""))?String(v):"";
+function cleanDeal(x){if(!x||typeof x!=="object")return null;const n=str(x.n,40).replace(/\s+/g," ").trim();if(!n)return null;
+  const slots=(Array.isArray(x.slots)?x.slots:[]).slice(0,5).map(s=>({l:str(s&&s.l,30).trim(),from:[...new Set((Array.isArray(s&&s.from)?s.from:[]).map(f=>str(f,70)).filter(f=>/^(cat|item):./.test(f)))].slice(0,80),later:!!(s&&s.later)}));
+  return {id:str(x.id,24)||("d"+Date.now().toString(36)),n,p:Math.max(0,Math.min(999,Math.round(+x.p*100)/100||0)),d:str(x.d||"",80),on:x.on!==false,
+    days:[...new Set((Array.isArray(x.days)?x.days:[]).map(Number).filter(v=>v>=0&&v<7))],from:hhmmOk(x.from),to:hhmmOk(x.to),slots,
+    addons:(Array.isArray(x.addons)?x.addons:[]).slice(0,6).map(a=>({n:str(a&&a.n,40).replace(/\s+/g," ").trim(),p:Math.max(0,Math.min(99,Math.round(+(a&&a.p)*100)/100||0))})).filter(a=>a.n)}}
+const dealsNow=()=>menuOv.deals||DEFAULT_DEALS;
+const isDeal=n=>!!(ITEMS[n]&&ITEMS[n].deal);
+const dealAddonName=(a,D)=>a.n+" ("+D.n+")";
+const newLid=()=>"l"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+function dealWhen(D){const ds=(D.days||[]).slice().sort((a,b)=>((a+6)%7)-((b+6)%7));
+  const d=!ds.length||ds.length===7?"Every day":ds.length===1?DAY_LONG[ds[0]]:ds.map(i=>DAY_NAMES[i]).join(", ");
+  return d+(D.from&&D.to?" "+D.from+"–"+D.to:"")}
+function dealOn(D,t){t=t||new Date();if(D.days&&D.days.length&&!D.days.includes(t.getDay()))return false;
+  if(D.from&&D.to){const m=t.getHours()*60+t.getMinutes(),mn=v=>{const [h,x]=v.split(":").map(Number);return h*60+x};if(m<mn(D.from)||m>mn(D.to))return false}return true}
+// the dishes a choice offers: whole menu sections follow menu edits (new dishes appear, removed ones go)
+function dealChoices(s){const out=[];(s.from||[]).forEach(f=>{if(f.startsWith("cat:")){const k=f.slice(4);((MENU.find(m=>m[0]===k)||[0,[]])[1]).forEach(([n])=>{if(!isPizzaAddon(n)&&!isDeal(n))out.push(n)})}
+  else{const n=f.slice(5);if(ITEMS[n]&&!ITEMS[n].hidden&&!ITEMS[n].deal)out.push(n)}});return [...new Set(out)]}
+const srcCat=f=>f.startsWith("cat:")?f.slice(4):(ITEMS[f.slice(5)]||{}).cat;
+function applyDeals(){for(const k in ITEMS)if(ITEMS[k].deal||ITEMS[k].dealAddon)delete ITEMS[k];
+  const sec=MENU.find(m=>m[0]==="Deals");if(sec)sec[1].length=0;
+  dealsNow().forEach(D=>{if(!D.on||!D.n||!D.slots.length||ITEMS[D.n])return;
+    const bar=D.slots.every(s=>s.from.every(f=>BAR_CATS.has(srcCat(f))));   // a drinks-only deal goes to the bar
+    ITEMS[D.n]={n:D.n,p:D.p,d:D.d,cat:"Deals",station:bar?"bar":"kitchen",deal:D};
+    (D.addons||[]).forEach(a=>{const an=dealAddonName(a,D);if(!ITEMS[an])ITEMS[an]={n:an,p:a.p,d:"",cat:"Deals",station:bar?"bar":"kitchen",hidden:true,dealAddon:true}});
+    if(sec)sec[1].push([D.n,D.p,(D.d?D.d+" · ":"")+dealWhen(D)])})}
+// a deal still missing a choice that has to be picked before sending (-1 = nothing missing)
+const dealMissing=x=>{const D=ITEMS[x.n]&&ITEMS[x.n].deal;if(!D)return -1;return D.slots.findIndex((s,i)=>!s.later&&!(x.dl&&x.dl[i]))};
+function dealPopHtml(n){const P=ord.pop,L=P.cur,D=ITEMS[n].deal,dl=L&&L.dl||{},dx=L&&L.dx||{},c=cart();
+  const rows=D.slots.map((s,i)=>{const ch=dealChoices(s),pick=dl[i];
+    const kid=pick&&L?c.find(x=>x.of===L.lid&&x.ds===i):null,have=new Set(kid&&kid.pc||[]);
+    const sub=pick&&CHOICES[pick]?`<div class="pq choice dsub"><span>${esc(pick)}?</span>${CHOICES[pick].map(t=>`<button data-dsub="${i}" data-v="${esc(t)}" class="ch${have.has(t)?" on":""}">${esc(t)}</button>`).join("")}</div>`:"";
+    return `<div class="pq choice dslot"><span>${esc(s.l||"Choice "+(i+1))}?</span>${ch.map(t=>{const out=outSet.has(t);return `<button data-dpk="${i}" data-v="${esc(t)}" class="ch${pick===t?" on":""}${out?" dout":""}"${out?" disabled":""}>${esc(t)}${out?" · OUT":""}</button>`}).join("")}${s.later?`<button data-dpk="${i}" data-v="" class="ch dlater${pick?"":" on"}">⏱ Later</button>`:""}${ch.length?"":`<em class="dnone">Nothing on the menu for this choice — check Deals &amp; offers</em>`}</div>`+sub}).join("");
+  const ad=(D.addons||[]).length?`<div class="pq mix"><span>Add-ons?</span>${D.addons.map(a=>{const an=dealAddonName(a,D);return `<button data-dad="${esc(an)}" class="mx${dx[an]?" on":""}">${esc(a.n)} <small>+${money(priceOf(an))}</small></button>`}).join("")}</div>`:"";
+  return `<div class="mipop deal">${dealOn(D)?"":`<div class="dwarn">⚠ ${esc(D.n)} is for ${esc(dealWhen(D))} — it isn't on right now</div>`}${rows}${ad}
+    <div class="pqrow"><input data-pn data-ac="note" placeholder="Anything else for this deal?" maxlength="80" value="${esc(L&&L.px||"")}"><button class="pdone" data-pdone>✓ Done</button></div></div>`}
+// a later choice (e.g. the coffee): the waiter adds it from the Deals tab when the table asks, free
+function dealLaterRows(){const out=[];dealsNow().forEach(D=>{if(!ITEMS[D.n]||ITEMS[D.n].deal!==D)return;D.slots.forEach((s,i)=>{if(s.later)out.push([D,s,i])})});return out}
 function applyMenu(){
   const hide=new Set(menuOv.hide);
   const out=BASE_MENU.map(([cat,list])=>[cat,list.map(([n,p,d])=>[n,menuOv.price[n]!=null?menuOv.price[n]:p,menuOv.desc[n]!=null?menuOv.desc[n]:d])]);
   menuOv.add.forEach(a=>{const c=out.find(x=>x[0]===a.cat);if(c&&!c[1].some(x=>x[0]===a.n))c[1].push([a.n,menuOv.price[a.n]!=null?menuOv.price[a.n]:a.p,menuOv.desc[a.n]!=null?menuOv.desc[a.n]:a.d])});
   out.forEach(([cat,list])=>list.forEach(([n,p,d])=>{ITEMS[n]={n,p,d,cat,station:BAR_CATS.has(cat)?"bar":"kitchen",hidden:hide.has(n)}}));
-  MENU.length=0;out.forEach(([cat,list])=>MENU.push([cat,list.filter(x=>!hide.has(x[0]))]));addHalves();addAliases();addXL()}
+  MENU.length=0;out.forEach(([cat,list])=>MENU.push([cat,list.filter(x=>!hide.has(x[0]))]));addHalves();addAliases();applyDeals();addXL()}
 try{const v=JSON.parse(localStorage.getItem("t57-menu")||"null");if(v){menuOv=cleanMenuOv(v);applyMenu()}}catch(e){}
-addXL();
+applyDeals();addXL();
 const FLOW=["new","received","preparing","served"];
 const ST_LABEL={new:"Sent",received:"Received",preparing:"Preparing",served:"✓ Served"};
 const ST_BTN={new:"Mark received",received:"Start preparing",preparing:"Mark served"};
@@ -2144,7 +2216,9 @@ const WINE_ADD=[["Lemonade (spritzer)","Add lemonade to wine"],["Soda","Add soda
 const WINE_ONLY=n=>WINE_ADD.some(x=>x[1]===n);   // only added by picking a wine, never on their own
 function mixFor(n){const c=ITEMS[n]&&ITEMS[n].cat;const l=c==="Spirits"||c==="Gin"?MIXERS_NOW():c==="Wine"&&!/^Add /.test(n)?WINE_ADD:[];return l.filter(([,m])=>ITEMS[m]&&!ITEMS[m].hidden&&!outSet.has(m))}
 function syncMixers(c){for(let i=c.length-1;i>=0;i--){const x=c[i];if(!x.of)continue;const P=c.find(y=>y.lid===x.of);
-    if(!P||(P.mx!==x.n&&!(P.ex&&x.n in P.ex)))c.splice(i,1);else{x.q=P.q;if(P.ex&&x.n in P.ex)x.note=exLineNote(P,x.n)}}
+    if(!P||(x.ds!=null?!(P.dl&&P.dl[x.ds]===x.n):x.da?!(P.dx&&P.dx[x.n]):(P.mx!==x.n&&!(P.ex&&x.n in P.ex))))c.splice(i,1);else{x.q=P.q;if(P.ex&&x.n in P.ex)x.note=exLineNote(P,x.n)}}
+  // a deal dish or add-on deleted on its own: it is no longer picked on the deal
+  c.forEach(P=>{if(P.dl)for(const k of Object.keys(P.dl))if(!c.some(x=>x.of===P.lid&&x.ds===+k))delete P.dl[k];if(P.dx)for(const k of Object.keys(P.dx))if(!c.some(x=>x.of===P.lid&&x.n===k))delete P.dx[k]});
   // an extra deleted on its own: take it off the pizza's note too
   c.forEach(P=>{if(!P.ex)return;let ch=false;for(const k of Object.keys(P.ex))if(!c.some(x=>x.of===P.lid&&x.n===k)){delete P.ex[k];ch=true}if(ch){P.pc=P.pc||[];P.px=P.px||"";P.note=popNote(P)}})}
 // ---- pizza extras: priced Extra meat / veg / fish on every pizza, each with "what?" written underneath ----
@@ -2183,7 +2257,7 @@ function optsBase(n){const it=ITEMS[n];if(!it)return {opts:[],cook:false,alg:fal
   if(c==="Meat"||c==="Poultry"||c==="Fish")return {opts:["Sauce on side","No sauce","Chips instead","Salad instead","Well done","Halal","No onion"].filter(t=>!freeSide(n)||!/instead/.test(t)),alg:true};
   if(c==="Children")return {opts:["No sauce","Plain","No cheese","Chips on side"],alg:true};
   return {opts:["No onion","No chilli","Sauce on side","Halal","Extra hot"],alg:true}}
-function popHtml(n){const P=ord.pop,L=P.cur,have=new Set(L&&L.pc||[]),o=optsFor(n);
+function popHtml(n){if(isDeal(n))return dealPopHtml(n);const P=ord.pop,L=P.cur,have=new Set(L&&L.pc||[]),o=optsFor(n);
   const chip=(t,cls)=>`<button data-pq="${esc(t)}" class="${cls||""}${have.has(t)?" on":""}">${cls==="alg"?"⚠ ":""}${esc(t)}</button>`;
   const ch=CHOICES[n];
   const mx=o.mix&&o.mix.length?`<div class="pq mix"><span>Mixer?</span>${o.mix.map(([lab,m])=>`<button data-pmx="${esc(m)}" class="mx${L&&L.mx===m?" on":""}">${esc(lab)} <small>+${money(priceOf(m))}</small></button>`).join("")}</div>`:"";
@@ -2200,7 +2274,7 @@ function popLine(){const P=ord.pop,c=cart();if(P.cur&&c.includes(P.cur))return P
   const plain=P.plain;if(!plain||!c.includes(plain))return null;
   let L;if(plain.q>1){plain.q--;L=Object.assign({n:plain.n,q:1,note:""},plain.g?{g:plain.g}:{});c.splice(c.indexOf(plain)+1,0,L)}else L=plain;
   L.pc=L.pc||[];L.px=L.px||"";P.cur=L;return L}
-const popNote=L=>[...exText(L),...L.pc,L.px.trim()].filter(Boolean).join(", ").slice(0,120);
+const popNote=L=>(isDeal(L.n)?[Object.keys(L.dl||{}).length?"price only, dishes listed separately":"",L.px.trim()]:[L.dn||"",...exText(L),...L.pc,L.px.trim()]).filter(Boolean).join(", ").slice(0,120);
 const PREP_CHIPS=["No onion","No chilli","Extra hot","Well done","Medium","Rare","Starter size","Halal","Sauce on side"];
 const DISC_REASONS=["Takeaway","Friends & family","Promotion","Voucher","Staff meal","Complaint","Other"];
 function cleanIdisc(x){const o={};if(x&&typeof x==="object")Object.keys(x).slice(0,60).forEach(k=>{const d=x[k];if(!d||typeof d!=="object")return;const t=d.t==="amt"?"amt":"pct";const v=Math.max(0,Math.min(t==="pct"?100:9999,+d.v||0));if(v>0)o[str(k,100)]={t,v,r:str(d.r,30),by:str(d.by,40)}});return o}
@@ -2602,20 +2676,22 @@ function renderOrder(){
       const out=outSet.has(n);
       return `<div class="mi${q?" has":""}${out?" out":""}" data-n="${esc(n)}"><div class="nm"><b>${esc(n)}${enTag(n)}</b>${d?`<small>${esc(d)}</small>`:""}</div><div class="pr">${priceOf(n)<p?`<s>${money(p)}</s> <b class="hhp">${money(priceOf(n))}</b>`:money(p)}</div>
       <div class="step">${q?`<button data-a="dec">−</button><span>${q}</span>`:""}${out?`<span class="oos">OUT</span>`:`<button class="add" data-a="inc">+</button>`}</div></div>${ord.pop&&ord.pop.n===n?popHtml(n):""}`}).join("")+
-      (qq?"":`<div class="custbox"><b>✏️ Custom request</b><small>Anything not on the menu — goes to the ${drinks?"bar":"kitchen"}</small>
+      (!qq&&ord.cat==="Deals"?dealLaterRows().map(([D,s,i],k)=>`<div class="mi dlrow${ord.dlt===k?" has":""}" data-dlt="${k}"><div class="nm"><b>☕ ${esc(D.n)} — ${esc((s.l||"choice").toLowerCase())} for later</b><small>Free with a ${esc(D.n)} already ordered · tap to pick</small></div><div class="pr">£0.00</div><div class="step"><button class="add">+</button></div></div>`+
+        (ord.dlt===k?`<div class="mipop"><div class="pq choice">${dealChoices(s).map(n=>`<button data-dlp="${esc(n)}" class="ch">${esc(n)}</button>`).join("")}</div></div>`:"")).join(""):"")+
+            (qq?"":`<div class="custbox"><b>✏️ Custom request</b><small>Anything not on the menu — goes to the ${drinks?"bar":"kitchen"}</small>
         <input id="cuN" data-ac="custom" placeholder="Start typing, e.g. pizza…" maxlength="60" autocomplete="off" autocapitalize="sentences" value="${esc((ord.cu&&ord.cu.n)||"")}">
         <div class="cusug" id="cuS">${cuChips((ord.cu&&ord.cu.n)||"")}</div>
         <div class="custrow"><label class="xla">£<input id="cuP" type="number" inputmode="decimal" min="0" max="999" step="0.10" placeholder="0.00" value="${esc((ord.cu&&ord.cu.p)||"")}"></label><button class="btn pri" data-cuadd>+ Add</button></div></div>`)+
       (qq&&!list.length?`<div class="qnone"><b>No dish called “${esc(ord.q.trim())}”</b>${c.length?`<button class="btn pri" data-qnote>➕ Add “${esc(ord.q.trim())}” to ${esc(c[c.length-1].n)}</button>`:""}<button class="btn sec" data-qcust>✏️ Custom request “${esc(ord.q.trim())}”</button></div>`:"")+
-      `<div class="empty" style="padding:18px">Allergies? Add a note on the next screen. Halal &amp; gluten free options available.</div>`;
+`<div class="empty" style="padding:18px">Allergies? Add a note on the next screen. Halal &amp; gluten free options available.</div>`;
     foot.innerHTML=count?`<button class="btn sec" data-f="clear">Clear</button><button class="btn pri" data-f="review">Review order · ${count} · ${money(sum)}</button>`
       :`<button class="btn pri" disabled style="opacity:.45">Tap dishes to add them</button>`;
   }else if(ord.tab==="menu"&&ord.review){
     cats.style.display="none";
     if(ord.covers==null)ord.covers=b?Math.max(1,partyOf(b)):2;
     const firstOrder=!act.length&&!ord.pickup;
-    body.innerHTML=(ord.pickup&&!ord.walk&&c.length?patChips():"")+(ord.pickup&&c.length?`<div class="guests" style="gap:8px"><input id="pName" placeholder="Name (optional)" maxlength="40" value="${esc(ord.pname||"")}" style="flex:1.2"><input id="pPhone" type="tel" inputmode="tel" placeholder="Phone (optional)" maxlength="30" value="${esc(ord.pphone||"")}" style="flex:1"></div>`:"")+(firstOrder&&c.length?`<div class="guests"><b>Guests at table</b><div class="step"><button data-g="-1">−</button><span>${ord.covers}</span><button class="add" data-g="1">+</button></div></div>`:"")+(c.length?c.map((x,i)=>`<div class="cl" data-i="${i}"><div class="r1"><b>${esc(x.n)}</b><span class="pr">${money(priceOf(x.n)*x.q)}</span>
-      <div class="step">${x.g?`<span class="gtag">👤 ${esc(x.g)}</span>`:""}<button data-a="dec">−</button><span>${x.q}</span><button class="add" data-a="inc">+</button></div></div>
+    body.innerHTML=(ord.pickup&&!ord.walk&&c.length?patChips():"")+(ord.pickup&&c.length?`<div class="guests" style="gap:8px"><input id="pName" placeholder="Name (optional)" maxlength="40" value="${esc(ord.pname||"")}" style="flex:1.2"><input id="pPhone" type="tel" inputmode="tel" placeholder="Phone (optional)" maxlength="30" value="${esc(ord.pphone||"")}" style="flex:1"></div>`:"")+(firstOrder&&c.length?`<div class="guests"><b>Guests at table</b><div class="step"><button data-g="-1">−</button><span>${ord.covers}</span><button class="add" data-g="1">+</button></div></div>`:"")+(c.length?c.map((x,i)=>`<div class="cl" data-i="${i}"><div class="r1"><b>${esc(x.n)}</b><span class="pr">${money(linePrice(x)*x.q)}</span>
+      <div class="step">${x.g?`<span class="gtag">👤 ${esc(x.g)}</span>`:""}${x.ds!=null?`<span title="Part of the deal above — change it from the Deals tab">${x.q}</span>`:`<button data-a="dec">−</button><span>${x.q}</span><button class="add" data-a="inc">+</button>`}</div></div>
       ${outSet.has(x.n)?`<div class="note" style="margin:4px 0">⛔ Out of stock — remove this</div>`:""}
       ${ITEMS[x.n].station==="bar"?`<input class="ln" data-ac="note" placeholder="Note for the bar (e.g. no ice)" maxlength="120" value="${esc(x.note)}">
       <div class="qn">${x.of?"":drinkChips(ITEMS[x.n].cat,x.n).map(t=>`<button data-q="${t}">${t}</button>`).join("")}</div></div>`:`<input class="ln${isAlg(x.note)?" alg":""}" data-ac="note" placeholder="Note for kitchen (e.g. no onions)" maxlength="120" value="${esc(x.note)}">
@@ -2742,6 +2818,22 @@ $("oBody").addEventListener("click",e=>{if(ord&&ord.openedAt&&Date.now()-ord.ope
     if(px.dataset.pxl==="1"&&ITEMS[xlName(b)]){const xi=ITEMS[xlName(b)];L.n=xlName(b);L.xa=xi.xlr?Math.round((priceOf(L.n)-priceOf(b))*100)/100:xlHalf(b)}else{L.n=b;delete L.xa}
     renderOrder();requestAnimationFrame(()=>{const i=$("oBody").querySelector("[data-pxa]");if(i)try{i.focus();i.select()}catch(e){}});return}
   if(e.target.closest("[data-pxh]")&&ord.pop){const L=popLine();if(!L||!ITEMS[L.n]||!ITEMS[L.n].xl)return;L.xa=xlHalf(ITEMS[L.n].xl);renderOrder();return}
+  const dk=e.target.closest("[data-dpk]");if(dk&&ord.pop){const L=popLine();if(!L)return;const D=ITEMS[L.n]&&ITEMS[L.n].deal;if(!D)return;const i=+dk.dataset.dpk,v=dk.dataset.v,c=cart();
+    L.lid=L.lid||newLid();L.dl=L.dl||{};const old=c.findIndex(x=>x.of===L.lid&&x.ds===i);if(old>=0)c.splice(old,1);
+    if(!v||L.dl[i]===v)delete L.dl[i];
+    else{L.dl[i]=v;let at=c.indexOf(L)+1;while(at<c.length&&c[at].of===L.lid&&c[at].ds!=null&&c[at].ds<i)at++;   // dishes in choice order, right under the deal
+      c.splice(at,0,Object.assign({n:v,q:L.q,note:D.n,cp:0,of:L.lid,ds:i,dn:D.n,pc:[],px:""},L.g?{g:L.g}:{}))}
+    L.pc=L.pc||[];L.px=L.px||"";L.note=popNote(L);renderOrder();return}
+  const dsb=e.target.closest("[data-dsub]");if(dsb&&ord.pop){const L=popLine();if(!L)return;const i=+dsb.dataset.dsub,v=dsb.dataset.v,k=cart().find(x=>x.of===L.lid&&x.ds===i);if(!k)return;
+    k.pc=(k.pc||[]).includes(v)?[]:[v];k.px=k.px||"";k.note=popNote(k);renderOrder();return}
+  const dad=e.target.closest("[data-dad]");if(dad&&ord.pop){const L=popLine();if(!L||!isDeal(L.n))return;const an=dad.dataset.dad,c=cart();L.lid=L.lid||newLid();L.dx=L.dx||{};
+    if(L.dx[an]){delete L.dx[an];const i=c.findIndex(x=>x.of===L.lid&&x.n===an);if(i>=0)c.splice(i,1)}
+    else{L.dx[an]=1;let at=c.indexOf(L)+1;while(at<c.length&&c[at].of===L.lid)at++;c.splice(at,0,Object.assign({n:an,q:L.q,note:"",of:L.lid,da:1},L.g?{g:L.g}:{}))}
+    L.pc=L.pc||[];L.px=L.px||"";L.note=popNote(L);renderOrder();return}
+  const dlt=e.target.closest("[data-dlt]");if(dlt){const r=dealLaterRows()[+dlt.dataset.dlt];if(!r)return;ord.dlt=ord.dlt===+dlt.dataset.dlt?null:+dlt.dataset.dlt;ord.pop=null;renderOrder();return}
+  const dlp=e.target.closest("[data-dlp]");if(dlp){const r=dealLaterRows()[ord.dlt];if(!r)return;const [D,s]=r,n=dlp.dataset.dlp;if(outSet.has(n)){toast(n+" is out of stock");return}
+    const gg=ord.pickup?"":tabFor(n);c.push(Object.assign({n,q:1,note:D.n+" "+(s.l||"").toLowerCase(),cp:0,dn:D.n+" "+(s.l||"").toLowerCase(),pc:[],px:""},gg?{g:gg}:{}));
+    ord.dlt=null;renderOrder();toast(`Added ${n} · ${D.n} · free`);return}
   const pq=e.target.closest("[data-pq]");if(pq&&ord.pop){const L=popLine();if(!L)return;const t=pq.dataset.pq,i=L.pc.indexOf(t);
     if(i>=0)L.pc.splice(i,1);else{const ex=[DONENESS,CHOICES[L.n]||[]].find(g=>g.includes(t));if(ex)L.pc=L.pc.filter(x=>!ex.includes(x));L.pc.push(t)}L.note=popNote(L);renderOrder();return}
   if(e.target.closest("[data-pdone]")){ord.pop=null;renderOrder();return}
@@ -2767,11 +2859,11 @@ $("oBody").addEventListener("click",e=>{if(ord&&ord.openedAt&&Date.now()-ord.ope
     const hn=halfName(ord.half.a,n),gg=ord.pickup?"":tabFor(hn);let line=c.find(x=>x.n===hn&&!x.note&&(x.g||"")===gg);
     if(line)line.q++;else c.push(Object.assign({n:hn,q:1,note:""},gg?{g:gg}:{}));
     ord.half=null;renderOrder();toast("Added "+hn+" · "+money(priceOf(hn)));return}
-  const mi=e.target.closest(".mi"),cl=e.target.closest(".cl[data-i]");const a=e.target.closest("[data-a]");
+  const mi=e.target.closest(".mi[data-n]"),cl=e.target.closest(".cl[data-i]");const a=e.target.closest("[data-a]");
   if(mi){const n=mi.dataset.n,gg=ord.pickup?"":tabFor(n);let line=c.find(x=>x.n===n&&x.cp==null&&!x.note&&(x.g||"")===gg);
-    if(a&&a.dataset.a==="dec"){const l=[...c].reverse().find(x=>(x.n===n||(ITEMS[x.n]&&ITEMS[x.n].xl===n))&&(x.g||"")===gg);if(l){l.q--;if(l.q<=0)c.splice(c.indexOf(l),1)}}
+    if(a&&a.dataset.a==="dec"){const l=[...c].reverse().find(x=>!x.of&&(x.n===n||(ITEMS[x.n]&&ITEMS[x.n].xl===n))&&(x.g||"")===gg);if(l){l.q--;if(l.q<=0)c.splice(c.indexOf(l),1)}}
     else{if(outSet.has(n)){toast(n+" is out of stock");return}if(line)line.q++;else{line=Object.assign({n,q:1,note:""},gg?{g:gg}:{});c.push(line)}
-      ord.pop=optsFor(n).opts.length?{n,plain:line,cur:null}:null}
+      ord.pop=isDeal(n)||optsFor(n).opts.length?{n,plain:line,cur:null}:null}
     if(a&&a.dataset.a==="dec")ord.pop=null;
     renderOrder();if(ord.pop)requestAnimationFrame(()=>{const m=$("oBody").querySelector(".mipop");if(m)try{m.scrollIntoView({block:"nearest"})}catch(e){}});return}
   if(cl&&a){const x=c[+cl.dataset.i];if(a.dataset.a==="inc")x.q++;else{x.q--;if(x.q<=0)c.splice(+cl.dataset.i,1)}renderOrder()}
@@ -2803,6 +2895,8 @@ $("oFoot").addEventListener("click",async e=>{if(Date.now()<footLockUntil){e.sto
     if(readOnly){toast("View only — can't send orders");return}
     const c=cart();if(!c.length)return;
     const oos=c.find(x=>outSet.has(x.n));if(oos){toast(oos.n+" is out of stock — remove it");return}
+    const nd=c.find(x=>dealMissing(x)>=0);if(nd){const s=ITEMS[nd.n].deal.slots[dealMissing(nd)];toast(`${nd.n}: pick the ${(s.l||"choice").toLowerCase()} — tap it to choose`);ord.review=false;ord.q="";ord.cat="Deals";
+      ord.pop={n:nd.n,plain:nd,cur:nd.q===1?Object.assign(nd,{pc:nd.pc||[],px:nd.px||""}):null};renderOrder();return}
     const nc=c.find(needsChoice);if(nc){toast(`${nc.n}: ${CHOICES[nc.n].join(" or ")}? Tap it to choose`);ord.review=false;ord.pop=null;
       ord.cat=ITEMS[nc.n].cat;ord.pop={n:nc.n,plain:nc,cur:nc.q===1?Object.assign(nc,{pc:nc.pc||[],px:nc.px||""}):null};renderOrder();return}
     if(dateKey!==todayKey()){toast("You're looking at another day — tap “Back to today” to send orders",4000);return}
@@ -2819,7 +2913,7 @@ $("oFoot").addEventListener("click",async e=>{if(Date.now()<footLockUntil){e.sto
     const pace=false;   // everything goes to the kitchen together (one ticket, grouped STARTERS / MAINS / DESSERTS)
     if(pace)parts=[["kitchen",pace.st],["kitchen",pace.mn,true]].concat(parts.filter(p=>p[0]==="bar"));
     const made=parts.map(([st,list,hold])=>{const t={wait:!!hold,id:"t"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)+st[0],date:dateKey,tables:ids,station:st,
-      label:ord.pickup?(ord.walk?"Bar walk-up #":"Takeaway #")+ord.pno:gname(g),items:list.map(x=>(learnNote(x.note),0)||Object.assign({n:x.n,q:x.q,p:linePrice(x),note:(x.note||"").trim(),c:ord.pickup?"":courseOf(x.n)},x.g?{g:x.g}:{})),
+      label:ord.pickup?(ord.walk?"Bar walk-up #":"Takeaway #")+ord.pno:gname(g),items:list.map(x=>(x.dn||isDeal(x.n)||x.da?0:learnNote(x.note),0)||Object.assign({n:x.n,q:x.q,p:linePrice(x),note:(x.note||"").trim(),c:ord.pickup?"":courseOf(x.n)},x.g?{g:x.g}:{})),
       note:[st==="kitchen"?bkAlg:"",(ord.note||"").trim()].filter(Boolean).join(" · ").slice(0,200),status:"new",createdAt:Date.now(),updatedAt:Date.now(),closed:false,no,covers:coversLeft,by:waiter?waiter.id:"",byName:waiter?waiter.name:"",
       pickup:!!ord.pickup,walk:!!(ord.pickup&&ord.walk),pno:ord.pickup?ord.pno:0,pname:ord.pickup?(ord.pname||"").trim():"",pphone:ord.pickup?(ord.pphone||"").trim():""};coversLeft=0;
       if(ord.pickup&&!ord.walk&&ord.pat)t.pat=ord.pat;   // pickups go to the kitchen straight away, collection time printed big on top
@@ -3588,8 +3682,8 @@ function renderGuest(){
     h=`<div class="gwrap"><div class="gcard"><h3>Benvenuti!</h3><p>Please let a member of our team seat you first — then you can order straight from your phone using this page.</p></div></div>`;
   }else{
     const c=gCartList();
-    if(!gCat||!showCat(gCat))gCat=CATS.find(showCat);
-    h=`<div class="gcats">${CATS.filter(showCat).map(k=>`<button data-gc="${esc(k)}" class="${k===gCat?"on":""}">${BAR_CATS.has(k)?"🍷 ":k==="Specials"?"⭐ ":""}${esc(k)}</button>`).join("")}</div><div class="gwrap">`;
+    const gShow=k=>showCat(k)&&k!=="Deals";if(!gCat||!gShow(gCat))gCat=CATS.find(gShow);
+    h=`<div class="gcats">${CATS.filter(gShow).map(k=>`<button data-gc="${esc(k)}" class="${k===gCat?"on":""}">${BAR_CATS.has(k)?"🍷 ":k==="Specials"?"⭐ ":""}${esc(k)}</button>`).join("")}</div><div class="gwrap">`;
     if(mine.length)h+=`<div class="gcard"><h3>Your orders</h3>${mine.map(t=>{const [cl,tx]=stTxt(t);return `<div class="gord"><span>${t.items.map(x=>`${x.q}× ${esc(x.n)}`).join(", ")}</span><span class="gst ${cl}">${tx}</span></div>`}).join("")}</div>`;
     const list=MENU.find(m=>m[0]===gCat)[1].filter(([n])=>!WINE_ONLY(n));
     h+=`<div class="gsec"><h4>${esc(gCat.toUpperCase())}</h4>${list.map(([n,p,d])=>{const q=c.filter(x=>x.n===n).reduce((a,x)=>a+x.q,0);
@@ -3955,7 +4049,7 @@ function meRows(){const base=(BASE_MENU.find(c=>c[0]===meCat)||[0,[]])[1].map(([
   return base.concat(meDraft.add.filter(a=>a.cat===meCat).map(a=>({n:a.n,p0:a.p,d0:a.d,custom:true})))}
 function renderMenuEd(){
   if(xKind!=="menued")return;const rows=meRows(),hide=new Set(meDraft.hide);
-  const tabs=`<div class="mecats">${[["Drinks",CATS.filter(k=>BAR_CATS.has(k))],["Food",CATS.filter(k=>!BAR_CATS.has(k))]].map(([t,ks])=>`<div><small>${t}</small>${ks.map(k=>`<button data-mec="${esc(k)}" class="${k===meCat?"on":""}">${esc(k)}</button>`).join("")}</div>`).join("")}</div>`;
+  const tabs=`<div class="mecats">${[["Drinks",CATS.filter(k=>BAR_CATS.has(k))],["Food",CATS.filter(k=>!BAR_CATS.has(k)&&k!=="Deals")]].map(([t,ks])=>`<div><small>${t}</small>${ks.map(k=>`<button data-mec="${esc(k)}" class="${k===meCat?"on":""}">${esc(k)}</button>`).join("")}</div>`).join("")}</div>`;
   $("xBody").innerHTML=tabs+`<div class="melist">${rows.map((r,i)=>{const p=meDraft.price[r.n]!=null?meDraft.price[r.n]:r.p0,off=hide.has(r.n),chg=meDraft.price[r.n]!=null&&meDraft.price[r.n]!==r.p0;
     return `<div class="merow${off?" off":""}"><span class="men"><b>${esc(r.n)}</b>${r.custom?`<i class="mnew">new</i>`:""}${off?`<i class="moff">off the menu</i>`:""}<input class="med" data-med="${i}" maxlength="80" value="${esc(meDraft.desc[r.n]!=null?meDraft.desc[r.n]:r.d0||"")}" placeholder="Description (optional)"></span>
       <label class="mep${chg?" chg":""}">£<input type="number" step="0.05" min="0" max="999" inputmode="decimal" data-mep="${i}" value="${p.toFixed(2)}"></label>
@@ -3981,6 +4075,76 @@ $("xBody").addEventListener("input",e=>{if(xKind!=="menued")return;const rows=me
   const xi=e.target.dataset.mexl;if(xi!==undefined){const r=rows[+xi],v=xlRule(e.target.value);meDraft.xl=meDraft.xl||{};if(v)meDraft.xl[r.n]=v;else delete meDraft.xl[r.n];
     e.target.parentElement.classList.toggle("on",!!v);e.target.parentElement.classList.toggle("bad",!!e.target.value.trim()&&!v);meDirty=true;$("xFoot").querySelector("[data-mesave]").textContent="💾 Save menu"}
   const di=e.target.dataset.med;if(di!==undefined){const r=rows[+di],v=e.target.value.trim();if(v===(r.d0||""))delete meDraft.desc[r.n];else meDraft.desc[r.n]=v;meDirty=true;$("xFoot").querySelector("[data-mesave]").textContent="💾 Save menu"}});
+
+// ---- deals & offers editor (⭐ Manager → 🏷 Deals & offers, manager PIN) ----
+// name + price + when it's on, then 1–5 choices (each: whole menu sections and/or single dishes), plus priced add-ons
+let dlDraft=null,dlDirty=false;
+const DL_MAX_SLOTS=5;
+function dlSrcLabel(f){return f.startsWith("cat:")?"All "+f.slice(4):f.slice(5)}
+function openDealsEd(){dlDraft=JSON.parse(JSON.stringify(dealsNow()));dlDirty=false;
+  openX("dealsed","🏷 Deals & offers","Make a deal: its name and price, when it's on, then the choices staff pick from underneath. Saves to every tablet.",e=>{
+    const b=e.target.closest("button");if(!b)return;const d=b.dataset,D=d.di!=null?dlDraft[+d.di]:null;
+    if(d.dlnew!=null){dlDraft.push({id:"d"+Date.now().toString(36),n:"",p:0,d:"",on:true,days:[],from:"",to:"",slots:[{l:"",from:[],later:false}],addons:[]});dlDirty=true;renderDealsEd();
+      requestAnimationFrame(()=>{const i=[...$("xBody").querySelectorAll('[data-dlf="n"]')].pop();if(i){i.scrollIntoView({block:"center"});try{i.focus()}catch(_){}}});return}
+    if(d.dlsave!=null){dlSave();return}
+    if(d.dlcancel!=null){if(!dlDirty){closeX();return}ask("Throw away your deal changes?","Nothing has been saved yet.",()=>closeX());return}
+    if(!D)return;
+    if(d.dlday!=null){const v=+d.dlday,i=D.days.indexOf(v);if(i>=0)D.days.splice(i,1);else D.days.push(v)}
+    else if(d.dlallday!=null){D.from="";D.to=""}
+    else if(d.dlsadd!=null){if(D.slots.length<DL_MAX_SLOTS)D.slots.push({l:"",from:[],later:false})}
+    else if(d.dlsdel!=null){D.slots.splice(+d.dlsdel,1)}
+    else if(d.dlrm!=null){const [k,j]=d.dlrm.split("|").map(Number);D.slots[k].from.splice(j,1)}
+    else if(d.dllater!=null){const S=D.slots[+d.dllater];S.later=!S.later}
+    else if(d.dlaadd!=null){if(D.addons.length<6)D.addons.push({n:"",p:0})}
+    else if(d.dladel!=null){D.addons.splice(+d.dladel,1)}
+    else if(d.dlon!=null){D.on=!D.on}
+    else if(d.dldel!=null){ask(`Delete ${D.n||"this deal"}?`,"It comes off every tablet when you save. Orders already sent keep it.",()=>{dlDraft.splice(+d.di,1);dlDirty=true;renderDealsEd()});return}
+    else return;
+    dlDirty=true;renderDealsEd()});
+  renderDealsEd()}
+function dlAddOptions(){const cats=CATS.filter(k=>k!=="Deals"&&k!=="Mixers"&&catHas(k));
+  return `<option value="">＋ Add a menu section or a dish…</option><optgroup label="A whole section (new dishes join automatically)">${cats.map(k=>`<option value="cat:${esc(k)}">All ${esc(k)}</option>`).join("")}</optgroup>`+
+    cats.map(k=>`<optgroup label="${esc(k)}">${MENU.find(m=>m[0]===k)[1].filter(([n])=>!isPizzaAddon(n)).map(([n])=>`<option value="item:${esc(n)}">${esc(n)}</option>`).join("")}</optgroup>`).join("")}
+function renderDealsEd(){if(xKind!=="dealsed")return;const opts=dlAddOptions();
+  const days=[1,2,3,4,5,6,0];
+  $("xBody").innerHTML=(dlDraft.length?"":`<p class="trial">No deals yet. Tap <b>＋ New deal</b>.</p>`)+dlDraft.map((D,i)=>`<div class="dlcard${D.on?"":" off"}">
+    <div class="dlhead"><input data-di="${i}" data-dlf="n" maxlength="40" placeholder="Deal name, e.g. Monday Special" value="${esc(D.n)}"><label class="mep">£<input data-di="${i}" data-dlf="p" type="number" step="0.05" min="0" max="999" inputmode="decimal" value="${(+D.p||0).toFixed(2)}"></label></div>
+    <input class="dldesc" data-di="${i}" data-dlf="d" maxlength="80" placeholder="What's included (shows on the tablets), e.g. Any starter, pizza or pasta and a coffee" value="${esc(D.d)}">
+    <div class="dlwhen"><span>When?</span>${days.map(v=>`<button data-di="${i}" data-dlday="${v}" class="${D.days.includes(v)?"on":""}">${DAY_NAMES[v]}</button>`).join("")}
+      <label>from <input data-di="${i}" data-dlf="from" type="time" value="${esc(D.from)}"></label><label>to <input data-di="${i}" data-dlf="to" type="time" value="${esc(D.to)}"></label>${D.from||D.to?`<button data-di="${i}" data-dlallday class="lnk">All day</button>`:""}
+      <small>${D.days.length?"":"No days ticked = every day. "}Staff are warned if they ring it in outside these times.</small></div>
+    ${D.slots.map((S,k)=>`<div class="dlslot"><div class="dlslh"><b>Choice ${k+1}</b><input data-di="${i}" data-dls="${k}" maxlength="30" placeholder="e.g. Starter" value="${esc(S.l)}">
+        <button data-di="${i}" data-dllater="${k}" class="dlchk${S.later?" on":""}">${S.later?"☑":"☐"} Can be picked later</button>${D.slots.length>1?`<button data-di="${i}" data-dlsdel="${k}" class="lnk dng" title="Remove this choice">🗑</button>`:""}</div>
+      <div class="dlsrc">${S.from.map((f,j)=>`<button data-di="${i}" data-dlrm="${k}|${j}" class="${f.startsWith("cat:")?"cat":""}">${esc(dlSrcLabel(f))} ✕</button>`).join("")||`<em>Nothing yet — add a section or dishes</em>`}</div>
+      <select data-di="${i}" data-dladd="${k}">${opts}</select></div>`).join("")}
+    ${D.slots.length<DL_MAX_SLOTS?`<button data-di="${i}" data-dlsadd class="btn sec dlbtn">＋ Add a choice (${D.slots.length}/${DL_MAX_SLOTS})</button>`:""}
+    <div class="dladdons"><b>Add-ons with a price</b> <small>e.g. Gluten free +£2.00 — charged on top of the deal</small>
+      ${D.addons.map((a,k)=>`<div class="dlad"><input data-di="${i}" data-dlan="${k}" maxlength="40" placeholder="e.g. Gluten free pizza or pasta" value="${esc(a.n)}"><label class="mep">+£<input data-di="${i}" data-dlap="${k}" type="number" step="0.05" min="0" max="99" inputmode="decimal" value="${(+a.p||0).toFixed(2)}"></label><button data-di="${i}" data-dladel="${k}" class="lnk dng">🗑</button></div>`).join("")}
+      ${D.addons.length<6?`<button data-di="${i}" data-dlaadd class="lnk">＋ Add-on</button>`:""}</div>
+    <div class="dlfoot"><button data-di="${i}" data-dlon class="btn sec">${D.on?"⏸ Pause (hide from tablets)":"▶ Turn back on"}</button><button data-di="${i}" data-dldel class="btn dng">🗑 Delete deal</button></div>
+  </div>`).join("")+`<button data-dlnew class="btn sec dlbtn" style="width:100%">＋ New deal</button>`;
+  $("xFoot").innerHTML=`<button class="btn sec" data-dlcancel>Cancel</button><button class="btn pri" data-dlsave>${dlDirty?"💾 Save deals":"Save deals"}</button>`}
+$("xBody").addEventListener("input",e=>{if(xKind!=="dealsed")return;const t=e.target,d=t.dataset;if(d.di==null)return;const D=dlDraft[+d.di];if(!D)return;
+  if(d.dlf){D[d.dlf]=d.dlf==="p"?(+t.value||0):t.value}
+  else if(d.dls!=null)D.slots[+d.dls].l=t.value;
+  else if(d.dlan!=null)D.addons[+d.dlan].n=t.value;
+  else if(d.dlap!=null)D.addons[+d.dlap].p=+t.value||0;
+  else if(d.dladd!=null){const v=t.value;if(!v)return;const S=D.slots[+d.dladd];if(!S.from.includes(v))S.from.push(v);dlDirty=true;renderDealsEd();return}
+  else return;
+  dlDirty=true;const sv=$("xFoot").querySelector("[data-dlsave]");if(sv)sv.textContent="💾 Save deals"});
+async function dlSave(){
+  for(const D of dlDraft){const nm=(D.n||"").replace(/\s+/g," ").trim();
+    if(!nm){toast("Every deal needs a name");return}
+    if(dlDraft.filter(x=>(x.n||"").trim().toLowerCase()===nm.toLowerCase()).length>1){toast(`Two deals are called “${nm}”`);return}
+    if(ITEMS[nm]&&!ITEMS[nm].deal){toast(`“${nm}” is already a dish on the menu — pick another name`);return}
+    if(!(+D.p>0)){toast(`${nm}: type the price`);return}
+    if((D.from&&!D.to)||(!D.from&&D.to)){toast(`${nm}: fill in both times, or neither`);return}
+    const e=D.slots.findIndex(S=>!S.from.length);if(e>=0){toast(`${nm}: choice ${e+1} has nothing to pick from`);return}
+    if(D.addons.some(a=>!(a.n||"").trim())){toast(`${nm}: an add-on has no name`);return}}
+  const ov=cleanMenuOv(Object.assign({},menuOv,{deals:dlDraft}));menuOv=ov;applyMenu();
+  try{localStorage.setItem("t57-menu",JSON.stringify(ov))}catch(e){}
+  if(db&&!readOnly){try{await db.doc("settings/menu").set(ov)}catch(e){toast("Saved here, but couldn't sync — try again");return}}
+  dlDirty=false;closeX();toast("Deals saved — every tablet updates now")}
 
 // ---- undo a just-sent order for 10 seconds (wrong table, wrong item) ----
 let undoT=null;
@@ -4557,7 +4721,7 @@ function openModePicker(){
 // ---------- Manager hub: everything a manager does, in one place ----------
 const HUB=[
   ["📊 Reports & money",[["rday","📅","Day report"],["rweek","📈","Weekly report"],["rmonth","🗓","Monthly report"],["allord","📋","All orders"],["hours","⏱","Staff hours"]]],
-  ["🍽 Menu & prices",[["menu","✏️","Edit menu & prices"],["hh","🍹","Happy hour"],["pmenu","🖨","Print the menu"]]],
+  ["🍽 Menu & prices",[["menu","✏️","Edit menu & prices"],["deals","🏷","Deals & offers"],["hh","🍹","Happy hour"],["pmenu","🖨","Print the menu"]]],
   ["👥 People",[["staff","🧑‍🍳","Staff & their PINs"],["mpin","🔑","Change manager PIN"],["guests","👤","Guest profiles"]]],
   ["⚙ Restaurant",[["settings","✉️","Emails & restaurant settings"],["links","⭐","Review & social links"],["rcp","🧾","Receipts & printing"],["reset","↺","Reset floor layout"],["signin","🔐","Tablet sign-in"],["alexa","🔊","Kitchen Alexa"]]],
 ];
@@ -4578,7 +4742,7 @@ function hubClick(e){
   if(k==="ver"){if(b.dataset.go)goNewVersion(b.dataset.go);else fillVerCard();return}
   mgrUntil=Math.max(mgrUntil,Date.now()+MGR_GRACE);closeX();
   ({mode:openModePicker,rday:()=>hubReport("day"),rweek:()=>hubReport("week"),rmonth:()=>hubReport("month"),allord:openAllOrders,hours:openHours,
-    menu:openMenuEd,hh:()=>settingsAt("hhOn"),pmenu:()=>pickPrinter(to=>printJob(to,"menu","Menu & prices",menuLines(),"full"),"Print the menu with prices"),
+    menu:openMenuEd,deals:openDealsEd,hh:()=>settingsAt("hhOn"),pmenu:()=>pickPrinter(to=>printJob(to,"menu","Menu & prices",menuLines(),"full"),"Print the menu with prices"),
     staff:openManage,mpin:()=>askPin("New manager PIN","Choose a new 4-digit PIN",async v=>{try{await mgrStore.put("main",{pin:await hashPin(v,"manager")})}catch(_){return true}closePad();toast("Manager PIN changed");return true}),
     guests:openGuests,settings:()=>settingsAt("sOwner"),links:()=>settingsAt("sReview"),rcp:()=>settingsAt("sRcp"),qr:()=>{openSettings();$("setQr").click()},
     reset:()=>$("resetBtn").click(),
