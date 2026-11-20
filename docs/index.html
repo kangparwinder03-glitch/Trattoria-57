@@ -413,6 +413,7 @@ body.bv #stage,body.bv footer{display:none}
 .cats button{flex:none;border:1.5px solid var(--parch2);background:#fffaf0;border-radius:20px;padding:7px 12px;font-size:13px;font-weight:600;color:#5d5640}
 .cats button.on{background:var(--wine);border-color:var(--wine);color:#fff}
 .obody{flex:1;overflow-y:auto;background:#fff}
+.misub{padding:9px 18px 7px;background:#f6eedd;border-bottom:1px solid #eadfc8;font-size:13px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#7a5a2a}
 .mi{display:flex;align-items:center;gap:10px;padding:11px 18px;border-bottom:1px solid #f1e9da;cursor:pointer}
 .mi:active{background:#faf4e8}
 .mi .nm{flex:1;min-width:0}
@@ -1972,6 +1973,12 @@ const MENU=[
 ["Affogato",4.50,"Vanilla ice cream served with a shot of espresso"],["Affogato with a spirit",6.90,"Add the spirit in a note"]]]
 ];
 
+// ---- every pasta dish also comes as a smaller starter (£8.90), listed at the bottom of the Starters tab ----
+// the name carries "(Starter size)" so the kitchen ticket, kitchen screen and bill all say it's the small portion
+const STARTER_SIZE=" (Starter size)",STARTER_PASTA_P=8.90;
+const pastaStarterOf=n=>{const m=String(n).match(/^(.*) \(Starter size\)$/);return m&&(MENU.find(c=>c[0]==="Pasta")||[0,[]])[1].some(x=>x[0]===m[1])?m[1]:""};
+(()=>{const st=MENU.find(c=>c[0]==="Starters"),pa=MENU.find(c=>c[0]==="Pasta");
+  pa[1].forEach(([n,,d])=>st[1].push([n+STARTER_SIZE,STARTER_PASTA_P,"Starter portion"+(d?" · "+d:"")]))})();
 // ---------- orders & kitchen ----------
 // ---- English on every screen and kitchen/bar ticket; the customer's bill & receipt on the till printer stay in Italian ----
 const EN_OF={"Acqua del Rubinetto":"Tap Water","Acqua Frizzante":"Sparkling Water","Antipasto Misto": "Mixed Antipasti", "Polpette della Casa": "House Meatballs", "Cocktail di Gamberetti": "Prawn Cocktail", "Melone Fresco": "Fresh Melon", "Melone & Prosciutto": "Melon & Parma Ham", "Pasticcio de Fegato": "Chicken Liver Pâté", "Brie Fritto": "Deep Fried Brie", "Salmone Affumicato": "Smoked Salmon", "Costolette di Maiale in Salsa": "BBQ Spare Ribs", "Alette di Pollo in Salsa": "BBQ Chicken Wings", "Funghi all'Aglio": "Garlic Mushrooms", "Funghi Andreas": "Deep Fried Mushrooms", "Calamari Fritti": "Fried Calamari", "Gamberetti alla Diavola (Hot)": "Devilled Prawns (Hot)", "Gamberoni in Tempura": "Tempura King Prawns", "Sardine Fritte": "Fried Sardines", "Bruschetta Classica": "Classic Bruschetta", "Bruschetta Ezios": "Bruschetta Ezio's", "Bruschetta Diavola": "Spicy Salami Bruschetta", "Pizza all'Aglio": "Garlic Pizza", "Pizza all'Aglio e Pomodoro": "Garlic & Tomato Pizza", "Pizza all'Aglio e Mozzarella": "Garlic & Mozzarella Pizza", "Pizza Messicana": "Mexican Garlic Pizza", "Pizza Funghi": "Mushroom Pizza", "Pizza Prosciutto": "Ham Pizza", "Pizza Marinara": "Seafood Pizza", "Pizza Diavola": "Hot Salami Pizza", "Pizza Garibaldi": "Garibaldi Pizza", "Pizza Margherita": "Margherita Pizza", "Pizza Capricciosa": "Ham & Mushroom Pizza", "Pizza Hawaiana": "Hawaiian Pizza", "Pizza House Special": "House Special Pizza", "Pizza 4 Formaggi": "Four Cheese Pizza", "Pizza Vegetariana": "Vegetarian Pizza", "Pizza Trastevere": "Stilton & Parma Ham Pizza", "Pizza 4 Stagioni": "Four Seasons Pizza", "Pizza Vulcano": "Volcano Pizza", "Linguine Marinara": "Seafood Linguine", "Tortellini House Special": "House Special Tortellini", "Penne Napoli": "Penne Tomato & Basil", "Tagliatelle Stilton": "Stilton Tagliatelle", "Tagliatelle Mare e Monti": "Prawn & Mushroom Tagliatelle", "Linguine al Salmone": "Smoked Salmon Linguine", "Lasagna Vegetariana": "Vegetable Lasagne", "Lasagna": "Lasagne", "Cannelloni Contadina": "Spinach & Ricotta Cannelloni", "Tortellini alla Panna": "Creamy Tortellini", "Risotto al Salmone": "Salmon Risotto", "Risotto Formaggio & Prosciutto": "Cheese & Parma Ham Risotto", "Risotto alla Panna": "Creamy Risotto", "Risotto Marinara": "Seafood Risotto", "Pollo alla Panna": "Chicken in Cream Sauce", "Pollo alla Cacciatora": "Chicken Cacciatore", "Pollo Principessa": "Chicken Principessa", "Pollo Diavola (Hot)": "Devilled Chicken (Hot)", "Pollo al Pepe": "Peppered Chicken", "Pollo Corso": "Chicken Corso", "Pollo alla Strogonoff": "Chicken Stroganoff", "Filetto alla Strogonoff": "Beef Fillet Stroganoff", "Fracosta di Bue": "Sirloin Steak", "Filetto di Bue Extra Mature": "Fillet Steak", "Scampi alla Panna": "Scampi in Cream Sauce", "Scampi alla Provinciale": "Scampi Provinciale", "Scampi Fritti": "Breaded Scampi", "Salmone Aurora": "Salmon Aurora", "Salmone Navona": "Salmon Navona", "Sauce: Pepe": "Sauce: Peppercorn", "Sauce: All'Aglio": "Sauce: Garlic", "Sauce: Panna": "Sauce: Cream", "Maionese all'Aglio": "Garlic Mayo", "Pomodoro dip": "Tomato Dip"};
@@ -1984,6 +1991,7 @@ const EN_SHOW=Object.assign({},EN_OF,{"Bruschetta Ezios":"Tomato, Garlic & Parme
  "Tiramisù":"Coffee & Mascarpone Dessert","Coppa":"Ice Cream Sundae","Affogato":"Ice Cream with Espresso","Affogato with a spirit":"Ice Cream with Espresso & a Spirit","Limoncello":"Lemon Liqueur","Sambuca":"Aniseed Liqueur","Lasagna":""});
 // no # where the English line underneath already says the same thing
 for(const n of ["Cocktail di Gamberetti","Melone Fresco","Melone & Prosciutto","Pasticcio de Fegato","Brie Fritto","Costolette di Maiale in Salsa","Alette di Pollo in Salsa","Funghi Andreas","Calamari Fritti","Gamberoni in Tempura","Sardine Fritte","Bruschetta Ezios","Pizza all'Aglio e Pomodoro","Pizza all'Aglio e Mozzarella","Pizza Garibaldi","Pizza Trastevere","Spaghetti Carbonara","Spaghetti Amatriciana","Penne Napoli","Penne Mascarpone","Lasagna Vegetariana","Lasagna","Cannelloni Contadina","Fracosta di Bue","Filetto di Bue Extra Mature","Scampi alla Provinciale","Scampi Fritti","Salmone Aurora","Salmone Navona","Maionese all'Aglio","Pomodoro dip","Affogato","Affogato with a spirit"])EN_SHOW[n]="";
+for(const k of Object.keys(EN_SHOW))if(EN_SHOW[k]&&pastaStarterOf(k+STARTER_SIZE))EN_SHOW[k+STARTER_SIZE]=EN_SHOW[k];
 const enTag=n=>EN_SHOW[n]?` <i class="enn"># ${esc(EN_SHOW[n])}</i>`:"";
 const IT_OF={};for(const k in EN_OF)IT_OF[EN_OF[k]]=k;          // English name → Italian (menu shows Italian, English underneath)
 const enName=n=>IT_OF[n]||n;                                  // English name saved by v15–v21 (prices, stock lists…) → today's Italian one
@@ -2019,7 +2027,7 @@ function xlAdd(p,r){return /%$/.test(r)?Math.round(p*parseFloat(r))/100:+r}
 const xlName=n=>n+" (XL)";
 function addXL(){for(const k in ITEMS)if(ITEMS[k].xl)delete ITEMS[k];
   // every food dish can go extra large; the waiter types the extra (or it uses the manager's preset for that dish)
-  for(const n of Object.keys(ITEMS)){const b=ITEMS[n];if(!b||b.half||b.alias||b.xl||b.custom||b.deal||b.dealAddon||BAR_CATS.has(b.cat))continue;const r=(menuOv.xl||{})[n]||"";
+  for(const n of Object.keys(ITEMS)){const b=ITEMS[n];if(!b||b.half||b.alias||b.xl||b.custom||b.deal||b.dealAddon||BAR_CATS.has(b.cat)||pastaStarterOf(n))continue;const r=(menuOv.xl||{})[n]||"";
     ITEMS[xlName(n)]=Object.assign({},b,{n:xlName(n),p:Math.round((b.p+(r?xlAdd(b.p,r):0))*100)/100,hidden:true,xl:n,xlr:r})}}
 const XL_DEFAULT=2;
 const xlHalf=b=>Math.round(priceOf(b)*50)/100;   // +50% of the dish
@@ -2266,6 +2274,7 @@ function optsBase(n){const it=ITEMS[n];if(!it)return {opts:[],cook:false,alg:fal
   if(/steak|fracosta|filetto di bue|sirloin|rib ?eye|t-bone|rump/i.test(n+" "+(it.d||"")))return {opts:["Peppercorn sauce","Diane sauce","Sauce on side","No sauce"],cook:true,alg:true};
   if((c==="Pizza"||c==="Garlic Pizzas")&&!isPizzaAddon(n))return {opts:["No onion","No chilli","No mushrooms","No olives","Extra cheese","Extra chilli","Well done","Halal","Gluten free base"],alg:true};
   if(c==="Pasta"||c==="Risotto")return {opts:["No onion","No garlic","No chilli","No mushrooms","Extra cheese","Gluten free pasta","Starter size"],alg:true};
+  if(pastaStarterOf(n))return {opts:["No onion","No garlic","No chilli","No mushrooms","Extra cheese","Gluten free pasta"],alg:true};
   if(c==="Meat"||c==="Poultry"||c==="Fish")return {opts:["Sauce on side","No sauce","Chips instead","Salad instead","Well done","Halal","No onion"].filter(t=>!freeSide(n)||!/instead/.test(t)),alg:true};
   if(c==="Children")return {opts:["No sauce","Plain","No cheese","Chips on side"],alg:true};
   return {opts:["No onion","No chilli","Sauce on side","Halal","Extra hot"],alg:true}}
@@ -2684,9 +2693,9 @@ function renderOrder(){
       body.innerHTML=`<div class="halfbar"><b>½ + ½</b> Tap the <b>${h.a?"second":"first"} half</b>${h.a?` · 1st: ${esc(halfShort(h.a))}`:""}<button data-halfx>Cancel</button></div>`+
         halfChoices(ord.cat).filter(n=>n!==h.a).map(n=>`<div class="mi${outSet.has(n)?" out":""}" data-half="${esc(n)}"><div class="nm"><b>${esc(halfShort(n))}${enTag(n)}</b></div><div class="pr">${money(priceOf(n))}</div><div class="step">${outSet.has(n)?`<span class="oos">OUT</span>`:`<button class="add">½</button>`}</div></div>`).join("");
     }else
-    body.innerHTML=(!qq&&HALF_CATS.has(ord.cat)&&halfChoices(ord.cat).length>1?`<div class="mi halfrow${hq?" has":""}" data-halfgo><div class="nm"><b>½ + ½ &nbsp;Half &amp; half pizza</b><small>${ord.cat==="Garlic Pizzas"?"Half garlic pizza, half any other":"Pick any two pizzas"} · charged at the dearer one${hq?` · ${hq} on this order`:""}</small></div><div class="step"><button class="add">+</button></div></div>`:"")+list.map(([n,p,d])=>{const q=mineC.filter(x=>x.n===n||(ITEMS[x.n]&&ITEMS[x.n].xl===n)).reduce((a,x)=>a+x.q,0);
-      const out=outSet.has(n);
-      return `<div class="mi${q?" has":""}${out?" out":""}" data-n="${esc(n)}"><div class="nm"><b>${esc(n)}${enTag(n)}</b>${d?`<small>${esc(d)}</small>`:""}</div><div class="pr">${priceOf(n)<p?`<s>${money(p)}</s> <b class="hhp">${money(priceOf(n))}</b>`:money(p)}</div>
+    body.innerHTML=(!qq&&HALF_CATS.has(ord.cat)&&halfChoices(ord.cat).length>1?`<div class="mi halfrow${hq?" has":""}" data-halfgo><div class="nm"><b>½ + ½ &nbsp;Half &amp; half pizza</b><small>${ord.cat==="Garlic Pizzas"?"Half garlic pizza, half any other":"Pick any two pizzas"} · charged at the dearer one${hq?` · ${hq} on this order`:""}</small></div><div class="step"><button class="add">+</button></div></div>`:"")+list.map(([n,p,d],i)=>{const q=mineC.filter(x=>x.n===n||(ITEMS[x.n]&&ITEMS[x.n].xl===n)).reduce((a,x)=>a+x.q,0);
+      const out=outSet.has(n),sub=!qq&&pastaStarterOf(n)&&!(i&&pastaStarterOf(list[i-1][0]))?`<div class="misub">🍝 Pasta as a starter · smaller portion</div>`:"";
+      return sub+`<div class="mi${q?" has":""}${out?" out":""}" data-n="${esc(n)}"><div class="nm"><b>${esc(n)}${enTag(n)}</b>${d?`<small>${esc(d)}</small>`:""}</div><div class="pr">${priceOf(n)<p?`<s>${money(p)}</s> <b class="hhp">${money(priceOf(n))}</b>`:money(p)}</div>
       <div class="step">${q?`<button data-a="dec">−</button><span>${q}</span>`:""}${out?`<span class="oos">OUT</span>`:`<button class="add" data-a="inc">+</button>`}</div></div>${ord.pop&&ord.pop.n===n?popHtml(n):""}`}).join("")+
       (qq?"":`<div class="custbox"><b>✏️ Custom request</b><small>Anything not on the menu — goes to the ${drinks?"bar":"kitchen"}</small>
         <input id="cuN" data-ac="custom" placeholder="Start typing, e.g. pizza…" maxlength="60" autocomplete="off" autocapitalize="sentences" value="${esc((ord.cu&&ord.cu.n)||"")}">
@@ -2707,7 +2716,7 @@ function renderOrder(){
       ${ITEMS[x.n].station==="bar"?`<input class="ln" data-ac="note" placeholder="Note for the bar (e.g. no ice)" maxlength="120" value="${esc(x.note)}">
       <div class="qn">${x.of?"":drinkChips(ITEMS[x.n].cat,x.n).map(t=>`<button data-q="${t}">${t}</button>`).join("")}</div></div>`:`<input class="ln${isAlg(x.note)?" alg":""}" data-ac="note" placeholder="Note for kitchen (e.g. no onions)" maxlength="120" value="${esc(x.note)}">
       <div class="qn alg">${ALG_CHIPS.map(t=>`<button data-q="${t}">⚠ ${t}</button>`).join("")}</div>
-      <div class="qn">${PREP_CHIPS.map(t=>`<button data-q="${t}">${t}</button>`).join("")}</div></div>`}`).join("")+
+      <div class="qn">${PREP_CHIPS.filter(t=>!(t==="Starter size"&&pastaStarterOf(x.n))).map(t=>`<button data-q="${t}">${t}</button>`).join("")}</div></div>`}`).join("")+
       ""+
       `<div class="cl"><b style="font-size:13px">Note for the whole table</b><input id="oNote" data-ac="note" placeholder="Allergies, timing…" maxlength="200" value="${esc(ord.note||"")}"></div>`
       :`<div class="empty">Nothing in this order yet.</div>`);
@@ -5039,7 +5048,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261117120000";const APP_VER=50;   // both stamped by the publish script
+const APP_BUILD="20261120160000";const APP_VER=51;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
