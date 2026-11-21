@@ -39,6 +39,7 @@ class MainActivity : Activity() {
     private lateinit var cutBox: CheckBox
     private lateinit var bigBox: CheckBox
     private lateinit var speakBox: CheckBox
+    private lateinit var buzzBox: CheckBox
     private var cols = 32
     private var station = "kitchen"
     private val prefs by lazy { getSharedPreferences("t57", Context.MODE_PRIVATE) }
@@ -100,6 +101,21 @@ class MainActivity : Activity() {
         root.addView(label("Printer (pair it in Android Settings → Bluetooth first)", 14f, true))
         picker = Spinner(this); root.addView(picker, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
         root.addView(button("Refresh printer list", 15f) { loadDevices() })
+        // ---- or a network (Ethernet / Wi-Fi) printer ----
+        root.addView(label("…or a network printer (Ethernet / Wi-Fi): type its address. Leave empty to use Bluetooth.", 14f, true))
+        val ipIn = EditText(this).apply { hint = "e.g. 192.168.1.50"; textSize = 17f; setSingleLine()
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI
+            setText(prefs.getString("printer_ip", "") ?: "") }
+        root.addView(ipIn)
+        root.addView(button("💾  Save network printer", 15f) {
+            val ip = ipIn.text.toString().trim()
+            prefs.edit().putString("printer_ip", ip).apply()
+            if (ip.isEmpty()) { Hub.say("Using the Bluetooth printer.", true); Hub.log("Printer: Bluetooth"); return@button }
+            Hub.say("Checking the printer at $ip…", true)
+            Thread { val ok = Bt.probe(this)
+                runOnUiThread { Hub.say(if (ok) "🖨 Network printer found at $ip" else "⚠ No printer answering at $ip. Check it's on and the address is right.", ok)
+                    Hub.log("Printer: network $ip") } }.start()
+        })
         root.addView(button("🏷  Name this printer", 15f) { namePrinter() })
         root.addView(button("🔊  Test Alexa (like a real order)", 15f) {
             Hub.say("🔊 Asking Alexa…", true)
@@ -125,6 +141,8 @@ class MainActivity : Activity() {
         root.addView(bigBox)
         speakBox = CheckBox(this).apply { text = "🔊 Say new orders out loud (chime + \"New order, Table 4\")"; textSize = 16f }
         root.addView(speakBox)
+        buzzBox = CheckBox(this).apply { text = "🔔 Printer buzzer & flashing light on new orders (kitchen printers that have one)"; textSize = 16f }
+        root.addView(buzzBox)
         logoBox = CheckBox(this).apply { text = "Print the Trattoria 57 logo"; textSize = 16f; isChecked = prefs.getBoolean("logo", true)
             setOnCheckedChangeListener { _, on -> prefs.edit().putBoolean("logo", on).apply() } }
         root.addView(logoBox)
@@ -153,6 +171,11 @@ class MainActivity : Activity() {
             speakBox.setOnCheckedChangeListener { _, on -> prefs.edit().putBoolean("speak_$station", on).apply()
                 if (on) { Speaker.say(this, "Voice on. New order, Table 4"); Hub.log("🔊 ${PrintService.stationName(station)}: new orders will be read out") }
                 else Hub.log("🔇 ${PrintService.stationName(station)}: orders won't be read out") }
+            buzzBox.visibility = copiesLabel.visibility
+            buzzBox.setOnCheckedChangeListener(null)
+            buzzBox.isChecked = PrintService.buzzFor(prefs, station)
+            buzzBox.setOnCheckedChangeListener { _, on -> prefs.edit().putBoolean("buzz_$station", on).apply()
+                Hub.log(if (on) "🔔 ${PrintService.stationName(station)}: buzzer & light on new orders" else "🔕 ${PrintService.stationName(station)}: no buzzer") }
             cGroup.setOnCheckedChangeListener(null)
             cGroup.check(100 + PrintService.copiesFor(prefs, station))
             cGroup.setOnCheckedChangeListener { _, id -> prefs.edit().putInt("copies_$station", id - 100).apply(); Hub.log("${PrintService.stationName(station)} tickets now print ${id - 100}x") }
@@ -184,7 +207,7 @@ class MainActivity : Activity() {
         // ---- test slips ----
         root.addView(label("Test prints", 14f, true).apply { setPadding(0, pad, 0, pad / 3) })
         fun test(t: String, make: (Int, Logos) -> ByteArray) = root.addView(button(t, 15f) {
-            if (picker.selectedItemPosition < 0) { Hub.say("Pick a printer first.", false); return@button }
+            if (!Bt.chosen(this)) { Hub.say("Pick a printer first.", false); return@button }
             EscPos.hasCutter = cutBox.isChecked
             val b = make(cols, if (logoBox.isChecked) Logo.forPaper(this, cols) else Logos.NONE); Thread { Bt.print(this, b, t) }.start() }, full)
         // updates: the app keeps itself up to date (needs "Install unknown apps" allowed once)
@@ -196,6 +219,7 @@ class MainActivity : Activity() {
         root.addView(button("⬇  Check for update now", 15f) { Hub.say("Checking for updates…", true); Updater.check(this, true) }, full)
         test("🖨  Test slip") { c, l -> Samples.test(c, l) }
         test("🍝  Sample kitchen ticket") { c, l -> Samples.kitchenTicket(c, l) }
+        test("🔔  Test buzzer & light") { c, _ -> EscPos(c).buzz().bytes() }
         test("🍸  Sample bar ticket") { c, l -> Samples.barTicket(c, l) }
         test("🧾  Sample bill") { c, l -> Samples.bill(c, l) }
         test("📊  Sample end-of-day report") { c, l -> Samples.dayReport(c, l) }
@@ -279,8 +303,9 @@ class MainActivity : Activity() {
 
     private fun loadDevices() {
         val ad = (getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter
-        if (ad == null) { Hub.say("This tablet has no Bluetooth.", false); return }
-        if (!ad.isEnabled) { Hub.say("Turn Bluetooth on, then tap Refresh.", false); return }
+        val net = Bt.netAddr(this) != null   // using a network printer: Bluetooth doesn't matter
+        if (ad == null) { if (!net) Hub.say("This tablet has no Bluetooth.", false); return }
+        if (!ad.isEnabled) { if (!net) Hub.say("Turn Bluetooth on, then tap Refresh.", false); return }
         devices = ad.bondedDevices.toList().sortedBy { names[it.address] ?: ("~" + (it.name ?: "")) }
         picker.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, devices.map { d ->
             val nick = names[d.address]
@@ -292,11 +317,11 @@ class MainActivity : Activity() {
             override fun onNothingSelected(p: AdapterView<*>?) {}
         }
         devices.getOrNull(picker.selectedItemPosition)?.let { prefs.edit().putString("printer", it.address).apply() }
-        if (!PrintService.running) Hub.say(if (devices.isEmpty()) "No paired devices. Pair the printer in Settings → Bluetooth." else "Pick your printer, then tap Start.", devices.isNotEmpty())
+        if (!PrintService.running && !net) Hub.say(if (devices.isEmpty()) "No paired devices. Pair the printer in Settings → Bluetooth." else "Pick your printer, then tap Start.", devices.isNotEmpty())
     }
 
     private fun startPrinting() {
-        if (prefs.getString("printer", null) == null) { Hub.say("Pick a printer first.", false); return }
+        if (!Bt.chosen(this)) { Hub.say("Pick a printer first.", false); return }
         if (prefs.getLong("since", 0L) == 0L) prefs.edit().putLong("since", System.currentTimeMillis()).apply()
         prefs.edit().putBoolean("running", true).apply()
         val i = Intent(this, PrintService::class.java)

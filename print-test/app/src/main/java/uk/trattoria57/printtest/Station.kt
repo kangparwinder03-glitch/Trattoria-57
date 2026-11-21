@@ -87,7 +87,7 @@ object Cloud {
 object Format {
     private val ALG = Regex("allerg|gluten|coeliac|celiac|dairy|lactose|\\bnuts?\\b|peanut|shellfish|prawn|\\begg|sesame|vegan|soya|\\bfish\\b|mustard|celery|anaphyl", RegexOption.IGNORE_CASE)
 
-    fun ticket(t: JSONObject, cols: Int, lg: Logos, copy: Int = 1, copies: Int = 1, training: Boolean = false, big: Boolean = false): ByteArray = EscPos(cols).apply {
+    fun ticket(t: JSONObject, cols: Int, lg: Logos, copy: Int = 1, copies: Int = 1, training: Boolean = false, big: Boolean = false, buzz: Boolean = false): ByteArray = EscPos(cols).apply {
         val bar = t.optString("station") == "bar"
         if (!bar) heavy()   // kitchen: all text bold and extra dark
         if (lg.small != null) image(lg.small).feed(1) else align(1).bold(true).line("TRATTORIA 57").bold(false)
@@ -163,6 +163,7 @@ object Format {
         if (tn.isNotBlank()) { bold(true); if (big) size(1, 2); wline("NOTE: $tn").size(1, 1).bold(false); rule() }
         if (alg) align(1).bold(true).size(1, 2).line("!! ALLERGY - CHECK NOTES !!").size(1, 1).bold(false).align(0)
         feed(4); cut()
+        if (buzz) buzz()   // kitchen printer with a buzzer: beep and flash the light for a new order
     }.bytes()
 
     /** Bills and reports: the website sends ready-made lines. */
