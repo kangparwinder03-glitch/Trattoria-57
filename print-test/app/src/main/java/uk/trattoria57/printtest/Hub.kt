@@ -12,6 +12,7 @@ object Hub {
     @Volatile var net = ""; @Volatile var netOk = true
     val logs = ArrayDeque<String>()
     @Volatile var lastSlip: ByteArray? = null
+    @Volatile var lastSlipSt = "kitchen"
     var ui: (() -> Unit)? = null
     private val main = Handler(Looper.getMainLooper())
     private fun changed() = main.post { ui?.invoke() }
