@@ -40,6 +40,9 @@ class MainActivity : Activity() {
     private lateinit var bigBox: CheckBox
     private lateinit var speakBox: CheckBox
     private lateinit var buzzBox: CheckBox
+    private lateinit var serveBox: CheckBox
+    private lateinit var ipIn: EditText
+    private lateinit var wGroup: RadioGroup
     private var cols = 32
     private var station = "kitchen"
     private val prefs by lazy { getSharedPreferences("t57", Context.MODE_PRIVATE) }
@@ -50,8 +53,10 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        cols = prefs.getInt("cols", 32)
-        station = prefs.getString("station", "kitchen") ?: "kitchen"
+        Stations.migrate(prefs)
+        // the station whose settings are on screen (this tablet may print for several)
+        station = prefs.getString("edit_station", null) ?: Stations.on(prefs).firstOrNull() ?: "kitchen"
+        cols = Stations.cols(prefs, station)
         val pad = (20 * resources.displayMetrics.density).toInt()
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(pad, pad, pad, pad); setBackgroundColor(Color.rgb(246, 238, 221)) }
         fun label(t: String, size: Float = 16f, bold: Boolean = false) = TextView(this).apply {
@@ -87,7 +92,7 @@ class MainActivity : Activity() {
         showAuth()
 
         // ---- which station ----
-        root.addView(label("This tablet's printer is for", 14f, true))
+        root.addView(label("Set up printing for", 14f, true))
         val stGroup = RadioGroup(this).apply { orientation = RadioGroup.HORIZONTAL }
         stGroup.addView(RadioButton(this).apply { text = "🍝 Kitchen  "; textSize = 18f; id = 1 })
         stGroup.addView(RadioButton(this).apply { text = "🍸 Bar  "; textSize = 18f; id = 2 })
@@ -96,38 +101,40 @@ class MainActivity : Activity() {
         root.addView(stGroup)
         val stHelp = label("", 13f).apply { setTextColor(Color.rgb(110, 104, 84)) }
         root.addView(stHelp)
+        serveBox = CheckBox(this).apply { textSize = 18f; typeface = Typeface.DEFAULT_BOLD }
+        root.addView(serveBox)
 
         // ---- printer ----
-        root.addView(label("Printer (pair it in Android Settings → Bluetooth first)", 14f, true))
+        val prnLabel = label("", 14f, true)
+        root.addView(prnLabel)
         picker = Spinner(this); root.addView(picker, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
         root.addView(button("Refresh printer list", 15f) { loadDevices() })
         // ---- or a network (Ethernet / Wi-Fi) printer ----
         root.addView(label("…or a network printer (Ethernet / Wi-Fi): type its address. Leave empty to use Bluetooth.", 14f, true))
-        val ipIn = EditText(this).apply { hint = "e.g. 192.168.1.50"; textSize = 17f; setSingleLine()
-            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI
-            setText(prefs.getString("printer_ip", "") ?: "") }
+        ipIn = EditText(this).apply { hint = "e.g. 192.168.0.250"; textSize = 17f; setSingleLine()
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI }
         root.addView(ipIn)
         root.addView(button("💾  Save network printer", 15f) {
             val ip = ipIn.text.toString().trim()
-            prefs.edit().putString("printer_ip", ip).apply()
-            if (ip.isEmpty()) { Hub.say("Using the Bluetooth printer.", true); Hub.log("Printer: Bluetooth"); return@button }
+            val st = station; val nm = PrintService.stationName(st)
+            prefs.edit().putString("printer_ip_$st", ip).apply()
+            if (ip.isEmpty()) { Hub.say("$nm: using the Bluetooth printer.", true); Hub.log("$nm printer: Bluetooth"); return@button }
             Hub.say("Checking the printer at $ip…", true)
-            Thread { val ok = Bt.probe(this)
-                runOnUiThread { Hub.say(if (ok) "🖨 Network printer found at $ip" else "⚠ No printer answering at $ip. Check it's on and the address is right.", ok)
-                    Hub.log("Printer: network $ip") } }.start()
+            Thread { val ok = Bt.probe(this, st)
+                runOnUiThread { Hub.say(if (ok) "🖨 $nm: network printer found at $ip" else "⚠ No printer answering at $ip. Check it's on and the address is right.", ok)
+                    Hub.log("$nm printer: network $ip") } }.start()
         })
         root.addView(button("🏷  Name this printer", 15f) { namePrinter() })
         root.addView(button("🔊  Test Alexa (like a real order)", 15f) {
             Hub.say("🔊 Asking Alexa…", true)
-            Thread { val r = Alexa.send("Table 4", prefs.getString("station", "kitchen") ?: "kitchen", false, fresh = true)
+            Thread { val r = Alexa.send("Table 4", station, false, fresh = true)
                 runOnUiThread { Hub.say(r, r.startsWith("🔊")); Hub.log(r)
                     android.app.AlertDialog.Builder(this).setTitle("Test Alexa").setMessage(r).setPositiveButton("OK", null).show() } }.start()
         })
-        val wGroup = RadioGroup(this).apply { orientation = RadioGroup.HORIZONTAL }
+        wGroup = RadioGroup(this).apply { orientation = RadioGroup.HORIZONTAL }
         wGroup.addView(RadioButton(this).apply { text = "58mm paper  "; id = 58 })
         wGroup.addView(RadioButton(this).apply { text = "80mm paper"; id = 80 })
         wGroup.check(if (cols >= 48) 80 else 58)
-        wGroup.setOnCheckedChangeListener { _, id -> cols = if (id == 80) 48 else 32; prefs.edit().putInt("cols", cols).apply() }
         root.addView(wGroup)
 
         copiesLabel = label("Copies of each order ticket", 14f, true)
@@ -148,11 +155,30 @@ class MainActivity : Activity() {
         root.addView(logoBox)
 
         fun showStation() {
+            val nm = PrintService.stationName(station)
             stHelp.text = when (station) {
                 "till" -> "Till: prints bills, receipts and reports sent from the website. No kitchen or bar tickets."
                 "bar" -> "Bar: prints drinks orders, plus any bills, receipts or reports sent to the bar."
                 else -> "Kitchen: prints food orders, plus anything sent to the kitchen printer."
+            } + "\nThis tablet prints for: " + PrintService.stationNames(Stations.on(prefs)) + ". The same printer can do several stations."
+            serveBox.setOnCheckedChangeListener(null)
+            serveBox.text = "✅ This tablet prints the $nm tickets & slips"
+            serveBox.isChecked = station in Stations.on(prefs)
+            serveBox.setOnCheckedChangeListener { _, on ->
+                val st = station
+                Stations.set(prefs, st, on)
+                Hub.log(if (on) "Now printing for the ${PrintService.stationName(st)}" else "Stopped printing for the ${PrintService.stationName(st)}")
+                // tell the website this tablet no longer prints for it (its light goes grey)
+                if (!on && PrintService.running) Thread { try { Cloud.merge("printers", st, org.json.JSONObject().put("at", System.currentTimeMillis()).put("ok", false).put("msg", "Printing switched off").put("off", true)) } catch (_: Exception) {} }.start()
+                if (PrintService.running) { if (Stations.on(prefs).isEmpty()) stopPrinting() else startPrinting() }   // refreshes the notification
+                showStation()
             }
+            prnLabel.text = "$nm printer: Bluetooth (pair it in Android Settings → Bluetooth first)"
+            ipIn.setText(prefs.getString("printer_ip_$station", "") ?: "")
+            cols = Stations.cols(prefs, station)
+            wGroup.setOnCheckedChangeListener(null)
+            wGroup.check(if (cols >= 48) 80 else 58)
+            wGroup.setOnCheckedChangeListener { _, id -> cols = if (id == 80) 48 else 32; prefs.edit().putInt("cols_$station", cols).apply() }
             val tickets = station != "till"
             copiesLabel.visibility = if (tickets) android.view.View.VISIBLE else android.view.View.GONE
             cGroup.visibility = copiesLabel.visibility
@@ -183,9 +209,8 @@ class MainActivity : Activity() {
         showStation()
         stGroup.setOnCheckedChangeListener { _, id ->
             station = when (id) { 2 -> "bar"; 3 -> "till"; else -> "kitchen" }
-            prefs.edit().putString("station", station).apply(); showStation()
-            Hub.log("Now printing for the ${PrintService.stationName(station)}")
-            if (PrintService.running) startPrinting()   // refreshes the notification
+            prefs.edit().putString("edit_station", station).apply(); showStation()
+            try { loadDevices() } catch (_: SecurityException) {}
         }
 
         // ---- start / stop ----
@@ -197,7 +222,7 @@ class MainActivity : Activity() {
         root.addView(netStatus)
         root.addView(label("Printing carries on in the background — you can switch to the website or other apps. Keep the tablet on charge.", 13f).apply { setTextColor(Color.rgb(110, 104, 84)); gravity = Gravity.CENTER })
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        row.addView(button("🔁 Reprint last", 15f) { val b = Hub.lastSlip; if (b == null) Hub.say("Nothing printed yet.", false) else Thread { Bt.print(this, b, "Reprint") }.start() }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        row.addView(button("🔁 Reprint last", 15f) { val b = Hub.lastSlip; if (b == null) Hub.say("Nothing printed yet.", false) else Thread { Bt.print(this, Hub.lastSlipSt, b, "Reprint") }.start() }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
         row.addView(button("⏭ Skip waiting orders", 15f) { prefs.edit().putLong("since", System.currentTimeMillis()).apply(); Hub.log("Older orders skipped — only new ones will print") }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
         root.addView(row)
         root.addView(label("Printed", 14f, true))
@@ -207,9 +232,11 @@ class MainActivity : Activity() {
         // ---- test slips ----
         root.addView(label("Test prints", 14f, true).apply { setPadding(0, pad, 0, pad / 3) })
         fun test(t: String, make: (Int, Logos) -> ByteArray) = root.addView(button(t, 15f) {
-            if (!Bt.chosen(this)) { Hub.say("Pick a printer first.", false); return@button }
+            val st = station
+            if (!Bt.chosen(this, st)) { Hub.say("Pick a printer for the ${PrintService.stationName(st)} first.", false); return@button }
             EscPos.hasCutter = cutBox.isChecked
-            val b = make(cols, if (logoBox.isChecked) Logo.forPaper(this, cols) else Logos.NONE); Thread { Bt.print(this, b, t) }.start() }, full)
+            val c = Stations.cols(prefs, st)
+            val b = make(c, if (logoBox.isChecked) Logo.forPaper(this, c) else Logos.NONE); Thread { Bt.print(this, st, b, t) }.start() }, full)
         // updates: the app keeps itself up to date (needs "Install unknown apps" allowed once)
         root.addView(label("Updates", 16f, true))
         root.addView(label("Version " + Updater.installed(this) + " · updates install by themselves between 3am and 3pm", 13f, false))
@@ -285,9 +312,9 @@ class MainActivity : Activity() {
                 Thread { try { Cloud.merge("prnnames", "main", org.json.JSONObject().put(d.address, n)) } catch (_: Exception) {} }.start()
                 if (n.isNotBlank() && also.isChecked) {
                     // Many small 58mm printers accept this Bluetooth rename command. If this one doesn't, it just prints the line.
-                    prefs.edit().putString("printer", d.address).apply()
+                    prefs.edit().putString("printer_$station", d.address).apply()
                     Thread {
-                        val ok = Bt.print(this, "AT+NAME $n\r\n".toByteArray(Charsets.US_ASCII), "Rename")
+                        val ok = Bt.print(this, station, "AT+NAME $n\r\n".toByteArray(Charsets.US_ASCII), "Rename")
                         runOnUiThread {
                             android.app.AlertDialog.Builder(this).setTitle(if (ok) "Rename sent" else "Couldn't reach the printer")
                                 .setMessage(if (ok) "Now switch the printer OFF and ON again, then look in the tablet's Bluetooth settings.\n\n• If it shows \"$n\" — done, the printer is renamed for good.\n• If a line of text printed instead, this printer can't rename itself. That's fine: the name \"$n\" still shows in this app on every tablet."
@@ -303,30 +330,33 @@ class MainActivity : Activity() {
 
     private fun loadDevices() {
         val ad = (getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter
-        val net = Bt.netAddr(this) != null   // using a network printer: Bluetooth doesn't matter
+        val net = Bt.netAddr(this, station) != null   // using a network printer: Bluetooth doesn't matter
         if (ad == null) { if (!net) Hub.say("This tablet has no Bluetooth.", false); return }
         if (!ad.isEnabled) { if (!net) Hub.say("Turn Bluetooth on, then tap Refresh.", false); return }
         devices = ad.bondedDevices.toList().sortedBy { names[it.address] ?: ("~" + (it.name ?: "")) }
         picker.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, devices.map { d ->
             val nick = names[d.address]
             if (nick.isNullOrBlank()) "${d.name ?: "Unknown"}  (${d.address})" else "🏷 $nick  ·  ${d.name ?: ""} (${d.address})" })
-        val saved = prefs.getString("printer", null)
+        val st = station
+        val saved = prefs.getString("printer_$st", null)
         devices.indexOfFirst { it.address == saved }.takeIf { it >= 0 }?.let { picker.setSelection(it) }
         picker.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(p: AdapterView<*>?, v: android.view.View?, pos: Int, id: Long) { devices.getOrNull(pos)?.let { prefs.edit().putString("printer", it.address).apply() } }
+            override fun onItemSelected(p: AdapterView<*>?, v: android.view.View?, pos: Int, id: Long) { devices.getOrNull(pos)?.let { prefs.edit().putString("printer_$st", it.address).apply() } }
             override fun onNothingSelected(p: AdapterView<*>?) {}
         }
-        devices.getOrNull(picker.selectedItemPosition)?.let { prefs.edit().putString("printer", it.address).apply() }
+        devices.getOrNull(picker.selectedItemPosition)?.let { prefs.edit().putString("printer_$st", it.address).apply() }
         if (!PrintService.running && !net) Hub.say(if (devices.isEmpty()) "No paired devices. Pair the printer in Settings → Bluetooth." else "Pick your printer, then tap Start.", devices.isNotEmpty())
     }
 
     private fun startPrinting() {
-        if (!Bt.chosen(this)) { Hub.say("Pick a printer first.", false); return }
+        val sts = Stations.on(prefs)
+        if (sts.isEmpty()) { Hub.say("Tick \"This tablet prints…\" for at least one station first.", false); return }
+        sts.firstOrNull { !Bt.chosen(this, it) }?.let { Hub.say("Pick a printer for the ${PrintService.stationName(it)} first.", false); return }
         if (prefs.getLong("since", 0L) == 0L) prefs.edit().putLong("since", System.currentTimeMillis()).apply()
         prefs.edit().putBoolean("running", true).apply()
         val i = Intent(this, PrintService::class.java)
         if (Build.VERSION.SDK_INT >= 26) startForegroundService(i) else startService(i)
-        Hub.say("🟢 Printing ${PrintService.stationName(station)} automatically", true)
+        Hub.say("🟢 Printing ${PrintService.stationNames(sts)} automatically", true)
         status.postDelayed({ refresh() }, 300)
     }
 
