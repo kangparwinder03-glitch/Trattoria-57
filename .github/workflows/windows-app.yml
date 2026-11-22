@@ -1,0 +1,91 @@
+name: Build Windows app
+
+# Builds the Trattoria 57 Windows installer (T57-Windows-Setup.exe) on a real Windows computer,
+# installs it, and runs a full test against a pretend database and pretend printers
+# (network printers and a USB-style printer installed in Windows). Nothing real is touched.
+# Only a build from main is published as the public download the Windows app updates from.
+on:
+  push:
+    paths: ["windows/**", ".github/workflows/windows-app.yml"]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: windows
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - name: Install build tools
+        run: npm ci --no-audit --no-fund
+      - name: Set the version number
+        shell: bash
+        run: npm version "1.0.${GITHUB_RUN_NUMBER}" --no-git-tag-version --allow-same-version
+      - name: Build the installer
+        run: npm run dist
+        env: { CSC_IDENTITY_AUTO_DISCOVERY: "false" }
+
+      - name: Install it like a customer would (silent install)
+        shell: pwsh
+        run: |
+          Start-Process -Wait -FilePath "dist\T57-Windows-Setup.exe" -ArgumentList "/S"
+          $exe = Get-ChildItem "$env:LOCALAPPDATA\Programs" -Recurse -Filter "Trattoria 57.exe" | Select-Object -First 1
+          if (-not $exe) { throw "the app didn't install" }
+          "Installed at $($exe.FullName)"
+          "T57_EXE=$($exe.FullName)" >> $env:GITHUB_ENV
+          if (-not (Test-Path "$env:USERPROFILE\Desktop\Trattoria 57.lnk") -and -not (Test-Path "$env:PUBLIC\Desktop\Trattoria 57.lnk")) { throw "no desktop icon" }
+          "Desktop icon: OK"
+
+      - name: Add a pretend USB printer to Windows (prints into a file)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force C:\t57 | Out-Null
+          Add-PrinterPort -Name "C:\t57\usb-printer.prn"
+          Add-PrinterDriver -Name "Generic / Text Only"
+          Add-Printer -Name "POS-80 USB" -DriverName "Generic / Text Only" -PortName "C:\t57\usb-printer.prn"
+          Get-Printer | Format-Table Name, DriverName, PortName
+
+      - name: Full test of the installed app
+        shell: pwsh
+        env:
+          T57_TILLSHOT: "1"
+          T57_WAIT: "40000"
+          T57_STATIONS: '{"kitchen":{"target":"ip:127.0.0.1:19100","cols":48,"copies":2,"cutter":true,"big":true,"buzz":true},"bar":{"target":"ip:127.0.0.1:19101","cols":48,"copies":1},"till":{"target":"win:POS-80 USB","cols":48}}'
+        run: |
+          node test/run-local.js
+          if ($LASTEXITCODE -ne 0) { throw "test failed" }
+          $usb = Get-Item C:\t57\usb-printer.prn -ErrorAction SilentlyContinue
+          if (-not $usb -or $usb.Length -lt 1000) { throw "nothing reached the USB printer" }
+          "USB printer received $($usb.Length) bytes"
+          Copy-Item C:\t57\usb-printer.prn test\out\usb-printer.bin
+          Get-ChildItem test\out, test\out\backups | Format-Table Name, Length
+
+      - name: Check the printer helper (Bluetooth / USB list)
+        shell: pwsh
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File "$((Get-Item $env:T57_EXE).DirectoryName)\resources\rawprint.ps1" list
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: T57-Windows-test-results
+          path: windows/test/out/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: T57-Windows-Setup
+          path: windows/dist/T57-Windows-Setup.exe
+
+      - name: Publish as the public download (main only)
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp dist/T57-Windows-Setup.exe .
+          echo "${GITHUB_RUN_NUMBER}" > version.txt
+          gh release delete windows-latest --yes --cleanup-tag || true
+          gh release create windows-latest T57-Windows-Setup.exe version.txt --title "Trattoria 57 for Windows (latest)" \
+            --notes "Download T57-Windows-Setup.exe on the Windows computer and open it. It installs Trattoria 57 with a desktop icon."

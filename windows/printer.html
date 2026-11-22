@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Trattoria 57 — Printers &amp; backups</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' data:; img-src 'self' data:">
+<style>
+  :root { --bg:#f6eedd; --card:#fffaf0; --ink:#2e2b1f; --mute:#6e6854; --olive:#3e4a22; --wine:#a6452b; --line:#e2d6bb; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.4 "Segoe UI", Arial, sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 20px 16px 60px; }
+  h1 { font-size: 26px; margin: 0 0 2px; }
+  h2 { font-size: 17px; margin: 0 0 10px; }
+  .sub { color: var(--mute); font-size: 13px; margin: 0 0 14px; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin: 12px 0; }
+  button { font: inherit; padding: 8px 14px; border-radius: 8px; border: 1px solid #c9bb98; background: #fff; color: var(--ink); cursor: pointer; margin: 4px 6px 4px 0; }
+  button:hover { background: #f3ead6; }
+  button.big { width: 100%; font-size: 21px; padding: 14px; color: #fff; border: 0; background: var(--olive); }
+  button.big.on { background: var(--wine); }
+  input[type=text], input[type=email], input[type=password], select { font: inherit; padding: 7px 9px; border: 1px solid #c9bb98; border-radius: 7px; background:#fff; width: 100%; max-width: 360px; margin: 3px 0; }
+  label.row { display: block; margin: 5px 0; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+  .tabs button { margin: 0; }
+  .tabs button.sel { background: var(--olive); color: #fff; border-color: var(--olive); }
+  .ok { color: var(--olive); font-weight: 600; }
+  .bad { color: var(--wine); font-weight: 600; }
+  .mute { color: var(--mute); font-size: 13px; }
+  #status { text-align: center; font-weight: 600; margin: 10px 0 2px; }
+  #net { text-align: center; font-size: 14px; color: var(--mute); }
+  #log { white-space: pre-wrap; font: 13px/1.5 Consolas, monospace; color: #5a5440; }
+  .kind { display: flex; gap: 14px; flex-wrap: wrap; margin: 4px 0 6px; }
+  .hide { display: none; }
+  .inline { display: inline-flex; gap: 14px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Trattoria 57 — Printers &amp; backups</h1>
+  <p class="sub" id="ver">Windows</p>
+
+  <section>
+    <h2>🔐 Restaurant sign-in</h2>
+    <div id="authInfo"></div>
+    <div id="authForm">
+      <input type="email" id="email" placeholder="Restaurant email">
+      <input type="password" id="pass" placeholder="Password">
+    </div>
+    <button id="signBtn">🔐 Sign in</button>
+    <div class="mute">The same login the tablets use. It's needed for printing and backups.</div>
+  </section>
+
+  <section>
+    <h2>🖨 Set up printing for</h2>
+    <div class="tabs" id="tabs">
+      <button data-st="kitchen">🍝 Kitchen</button><button data-st="bar">🍸 Bar</button><button data-st="till">🧾 Till</button>
+    </div>
+    <div class="mute" id="stHelp"></div>
+    <label class="row"><input type="checkbox" id="serve"> <b id="serveTxt"></b></label>
+
+    <div><b id="prnLabel">Printer</b></div>
+    <div class="kind">
+      <label><input type="radio" name="kind" value="ip"> Network (Ethernet / Wi-Fi)</label>
+      <label><input type="radio" name="kind" value="win"> USB (installed in Windows)</label>
+      <label><input type="radio" name="kind" value="com"> Bluetooth</label>
+    </div>
+    <div id="kIp"><input type="text" id="ip" placeholder="e.g. 192.168.0.250"></div>
+    <div id="kWin" class="hide"><select id="winSel"></select></div>
+    <div id="kCom" class="hide"><select id="comSel"></select>
+      <div class="mute">Pair the printer first in Windows Settings → Bluetooth &amp; devices. It then shows here as a COM port.</div></div>
+    <button id="savePrn">💾 Save &amp; check printer</button> <button id="refresh">↻ Refresh printer list</button>
+
+    <div class="inline" style="margin-top:8px">
+      <label><input type="radio" name="paper" value="32"> 58mm paper</label>
+      <label><input type="radio" name="paper" value="48"> 80mm paper</label>
+    </div>
+    <div id="copiesBox"><b>Copies of each order ticket</b>
+      <span class="inline"><label><input type="radio" name="copies" value="1"> 1</label><label><input type="radio" name="copies" value="2"> 2</label><label><input type="radio" name="copies" value="3"> 3</label></span></div>
+    <label class="row"><input type="checkbox" id="cutter"> This printer has an auto-cutter</label>
+    <label class="row tk"><input type="checkbox" id="big"> EXTRA-LARGE text on order tickets</label>
+    <label class="row tk"><input type="checkbox" id="speak"> 🔊 Say new orders out loud on this computer (chime + "New order, Table 4")</label>
+    <label class="row tk"><input type="checkbox" id="buzz"> 🔔 Printer buzzer &amp; flashing light on new orders (kitchen printers that have one)</label>
+    <label class="row"><input type="checkbox" id="logo"> Print the Trattoria 57 logo</label>
+  </section>
+
+  <section>
+    <button class="big" id="startBtn">▶ Start printing</button>
+    <div id="status"></div>
+    <div id="net"></div>
+    <div class="mute" style="text-align:center">Printing carries on when this window is closed (look for the Trattoria 57 icon by the clock). Keep the computer switched on.</div>
+    <button id="reprint">🔁 Reprint last</button> <button id="skip">⏭ Skip waiting orders</button>
+    <h2 style="margin-top:10px">Printed</h2>
+    <div id="log">—</div>
+  </section>
+
+  <section>
+    <h2>Test prints</h2>
+    <button data-test="test">🖨 Test slip</button>
+    <button data-test="kitchen">🍝 Sample kitchen ticket</button>
+    <button data-test="bar">🍸 Sample bar ticket</button>
+    <button data-test="bill">🧾 Sample bill</button>
+    <button data-test="buzz">🔔 Test buzzer &amp; light</button>
+    <button id="alexaBtn">🔊 Test Alexa</button>
+  </section>
+
+  <section>
+    <h2>💾 Backups on this computer</h2>
+    <div id="bkInfo"></div>
+    <button id="bkNow">💾 Back up now</button> <button id="bkOpen">📂 Open backups folder</button>
+    <div class="mute">A full copy of all orders, bookings, menu and settings is saved here every night after 4am and kept for 90 days. GitHub keeps its own nightly copy as well.</div>
+  </section>
+
+  <section>
+    <h2>⚙ This computer</h2>
+    <label class="row"><input type="checkbox" id="auto"> Start Trattoria 57 when Windows starts</label>
+    <div class="mute" id="updInfo"></div>
+    <button id="updBtn">⬇ Check for update now</button> <button id="tillBtn">🍝 Open the restaurant app</button>
+  </section>
+</main>
+<script src="src/ui.js"></script>
+</body>
+</html>
