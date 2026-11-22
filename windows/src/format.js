@@ -23,7 +23,9 @@ function ticket(t, cols, lg, { copy = 1, copies = 1, training = false, big = fal
     const pat = str(t.pat);
     if (!bar) { p.line("COLLECTION TIME"); p.size(4, 4).line(pat.trim() ? pat : "ASAP").size(1, 1); p.bar(8); }
     else if (pat.trim()) p.size(2, 2).line("FOR " + pat).size(1, 1);
-    p.line("TAKEAWAY").size(2, 2).line("#" + int(t.pno)).size(1, 1);
+    // takeaway number: kitchen prints it as big as the collection time, centred, so it can be called out at a glance
+    const n = bar ? 2 : 4;
+    p.align(1).line("TAKEAWAY").size(n, n).line("#" + int(t.pno)).size(1, 1).align(0);
     const who = [str(t.pname), str(t.pphone)].filter(s => s.trim()).join(" · ");
     if (who.trim()) p.wline(who);
   } else p.size(2, 2).line(str(t.label).toUpperCase()).size(1, 1);
@@ -119,7 +121,8 @@ function job(j, cols, lg, cutter = true) {
     } else {
       const s = int(o.s || 1);
       p.align(o.a === "c" ? 1 : o.a === "r" ? 2 : 0).bold(b);
-      if (s > 1) p.size(1, 2);
+      const big = Math.min(s, 4);   // 2 = tall; 3-4 = that many times wider and taller (e.g. a takeaway number)
+      if (s === 2) p.size(1, 2); else if (s > 2) p.size(big, big);
       p.wline(str(o.t), "");
       if (s > 1) p.size(1, 1);
       p.bold(false).align(0);

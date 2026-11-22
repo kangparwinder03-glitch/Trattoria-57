@@ -4668,11 +4668,14 @@ const PL={t:(t,a,b,s)=>({t:String(t),a:a||"l",b:b?1:0,s:s||1}),lr:(l,r,b,s)=>Obj
 function pickupReceipt(){if(!ord||!ord.pickup||ord.walk||!canThermal())return;
   const B=billOf(ordTickets());if(!B.lines.length)return;
   const L=billLines(B),who=[(ord.pname||"").trim(),(ord.pphone||"").trim()].filter(Boolean).join(" · ");
-  L.splice(1,0,...[ord.pat?PL.t("Collection "+ord.pat,"l",1):null,who?PL.t(who):null].filter(Boolean));
-  printJob("till","bill","Receipt Takeaway "+ord.pno,L,"full",...qrPair(),true)}
+  L.splice(L.findIndex(x=>"rule" in x),0,...[ord.pat?PL.t("Collection "+ord.pat,"l",1):null,who?PL.t(who):null].filter(Boolean));
+  // just a reference slip that goes with the order: no review / social QR codes (saves paper)
+  printJob("till","bill","Receipt Takeaway "+ord.pno,L,"full",[],"",true)}
 function billLines(B,tab){
-  const head=(ord.pickup?`Takeaway #${ord.pno}`:gnameLong(curGroup()))+(tab?" · "+tab:"");
-  const L=[PL.lr(head,new Date().toLocaleString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})),PL.rule()];
+  const when=new Date().toLocaleString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
+  // takeaways: the number prints big and centred so it can be matched to the bag at a glance
+  const L=ord.pickup?[PL.t("TAKEAWAY","c",1),PL.t("#"+ord.pno,"c",1,4),PL.lr(tab||"",when),PL.rule()]
+    :[PL.lr(gnameLong(curGroup())+(tab?" · "+tab:""),when),PL.rule()];
   B.lines.forEach(l=>{L.push(PL.lr(`${l.q} x ${itName(l.n)}`,money(l.q*l.p)));if(l.d)L.push(PL.lr(`  > ${idiscLabel(l.d)}`,"-"+money(l.dAmt)))});
   L.push(PL.rule(),PL.lr("Subtotal",money(B.sub)));
   if(B.itemDisc)L.push(PL.lr("Item discounts","-"+money(B.itemDisc)));
@@ -5075,7 +5078,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261122010000";const APP_VER=54;   // both stamped by the publish script
+const APP_BUILD="20261122160000";const APP_VER=55;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
