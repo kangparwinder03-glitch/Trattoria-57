@@ -154,6 +154,9 @@ setInterval(() => { if (Cloud.signedInAs && B.due()) backupNow(true); }, 10 * 60
 $("auto").onchange = async () => { $("auto").checked = await ipcRenderer.invoke("autostart", $("auto").checked); };
 $("updBtn").onclick = async () => { $("updInfo").textContent = "Checking for updates…"; $("updInfo").textContent = await ipcRenderer.invoke("check-update"); };
 $("tillBtn").onclick = () => ipcRenderer.invoke("show-till");
+async function showZoom() { $("zTill").textContent = (await ipcRenderer.invoke("zoom", "till", null)) + "%"; $("zPrinter").textContent = (await ipcRenderer.invoke("zoom", "printer", null)) + "%"; }
+document.querySelectorAll("[data-z]").forEach(b => b.onclick = async () => { await ipcRenderer.invoke("zoom", b.dataset.z, +b.dataset.s); showZoom(); });
+setInterval(showZoom, 5000);
 ipcRenderer.on("updating", (_e, v) => { Hub.say(`⬇ Installing update ${v} — printing carries on in a minute`, true); });
 
 // ---------- start up ----------
@@ -161,9 +164,11 @@ ipcRenderer.on("updating", (_e, v) => { Hub.say(`⬇ Installing update ${v} — 
   const v = await ipcRenderer.invoke("version");
   $("ver").textContent = `Windows · version ${v.build || "dev"} · updates install by themselves between 3am and 3pm`;
   $("auto").checked = v.autostart;
-  showAuth(); showStation(); showBackup(); refresh();
+  showAuth(); showStation(); showBackup(); refresh(); showZoom();
   await loadDevices(); showStation();
   if (process.env.T57_AUTOTEST) return autotest(process.env.T57_AUTOTEST);
+  // printing not set up yet, or opened from the "T57 Printers & Backups" icon: this window comes to the front
+  if (!S.cfg.running || v.printersFirst) setTimeout(() => ipcRenderer.invoke("show-printer"), 2500);
   if (S.cfg.running) S.start();                      // printing switches back on after a restart or an update
   else Hub.say("Pick the printer, tick the station, then tap Start.", true);
   if (Cloud.signedInAs && B.due()) setTimeout(() => backupNow(true), 30000);

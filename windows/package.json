@@ -19,9 +19,28 @@
   "build": {
     "appId": "uk.trattoria57.windows",
     "productName": "Trattoria 57",
-    "files": ["main.js", "printer.html", "src/**", "assets/**", "package.json"],
-    "extraResources": [{ "from": "rawprint.ps1", "to": "rawprint.ps1" }],
-    "win": { "target": "nsis", "icon": "assets/icon.ico" },
+    "files": [
+      "main.js",
+      "printer.html",
+      "desktop.css",
+      "src/**",
+      "assets/**",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "rawprint.ps1",
+        "to": "rawprint.ps1"
+      },
+      {
+        "from": "assets/printers.ico",
+        "to": "printers.ico"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
     "nsis": {
       "oneClick": true,
       "perMachine": false,
@@ -31,7 +50,8 @@
       "runAfterFinish": true,
       "artifactName": "T57-Windows-Setup.exe",
       "installerIcon": "assets/icon.ico",
-      "uninstallerIcon": "assets/icon.ico"
+      "uninstallerIcon": "assets/icon.ico",
+      "include": "installer.nsh"
     }
   }
 }
