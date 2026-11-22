@@ -5,7 +5,7 @@
 //   • backups of the database on this computer, every night
 //   • starts by itself when Windows starts, keeps the computer awake, and updates itself outside service hours
 "use strict";
-const { app, BrowserWindow, Tray, Menu, ipcMain, shell, dialog, powerSaveBlocker, nativeImage } = require("electron");
+const { app, BrowserWindow, Tray, Menu, ipcMain, shell, dialog, powerSaveBlocker, nativeImage, screen } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
@@ -24,26 +24,60 @@ app.setAppUserModelId("uk.trattoria57.windows");
 let till = null, printer = null, tray = null, quitting = false;
 const icon = path.join(__dirname, "assets", "icon-256.png");
 
+// ---- size of everything: bigger / smaller, remembered for each window ----
+const DESKTOP_CSS = fs.readFileSync(path.join(__dirname, "desktop.css"), "utf8");
+const viewFile = () => path.join(app.getPath("userData"), "view.json");
+let view = {};
+function loadView() { try { view = JSON.parse(fs.readFileSync(viewFile(), "utf8")) || {}; } catch (e) { view = {}; } }
+function saveView() { try { fs.writeFileSync(viewFile(), JSON.stringify(view)); } catch (e) {} }
+/** Starting size: everything drawn as if the screen were about 1280 wide, so a 15.6" screen gets big, touch-sized buttons. */
+function defaultZoom() {
+  const w = screen.getPrimaryDisplay().workAreaSize.width;
+  return Math.min(1.75, Math.max(1, Math.round((w / 1280) * 20) / 20));
+}
+const zoomOf = name => view[name] || defaultZoom();
+function setZoom(name, w, z) {
+  z = Math.min(2.5, Math.max(0.6, Math.round(z * 20) / 20));
+  view[name] = z; saveView();
+  if (w && !w.isDestroyed()) w.webContents.setZoomFactor(z);
+}
+function zoomWin(w, step) {
+  if (!w) return;
+  const name = w === printer ? "printer" : "till";
+  setZoom(name, w, step === 0 ? defaultZoom() : zoomOf(name) + step);
+}
+function keepZoom(w, name) {
+  w.webContents.on("did-finish-load", () => w.webContents.setZoomFactor(zoomOf(name)));
+  w.webContents.on("zoom-changed", (_e, dir) => setZoom(name, w, zoomOf(name) + (dir === "in" ? 0.05 : -0.05)));   // Ctrl + mouse wheel
+}
+
 function showWin(w) { if (!w) return; if (w.isMinimized()) w.restore(); w.show(); w.focus(); }
 
 function makePrinter(show) {
   printer = new BrowserWindow({
-    width: 760, height: 900, show: false, title: "Trattoria 57 — Printers & backups", icon, autoHideMenuBar: true,
+    width: 1100, height: 860, show: false, title: "Trattoria 57 — Printers & backups", icon,
     backgroundColor: "#f6eedd",
     webPreferences: { nodeIntegration: true, contextIsolation: false, backgroundThrottling: false },
   });
   printer.loadFile(path.join(__dirname, "printer.html"));
-  printer.once("ready-to-show", () => { if (show) printer.show(); });
+  keepZoom(printer, "printer");
+  printer.once("ready-to-show", () => { if (show) { if (!TEST) printer.maximize(); printer.show(); } });
   printer.on("close", e => { if (!quitting) { e.preventDefault(); printer.hide(); } });
   printer.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: "deny" }; });
 }
 
 function makeTill() {
   till = new BrowserWindow({
-    width: 1280, height: 860, show: false, title: "Trattoria 57", icon, autoHideMenuBar: true, backgroundColor: "#f4ecdc",
+    width: 1280, height: 860, show: false, title: "Trattoria 57", icon, backgroundColor: "#f4ecdc",
     webPreferences: { backgroundThrottling: false, spellcheck: false },
   });
   till.loadURL(SITE);
+  keepZoom(till, "till");
+  // computer-screen layout (only in the Windows app; the tablets don't get it)
+  till.webContents.on("dom-ready", () => {
+    till.webContents.insertCSS(DESKTOP_CSS).catch(() => {});
+    till.webContents.executeJavaScript("document.documentElement.classList.add('t57win')").catch(() => {});
+  });
   till.once("ready-to-show", () => { if (!TEST) { till.maximize(); till.show(); } });
   till.on("close", e => { if (!quitting) { e.preventDefault(); till.hide(); } });
   const site = new URL(SITE);
@@ -98,6 +132,7 @@ async function checkUpdate(manual) {
 }
 
 ipcMain.handle("version", () => ({ build: BUILD, version: app.getVersion(), packaged: app.isPackaged, site: SITE, autostart: app.getLoginItemSettings().openAtLogin }));
+ipcMain.handle("zoom", (_e, which, step) => { const w = which === "till" ? till : printer; if (step !== null) zoomWin(w, step); return Math.round(zoomOf(which === "till" ? "till" : "printer") * 100); });
 ipcMain.handle("check-update", () => checkUpdate(true));
 ipcMain.handle("show-till", () => showWin(till));
 ipcMain.handle("open-path", (_e, p) => shell.openPath(p));
@@ -120,15 +155,21 @@ app.whenReady().then(() => {
     app.setLoginItemSettings({ openAtLogin: true });     // starts with Windows (can be switched off in the app)
     fs.writeFileSync(path.join(app.getPath("userData"), "autostart-set"), "1");
   }
+  loadView();
+  const focused = () => BrowserWindow.getFocusedWindow() || till;
   Menu.setApplicationMenu(Menu.buildFromTemplate([
-    { label: "Trattoria 57", submenu: [
-      { label: "Restaurant app", accelerator: "F2", click: () => showWin(till) },
-      { label: "Printers & backups", accelerator: "F3", click: () => showWin(printer) },
-      { label: "Reload", accelerator: "F5", click: () => { const w = BrowserWindow.getFocusedWindow(); if (w) w.reload(); } },
-      { label: "Full screen", accelerator: "F11", click: () => { const w = BrowserWindow.getFocusedWindow(); if (w) w.setFullScreen(!w.isFullScreen()); } },
+    { label: "🍝 Restaurant", accelerator: "F2", click: () => showWin(till) },
+    { label: "🖨 Printers && backups", accelerator: "F3", click: () => showWin(printer) },
+    { label: "➖ Smaller", accelerator: "CmdOrCtrl+-", click: () => zoomWin(focused(), -0.1) },
+    { label: "➕ Bigger", accelerator: "CmdOrCtrl+=", click: () => zoomWin(focused(), 0.1) },
+    { label: "Normal size", accelerator: "CmdOrCtrl+0", click: () => zoomWin(focused(), 0) },
+    { label: "⛶ Full screen", accelerator: "F11", click: () => { const w = focused(); w.setFullScreen(!w.isFullScreen()); } },
+    { label: "More", submenu: [
+      { label: "Reload", accelerator: "F5", click: () => focused().reload() },
+      { label: "Bigger", accelerator: "CmdOrCtrl+Plus", visible: false, click: () => zoomWin(focused(), 0.1) },
       { role: "toggleDevTools", accelerator: "Ctrl+Shift+I" },
-      { type: "separator" }, { label: "Quit", click: askQuit } ] },
-    { label: "Edit", submenu: [{ role: "undo" }, { role: "redo" }, { type: "separator" }, { role: "cut" }, { role: "copy" }, { role: "paste" }, { role: "selectAll" }] },
+      { type: "separator" }, { label: "Quit Trattoria 57", click: askQuit } ] },
+    { label: "Edit", visible: false, submenu: [{ role: "undo" }, { role: "redo" }, { role: "cut" }, { role: "copy" }, { role: "paste" }, { role: "selectAll" }] },
   ]));
   makeTill();
   makePrinter(TEST || !process.argv.includes("--hidden"));

@@ -154,6 +154,9 @@ setInterval(() => { if (Cloud.signedInAs && B.due()) backupNow(true); }, 10 * 60
 $("auto").onchange = async () => { $("auto").checked = await ipcRenderer.invoke("autostart", $("auto").checked); };
 $("updBtn").onclick = async () => { $("updInfo").textContent = "Checking for updates…"; $("updInfo").textContent = await ipcRenderer.invoke("check-update"); };
 $("tillBtn").onclick = () => ipcRenderer.invoke("show-till");
+async function showZoom() { $("zTill").textContent = (await ipcRenderer.invoke("zoom", "till", null)) + "%"; $("zPrinter").textContent = (await ipcRenderer.invoke("zoom", "printer", null)) + "%"; }
+document.querySelectorAll("[data-z]").forEach(b => b.onclick = async () => { await ipcRenderer.invoke("zoom", b.dataset.z, +b.dataset.s); showZoom(); });
+setInterval(showZoom, 5000);
 ipcRenderer.on("updating", (_e, v) => { Hub.say(`⬇ Installing update ${v} — printing carries on in a minute`, true); });
 
 // ---------- start up ----------
@@ -161,7 +164,7 @@ ipcRenderer.on("updating", (_e, v) => { Hub.say(`⬇ Installing update ${v} — 
   const v = await ipcRenderer.invoke("version");
   $("ver").textContent = `Windows · version ${v.build || "dev"} · updates install by themselves between 3am and 3pm`;
   $("auto").checked = v.autostart;
-  showAuth(); showStation(); showBackup(); refresh();
+  showAuth(); showStation(); showBackup(); refresh(); showZoom();
   await loadDevices(); showStation();
   if (process.env.T57_AUTOTEST) return autotest(process.env.T57_AUTOTEST);
   if (S.cfg.running) S.start();                      // printing switches back on after a restart or an update

@@ -8,12 +8,20 @@
   :root { --bg:#f6eedd; --card:#fffaf0; --ink:#2e2b1f; --mute:#6e6854; --olive:#3e4a22; --wine:#a6452b; --line:#e2d6bb; }
   * { box-sizing: border-box; }
   body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.4 "Segoe UI", Arial, sans-serif; }
-  main { max-width: 720px; margin: 0 auto; padding: 20px 16px 60px; }
+  main { max-width: 760px; margin: 0 auto; padding: 20px 16px 60px; }
+  /* computer screen: two columns, touch-sized controls */
+  @media (min-width: 1100px) {
+    main { max-width: 1400px; display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; align-items: start; }
+    main > h1, main > .sub { grid-column: 1 / -1; }
+  }
+  input[type=checkbox], input[type=radio] { width: 22px; height: 22px; vertical-align: -5px; margin-right: 6px; accent-color: var(--olive); }
+  .zrow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
+  .zrow b { min-width: 160px; }
   h1 { font-size: 26px; margin: 0 0 2px; }
   h2 { font-size: 17px; margin: 0 0 10px; }
   .sub { color: var(--mute); font-size: 13px; margin: 0 0 14px; }
   section { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin: 12px 0; }
-  button { font: inherit; padding: 8px 14px; border-radius: 8px; border: 1px solid #c9bb98; background: #fff; color: var(--ink); cursor: pointer; margin: 4px 6px 4px 0; }
+  button { font: inherit; padding: 11px 16px; min-height: 44px; border-radius: 8px; border: 1px solid #c9bb98; background: #fff; color: var(--ink); cursor: pointer; margin: 4px 6px 4px 0; }
   button:hover { background: #f3ead6; }
   button.big { width: 100%; font-size: 21px; padding: 14px; color: #fff; border: 0; background: var(--olive); }
   button.big.on { background: var(--wine); }
@@ -112,6 +120,9 @@
   <section>
     <h2>⚙ This computer</h2>
     <label class="row"><input type="checkbox" id="auto"> Start Trattoria 57 when Windows starts</label>
+    <div class="zrow"><b>Restaurant screen size</b><button data-z="till" data-s="-0.1">➖ Smaller</button><span id="zTill"></span><button data-z="till" data-s="0.1">➕ Bigger</button><button data-z="till" data-s="0">Normal</button></div>
+    <div class="zrow"><b>This screen's size</b><button data-z="printer" data-s="-0.1">➖ Smaller</button><span id="zPrinter"></span><button data-z="printer" data-s="0.1">➕ Bigger</button><button data-z="printer" data-s="0">Normal</button></div>
+    <div class="mute">You can also use the ➖ Smaller / ➕ Bigger buttons in the bar at the top of each window, or Ctrl and + / −.</div>
     <div class="mute" id="updInfo"></div>
     <button id="updBtn">⬇ Check for update now</button> <button id="tillBtn">🍝 Open the restaurant app</button>
   </section>
