@@ -202,7 +202,8 @@ object Format {
                 else -> {
                     val s = o.optInt("s", 1)
                     align(when (o.optString("a")) { "c" -> 1; "r" -> 2; else -> 0 }).bold(b)
-                    if (s > 1) size(1, 2)
+                    // 2 = tall; 3-4 = that many times wider and taller (e.g. a takeaway number)
+                    if (s == 2) size(1, 2) else if (s > 2) minOf(s, 4).let { size(it, it) }
                     wline(o.optString("t"), "")
                     if (s > 1) size(1, 1)
                     bold(false).align(0)

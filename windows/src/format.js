@@ -121,7 +121,8 @@ function job(j, cols, lg, cutter = true) {
     } else {
       const s = int(o.s || 1);
       p.align(o.a === "c" ? 1 : o.a === "r" ? 2 : 0).bold(b);
-      if (s > 1) p.size(1, 2);
+      const big = Math.min(s, 4);   // 2 = tall; 3-4 = that many times wider and taller (e.g. a takeaway number)
+      if (s === 2) p.size(1, 2); else if (s > 2) p.size(big, big);
       p.wline(str(o.t), "");
       if (s > 1) p.size(1, 1);
       p.bold(false).align(0);
