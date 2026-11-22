@@ -4,7 +4,8 @@
 |---|---|
 | `docs/index.html` | The whole restaurant app (floor plan, bookings, ordering, kitchen, bar, staff, reports). One file — edit it and re-publish. |
 | `print-test/` | Android test app for the Bluetooth thermal printer. GitHub builds it automatically (Actions tab). |
-| `.github/workflows/` | The automatic build for the Android app. |
+| `windows/` | **Trattoria 57 for Windows**: one installable app with the restaurant app, printing (network, USB, Bluetooth) and nightly backups. See `windows/README.md`. |
+| `.github/workflows/` | The automatic builds for the Android and Windows apps. |
 
 **Stage 1 (now):** prove printing works with the print-test app.
 **Stage 2 (later):** website + database, then the Android "hub" app that prints kitchen/bar tickets and the day report automatically.
