@@ -780,7 +780,7 @@ body.training{padding-top:30px}
 .mecats{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}.mecats>div{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.mecats small{font-weight:800;color:#6d6448;min-width:46px}
 .mecats button{border:1px solid var(--parch2);background:#fffaf0;border-radius:14px;padding:5px 10px;font-weight:700;font-size:13px;color:#5d5640}.mecats button.on{background:var(--olive-dk);border-color:var(--olive-dk);color:#fff}
 .merow{display:flex;gap:8px;align-items:center;padding:8px 0;border-top:1px dashed var(--parch2)}.merow.off .men b{text-decoration:line-through;color:#9a917a}
-.men{flex:1;min-width:0}.men b{font-size:14px}.men i{font-style:normal;font-size:11px;font-weight:800;border-radius:8px;padding:1px 6px;margin-left:6px}.mnew{background:#e6efd8;color:var(--olive-dk)}.moff{background:#f6e1dc;color:var(--wine)}
+.men{flex:1;min-width:0}.men b{font-size:14px}.men i{font-style:normal;font-size:11px;font-weight:800;border-radius:8px;padding:1px 6px;margin-left:6px}.mnew{background:#e6efd8;color:var(--olive-dk)}.meauto{background:#fff6dc;border:1px solid #c79a2b;border-radius:10px;padding:8px 10px;margin:0 0 8px}.meauto>small{display:block;font-size:12px;margin:2px 0 6px}.mearow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px 0;border-top:1px dashed #d9c38a}.mearow>span{flex:1;min-width:160px}.mearow small{display:block;font-size:11px;color:#6b5a2e}.mearow select{font-size:14px;padding:6px;border-radius:8px;width:auto;flex:0 0 auto;max-width:100%}.moff{background:#f6e1dc;color:var(--wine)}
 .med{display:block;width:100%;margin-top:4px;font-size:12px!important;padding:5px 8px!important}
 .acg{position:fixed;z-index:9990;pointer-events:none;color:#a99f88;white-space:pre;overflow:hidden;box-sizing:border-box;display:flex;align-items:center}
 .acok{position:fixed;z-index:9991;border:0;background:#3d4a1e;color:#fff;border-radius:8px;width:30px;height:30px;font-size:16px;font-weight:800;padding:0;display:none}
@@ -1908,7 +1908,7 @@ const MENU=[
  ["House Rosé · 1 Ltr",24.90,"Blush, medium dry"],["House Rosé · 1/2 Ltr",12.50,"Blush, medium dry"],
  ["Trebbiano (white) · 250ml",7.80,""],["Trebbiano (white) · 125ml",3.90,""],["Rosata Veneto Blush (rosé) · 250ml",7.80,""],["Rosata Veneto Blush (rosé) · 125ml",3.90,""],
  ["Montepulciano d'Abruzzo (red) · 250ml",7.80,""],["Montepulciano d'Abruzzo (red) · 125ml",3.90,""],["Add lemonade to wine",0.80,"Spritzer"],["Add soda to wine",0.50,""]]],
-["Prosecco & Spritz",[["Small White Prosecco",7.90,""],["Small Rosé Prosecco",7.90,""],["Aperol Spritz",8.90,""]]],
+["Prosecco & Spritz",[["Bottle of Prosecco",24.90,""],["Small White Prosecco",7.90,""],["Small Rosé Prosecco",7.90,""],["Aperol Spritz",8.90,""]]],
 ["Spirits",[["Famous Grouse · Single",4.20,""],["Famous Grouse · Double",7.90,""],["Jameson · Single",4.00,""],["Jameson · Double",7.90,""],["Bells · Single",3.90,""],["Bells · Double",7.60,""],["Spiced Rum · Single",3.90,""],["Spiced Rum · Double",7.10,""],["Captain Morgan's · Single",3.90,""],["Captain Morgan's · Double",7.10,""],["Smirnoff · Single",3.80,""],["Smirnoff · Double",7.00,""],["Gordon's · Single",3.80,""],["Gordon's · Double",7.40,""],["Bacardi · Single",3.80,""],["Bacardi · Double",7.00,""],["Lamb's · Single",3.80,""],["Lamb's · Double",7.00,""],["Southern Comfort · Single",3.80,""],["Southern Comfort · Double",7.00,""],["Jack Daniel's · Single",3.80,""],["Jack Daniel's · Double",7.00,""],["Archers · Single",3.50,""],["Archers · Double",6.50,""],["Malibu · Single",3.50,""],["Malibu · Double",6.50,""],["Martini · Single",3.50,""],["Martini · Double",6.50,""],["Disaronno · Single",3.50,""],["Disaronno · Double",6.50,""]]],
 ["Gin",[["Malfy Flavours · Single",4.50,""],["Malfy Flavours · Double",7.70,""],["Whitley Neill · Single",4.30,""],["Whitley Neill · Double",7.60,""],["Tanqueray Flavours · Single",4.30,""],["Tanqueray Flavours · Double",7.60,""],["Bombay Flavours · Single",4.20,""],["Bombay Flavours · Double",7.50,""],["Gordon's Flavours · Single",4.00,""],["Gordon's Flavours · Double",7.90,""],["Premium Gin · Single",3.80,"From £3.80 — see gin bar"],["Premium Gin · Double",7.00,"From £7.00 — see gin bar"]]],
 ["Mixers",[["Tonic",2.50,""],["Slimline Tonic",2.50,""],["Coke (mixer)",0.90,""],["Diet Coke (mixer)",0.90,""],["Lemonade (mixer)",0.90,""],["Diet Lemonade (mixer)",0.90,""],["Soda (mixer)",0.50,""]]],
@@ -2048,6 +2048,76 @@ const xlHalf=b=>Math.round(priceOf(b)*50)/100;   // +50% of the dish
 function regCustom(n,p,st,cat){if(!n||(ITEMS[n]&&!ITEMS[n].custom))return;ITEMS[n]={n,p:Math.max(0,+p||0),d:"Custom request",cat:cat||(st==="bar"?"Soft Drinks":"Starters"),station:st==="bar"?"bar":"kitchen",hidden:true,custom:true}}
 let custLog=[];try{custLog=JSON.parse(localStorage.getItem("t57-custom")||"[]").filter(x=>x&&x.n).slice(0,200);custLog.forEach(x=>regCustom(x.n,x.p,x.st,x.cat))}catch(e){custLog=[]}
 function logCustom(n,p,st,cat){custLog=[{n,p,st,cat},...custLog.filter(x=>x.n.toLowerCase()!==n.toLowerCase())].slice(0,200);try{localStorage.setItem("t57-custom",JSON.stringify(custLog))}catch(e){}}
+// ---- learn from custom requests (owner, 22 Nov): a hand-typed item sent 3 times becomes a real menu button ----
+// counts every tablet's orders from the last 60 days; spelling slips ("Bottlenof prosecco") count as the same item
+const LEARN_AT=3,LEARN_DAYS=60;
+const learnKey=n=>String(n||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/&/g," and ").replace(/[^a-z0-9]+/g,"");
+function editDist(a,b){if(a===b)return 0;if(!a.length)return b.length;if(!b.length)return a.length;let p=Array.from({length:b.length+1},(_,i)=>i);
+  for(let i=1;i<=a.length;i++){const c=[i];for(let j=1;j<=b.length;j++)c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1));p=c}return p[b.length]}
+// same item if the letters are nearly the same (about 1 slip in 7 letters), ignoring spaces, capitals and punctuation —
+// but two different real words ("potatoes" / "tomatoes") are never a slip
+const learnWords=n=>String(n||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/&/g," and ").split(/[^a-z0-9]+/).filter(Boolean);
+function sameTyped(a,b){const x=learnKey(a),y=learnKey(b);if(!x||!y)return false;if(x===y)return true;const L=Math.max(x.length,y.length);if(L<5)return false;
+  const wa=learnWords(a),wb=learnWords(b);if(wa.length===wb.length){const V=learnVocab();if(wa.some((w,i)=>w!==wb[i]&&V.has(w)&&V.has(wb[i])))return false}
+  return editDist(x,y)<=Math.max(1,Math.floor(L/7))}
+// words we trust when choosing the spelling to keep: every word on the menu plus the usual little ones
+const LEARN_WORDS=new Set(("of and with the a an in on or no extra side sides bottle bottles glass glasses jug pint half large small big double single plain mixed fresh hot cold iced "+
+  "potato potatoes tomato tomatoes chips fries onion onions mushroom mushrooms pepper peppers chilli garlic cheese salad bread butter egg eggs bean beans pea peas carrot carrots "+
+  "rice mash spinach broccoli olive olives chicken beef pork lamb ham bacon fish prawn prawns salmon tuna steak sausage burger gravy sauce cream milk sugar honey "+
+  "orange oranges lemon lemons lime limes apple apples pear peach mango pineapple strawberry berry berries banana cherry grape coconut mint ginger vanilla chocolate caramel "+
+  "juice water soda tonic coke cola lemonade tea coffee wine beer cider red white rose dry sweet still sparkling ice shot shots cake tart pie").split(" "));
+let learnV=null,learnVAt=0;
+function learnVocab(){if(learnV&&Date.now()-learnVAt<60000)return learnV;learnVAt=Date.now();const s=learnV=new Set(LEARN_WORDS);Object.values(ITEMS).forEach(x=>{if(x&&!x.custom)learnWords(x.n+" "+(x.d||"")).forEach(w=>{if(w.length>1)s.add(w)})});return s}
+function tidyName(n){const small=new Set(["of","and","with","the","a","an","in","on","or"]);
+  return n.replace(/\s+/g," ").trim().split(" ").map((w,i)=>i&&small.has(w.toLowerCase())?w.toLowerCase():w.charAt(0).toUpperCase()+w.slice(1)).join(" ")}
+// which section it belongs in, from the name (drinks only go to drinks sections, food to food)
+const LEARN_CATS=[["Prosecco & Spritz",/prosecco|spritz|champagne|bellini|cava\b|fizz/],["Gin",/\bgin\b/],["Shots",/\bshots?\b|sambuca|jager|limoncello/],
+  ["Hot Drinks",/coffee|latte|cappuccino|espresso|\btea\b|americano|mocha|hot chocolate|macchiato|flat white/],
+  ["Wine",/wine|merlot|pinot|sauvignon|chardonnay|rioja|malbec|shiraz|chianti|montepulciano|trebbiano|rosato|rose\b|red\b|white\b/],
+  ["Beer & Cider",/beer|lager|cider|peroni|moretti|\bale\b|ipa\b|stout|guinness|bitter|corona|birra/],
+  ["Spirits",/vodka|whisk|rum\b|brandy|amaretto|disaronno|baileys|tequila|cognac|bourbon|martini|port\b|grappa|liqueur/],
+  ["Mixers",/tonic|soda water|mixer/],
+  ["Soft Drinks",/juice|coke|cola|lemonade|orange|lemon|water|pepsi|fanta|j2o|squash|cordial|milkshake|lime|appletiser|soda|shirley|mocktail/],
+  ["Desserts",/dessert|cake|ice cream|gelato|tiramis|pudding|cheesecake|sorbet|brownie|tart\b|panna cotta|affogato|profiterole|crumble|sundae/],
+  ["Children",/\bkids?\b|child/],
+  ["Pizza",/pizza|calzone/],["Pasta",/pasta|spaghetti|penne|linguine|lasagn|ravioli|gnocchi|tagliatelle|tortellini|carbonara|fettuccine|rigatoni/],
+  ["Risotto",/risotto/],["Fish",/fish|salmon|scampi|prawn|cod\b|sea ?bass|tuna|seafood|mussels|king prawn/],["Poultry",/chicken|pollo|turkey|duck/],
+  ["Meat",/steak|lamb|beef|pork|veal|sirloin|fillet|burger|vitello/],
+  ["Sauces & Extras",/sauce|gravy|dressing|mayo|\bdip\b|parmesan|cheese on/],
+  ["Sides",/\bside\b|chips|fries|potato|salad|bread|olives|veg|mash|rice|onion rings|garlic|coleslaw|courgette|mushrooms/],
+  ["Starters",/soup|starter|bruschetta|wings|pate|calamari|antipast|melon|mozzarella sticks/]];
+function learnCat(n,st,typedIn){const t=n.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,""),bar=st==="bar",ok=c=>BASE_MENU.some(x=>x[0]===c)&&BAR_CATS.has(c)===bar;
+  const hit=LEARN_CATS.find(([c,re])=>ok(c)&&re.test(t));if(hit)return hit[0];
+  if(typedIn&&ok(typedIn)&&typedIn!=="Deals"&&typedIn!=="Specials")return typedIn;return bar?"Soft Drinks":"Sides"}
+let learnBusy=false;
+async function autoLearn(made){
+  if(readOnly||learnBusy)return;
+  const fresh=[];made.forEach(t=>t.items.forEach(x=>{const it=ITEMS[x.n];if(!x.v&&it&&it.custom&&!fresh.some(f=>f.n===x.n))fresh.push({n:x.n,st:t.station})}));
+  if(!fresh.length)return;learnBusy=true;
+  try{const today=todayKey();let all=[];try{all=await ticketsBetween(addDays(today,-(LEARN_DAYS-1)),today)}catch(e){all=[]}
+    made.concat(tickets).forEach(t=>{if(!all.some(x=>x.id===t.id))all.push(t)});
+    const typed=[];all.forEach(t=>(t.items||[]).forEach(x=>{const it=ITEMS[x.n];if(!x.v&&(!it||it.custom))typed.push({n:x.n,p:+x.p||0,st:t.station,at:t.createdAt||0})}));
+    const real=Object.values(ITEMS).filter(x=>x&&!x.custom&&!x.half&&!x.alias&&!x.xl&&!x.deal&&!x.dealAddon).map(x=>x.n);
+    const no=new Set((menuOv.autoNo||[]).map(learnKey)),adds=[];
+    for(const f of fresh){
+      if(adds.some(a=>sameTyped(a.n,f.n))||no.has(learnKey(f.n))||[...no].some(k=>sameTyped(k,f.n)))continue;
+      if(real.some(r=>sameTyped(r,f.n)))continue;                            // already a button (maybe spelt differently)
+      const grp=typed.filter(x=>x.st===f.st&&sameTyped(x.n,f.n));
+      if(grp.length<LEARN_AT)continue;
+      const V=learnVocab(),score=n=>{const w=learnWords(n);return w.length?w.filter(x=>V.has(x)).length/w.length:0};
+      const spell={},price={};grp.forEach(x=>{const s=x.n.replace(/\s+/g," ").trim();spell[s]=(spell[s]||0)+1;const k=x.p.toFixed(2);price[k]=price[k]||{c:0,at:0};price[k].c++;price[k].at=Math.max(price[k].at,x.at)});
+      const name=tidyName(Object.keys(spell).sort((a,b)=>score(b)-score(a)||spell[b]-spell[a]||b.length-a.length)[0]);
+      const p=+Object.keys(price).sort((a,b)=>price[b].c-price[a].c||price[b].at-price[a].at)[0];
+      const lg=custLog.find(x=>sameTyped(x.n,f.n));
+      adds.push({n:name,cat:learnCat(name,f.st,lg&&lg.cat),p,d:"",auto:{at:Date.now(),c:grp.length,from:Object.keys(spell).slice(0,6)}})}
+    if(!adds.length)return;
+    let ov=menuOv;if(db){try{const sn=await db.doc("settings/menu").get();if(sn.exists)ov=cleanMenuOv(sn.data())}catch(e){}}
+    ov=JSON.parse(JSON.stringify(ov));const put=adds.filter(a=>!ov.add.some(x=>sameTyped(x.n,a.n))&&!(ITEMS[a.n]&&!ITEMS[a.n].custom));
+    if(!put.length)return;ov.add=ov.add.concat(put);ov=cleanMenuOv(ov);menuOv=ov;applyMenu();
+    try{localStorage.setItem("t57-menu",JSON.stringify(ov))}catch(e){}
+    if(db){try{await db.doc("settings/menu").set(ov)}catch(e){}}
+    toast(put.map(a=>`✨ “${a.n}” was typed ${a.auto.c} times, so it's now a button in ${a.cat} at ${money(a.p)}`).join(" · ")+" — the manager can undo it in Edit menu",7000)}
+  finally{learnBusy=false}}
 // predictive text for custom requests: whole menu names, past requests, then single-word completion
 const CU_EXTRA=["no cheese","extra cheese","no chilli","extra chilli flakes","no tomato","no sauce","no butter","no salt","no onion","no garlic","no mushrooms","gluten free","dairy free","sauce on the side","well done","extra","without","half portion","small portion","large portion","plain pasta with butter","plain pasta with tomato sauce","chips","side salad","mixed vegetables","garlic bread","birthday dessert with candle","bread and butter","olive oil","balsamic","ketchup","mayonnaise","mustard","cream","ice","lemon"];
 function cuSuggest(t){const q=t.toLowerCase().trim();if(!q)return [];
@@ -2119,13 +2189,14 @@ document.addEventListener("focusin",e=>{const t=e.target;if(t&&t.matches&&t.matc
 document.addEventListener("focusout",e=>{const t=e.target;if(t&&t.matches&&t.matches("input[data-ac]"))setTimeout(()=>{if(acCur===t&&document.activeElement!==t)acHide()},150)});
 document.addEventListener("keydown",e=>{const t=e.target;if(t&&t.matches&&t.matches("input[data-ac]")&&t._ac&&(e.key==="Tab"||e.key==="Enter"||e.key==="ArrowRight"&&t.selectionStart===t.value.length)){e.preventDefault();acTake(t)}},true);
 function linePrice(x){if(x.cp!=null&&isFinite(+x.cp))return Math.round(+x.cp*100)/100;const it=ITEMS[x.n];if(it&&it.xl&&x.xa!=null&&isFinite(+x.xa))return Math.round((priceOf(it.xl)+(+x.xa))*100)/100;return priceOf(x.n)}
-function cleanMenuOv(d){d=d&&typeof d==="object"?d:{};const o={price:{},desc:{},hide:[],add:[],xl:{}};
+function cleanMenuOv(d){d=d&&typeof d==="object"?d:{};const o={price:{},desc:{},hide:[],add:[],xl:{},autoNo:[]};
   if(d.xl&&typeof d.xl==="object")for(const k in d.xl){const r=xlRule(d.xl[k]);if(r)o.xl[enName(str(k,60))]=r}
   if(d.price&&typeof d.price==="object")for(const k in d.price){const v=Math.round(+d.price[k]*100)/100;if(isFinite(v)&&v>=0&&v<1000)o.price[enName(str(k,60))]=v}
   if(d.desc&&typeof d.desc==="object")for(const k in d.desc)o.desc[enName(str(k,60))]=str(d.desc[k],80);
   if(Array.isArray(d.hide))o.hide=d.hide.map(x=>enName(str(x,60))).filter(Boolean).slice(0,500);
   if(Array.isArray(d.deals))o.deals=d.deals.slice(0,30).map(cleanDeal).filter(Boolean);
-  if(Array.isArray(d.add))o.add=d.add.filter(a=>a&&a.n&&a.cat!=="Deals"&&BASE_MENU.some(c=>c[0]===a.cat)).map(a=>({n:str(a.n,60).trim(),cat:a.cat,p:Math.max(0,Math.min(999,Math.round(+a.p*100)/100||0)),d:str(a.d||"",80)})).slice(0,300);
+  if(Array.isArray(d.add))o.add=d.add.filter(a=>a&&a.n&&a.cat!=="Deals"&&BASE_MENU.some(c=>c[0]===a.cat)).map(a=>Object.assign({n:str(a.n,60).trim(),cat:a.cat,p:Math.max(0,Math.min(999,Math.round(+a.p*100)/100||0)),d:str(a.d||"",80)},a.auto&&typeof a.auto==="object"?{auto:{at:+a.auto.at||0,c:Math.max(0,Math.floor(+a.auto.c)||0),from:Array.isArray(a.auto.from)?a.auto.from.map(x=>str(x,60)).filter(Boolean).slice(0,6):[]}}:{})).slice(0,300);
+  if(Array.isArray(d.autoNo))o.autoNo=d.autoNo.map(x=>str(x,60)).filter(Boolean).slice(-200);
   return o}
 // ================= deals & offers (⭐ Manager → 🏷 Deals & offers) =================
 // a deal is one priced line (e.g. Monday Special £19.90) with 1–5 choices underneath (starter, pizza or pasta, coffee…).
@@ -2973,7 +3044,7 @@ $("oFoot").addEventListener("click",async e=>{if(Date.now()<footLockUntil){e.sto
     bt.disabled=true;const unstick=setTimeout(()=>{if(bt.isConnected)bt.disabled=false},15000);
     const cartCopy=JSON.parse(JSON.stringify(c)),noteCopy=ord.note,leadNow=ord.lead,isTk=!!(ord.pickup&&!ord.walk);
     try{for(const t of made){await putTicket(t);if(!tickets.find(x=>x.id===t.id))tickets.push(t)}
-      showUndo(made.map(t=>t.id),cartCopy,noteCopy,leadNow);alexaSay(made);
+      showUndo(made.map(t=>t.id),cartCopy,noteCopy,leadNow);alexaSay(made);setTimeout(()=>autoLearn(made),300);
       carts[leadNow]=[];keepCarts();footLockUntil=Date.now()+1200;if(ord&&ord.lead===leadNow){ord.note="";ord.review=false;ord.tab="sent"}
       const offline=made.some(t=>outbox.some(q=>q.id===t.id));
       if(isTk&&!offline)pickupReceipt();
@@ -4093,19 +4164,27 @@ function openMenuEd(){meCat=meCat||CATS[0];meDraft=JSON.parse(JSON.stringify(men
   openX("menued","Edit menu","Change prices, add dishes and drinks, or take items off. Saves to every tablet.",e=>{
     const c=e.target.closest("[data-mec]");if(c){meCat=c.dataset.mec;renderMenuEd();return}
     const h=e.target.closest("[data-mehide]");if(h){const n=meRows()[+h.dataset.mehide].n,i=meDraft.hide.indexOf(n);if(i>=0)meDraft.hide.splice(i,1);else meDraft.hide.push(n);meDirty=true;renderMenuEd();return}
-    const del=e.target.closest("[data-medel]");if(del){const n=meRows()[+del.dataset.medel].n;meDraft.add=meDraft.add.filter(a=>a.n!==n);delete meDraft.price[n];delete meDraft.desc[n];meDraft.hide=meDraft.hide.filter(x=>x!==n);meDirty=true;renderMenuEd();return}
+    const del=e.target.closest("[data-medel]");if(del){const n=meRows()[+del.dataset.medel].n;meNoAuto(n);meDraft.add=meDraft.add.filter(a=>a.n!==n);delete meDraft.price[n];delete meDraft.desc[n];meDraft.hide=meDraft.hide.filter(x=>x!==n);meDirty=true;renderMenuEd();return}
+    const ua=e.target.closest("[data-meundo]");if(ua){const n=ua.dataset.meundo;meNoAuto(n);meDraft.add=meDraft.add.filter(a=>a.n!==n);delete meDraft.price[n];delete meDraft.desc[n];meDraft.hide=meDraft.hide.filter(x=>x!==n);meDirty=true;renderMenuEd();toast(`Taken off: ${n} — tap Save menu. It won't be added again.`);return}
+    const ok=e.target.closest("[data-meok]");if(ok){const a=meDraft.add.find(x=>x.n===ok.dataset.meok);if(a){delete a.auto;meDirty=true;renderMenuEd();toast(`Kept ${a.n} — tap Save menu`)}return}
     if(e.target.closest("[data-meadd]")){meAdd();return}
     if(e.target.closest("[data-mesave]")){meSave();return}
     if(e.target.closest("[data-meprint]")){pickPrinter(to=>{printJob(to,"menu","Menu & prices",menuLines(),"full");openMenuEd()},"Print the menu with prices");return}
     if(e.target.closest("[data-mecancel]")){if(!meDirty){closeX();return}ask("Throw away your menu changes?","Nothing has been saved yet.",()=>closeX());return}});
   renderMenuEd()}
+function meNoAuto(n){const a=meDraft.add.find(x=>x.n===n);if(!a||!a.auto)return;meDraft.autoNo=(meDraft.autoNo||[]).concat([n],a.auto.from||[]).filter((x,i,l)=>l.indexOf(x)===i)}
+// list at the top of Edit menu: items the app added by itself, so the manager can keep, move or undo them
+function meAutoHtml(){const A=meDraft.add.filter(a=>a.auto);if(!A.length)return "";
+  const cats=CATS.filter(k=>k!=="Deals");
+  return `<div class="meauto"><b>✨ Added automatically</b><small>Typed by hand ${LEARN_AT}+ times, so the app made them buttons. Check the section and price, then Keep or Undo.</small>${A.map(a=>`<div class="mearow"><span><b>${esc(a.n)}</b> · ${money(meDraft.price[a.n]!=null?meDraft.price[a.n]:a.p)}<small>typed ${a.auto.c}×${(a.auto.from||[]).length>1?" as “"+a.auto.from.map(esc).join("”, “")+"”":""}${a.auto.at?" · "+new Date(a.auto.at).toLocaleDateString("en-GB"):""}</small></span>
+    <select data-memove="${esc(a.n)}">${cats.map(k=>`<option${k===a.cat?" selected":""}>${esc(k)}</option>`).join("")}</select><button class="btn sec meh" data-meok="${esc(a.n)}">✓ Keep</button><button class="btn dng meh" data-meundo="${esc(a.n)}">↩ Undo</button></div>`).join("")}</div>`}
 function meRows(){const base=(BASE_MENU.find(c=>c[0]===meCat)||[0,[]])[1].map(([n,p,d])=>({n,p0:p,d0:d,custom:false}));
-  return base.concat(meDraft.add.filter(a=>a.cat===meCat).map(a=>({n:a.n,p0:a.p,d0:a.d,custom:true})))}
+  return base.concat(meDraft.add.filter(a=>a.cat===meCat).map(a=>({n:a.n,p0:a.p,d0:a.d,custom:true,auto:!!a.auto})))}
 function renderMenuEd(){
   if(xKind!=="menued")return;const rows=meRows(),hide=new Set(meDraft.hide);
   const tabs=`<div class="mecats">${[["Drinks",CATS.filter(k=>BAR_CATS.has(k))],["Food",CATS.filter(k=>!BAR_CATS.has(k)&&k!=="Deals")]].map(([t,ks])=>`<div><small>${t}</small>${ks.map(k=>`<button data-mec="${esc(k)}" class="${k===meCat?"on":""}">${esc(k)}</button>`).join("")}</div>`).join("")}</div>`;
-  $("xBody").innerHTML=tabs+`<div class="melist">${rows.map((r,i)=>{const p=meDraft.price[r.n]!=null?meDraft.price[r.n]:r.p0,off=hide.has(r.n),chg=meDraft.price[r.n]!=null&&meDraft.price[r.n]!==r.p0;
-    return `<div class="merow${off?" off":""}"><span class="men"><b>${esc(r.n)}</b>${r.custom?`<i class="mnew">new</i>`:""}${off?`<i class="moff">off the menu</i>`:""}<input class="med" data-med="${i}" maxlength="80" value="${esc(meDraft.desc[r.n]!=null?meDraft.desc[r.n]:r.d0||"")}" placeholder="Description (optional)"></span>
+  $("xBody").innerHTML=meAutoHtml()+tabs+`<div class="melist">${rows.map((r,i)=>{const p=meDraft.price[r.n]!=null?meDraft.price[r.n]:r.p0,off=hide.has(r.n),chg=meDraft.price[r.n]!=null&&meDraft.price[r.n]!==r.p0;
+    return `<div class="merow${off?" off":""}"><span class="men"><b>${esc(r.n)}</b>${r.auto?`<i class="mnew">✨ auto</i>`:r.custom?`<i class="mnew">new</i>`:""}${off?`<i class="moff">off the menu</i>`:""}<input class="med" data-med="${i}" maxlength="80" value="${esc(meDraft.desc[r.n]!=null?meDraft.desc[r.n]:r.d0||"")}" placeholder="Description (optional)"></span>
       <label class="mep${chg?" chg":""}">£<input type="number" step="0.05" min="0" max="999" inputmode="decimal" data-mep="${i}" value="${p.toFixed(2)}"></label>
       ${BAR_CATS.has(meCat)?"":`<label class="mexl${meDraft.xl&&meDraft.xl[r.n]?" on":""}" title="Extra large: type 2 for +£2, or 15% for +15%">XL +<input data-mexl="${i}" maxlength="6" inputmode="decimal" placeholder="—" value="${esc(meDraft.xl&&meDraft.xl[r.n]?(/%$/.test(meDraft.xl[r.n])?meDraft.xl[r.n]:"£"+meDraft.xl[r.n]):"")}"></label>`}
       <button class="btn sec meh" data-mehide="${i}">${off?"↩ Put back":"Remove"}</button>${r.custom?`<button class="btn dng meh" data-medel="${i}" title="Delete for good">🗑</button>`:""}</div>`}).join("")}</div>
@@ -4124,6 +4203,7 @@ async function meSave(){const ov=cleanMenuOv(meDraft);menuOv=ov;applyMenu();
   try{localStorage.setItem("t57-menu",JSON.stringify(ov))}catch(e){}
   if(db&&!readOnly){try{await db.doc("settings/menu").set(ov)}catch(e){toast("Saved here, but couldn't sync — try again");return}}
   meDirty=false;closeX();toast("Menu saved — every tablet updates now")}
+$("xBody").addEventListener("change",e=>{if(xKind!=="menued"||!e.target.dataset.memove)return;const a=meDraft.add.find(x=>x.n===e.target.dataset.memove);if(!a)return;a.cat=e.target.value;meDirty=true;renderMenuEd();toast(`${a.n} moved to ${a.cat} — tap Save menu`)});
 $("xBody").addEventListener("input",e=>{if(xKind!=="menued")return;const rows=meRows();
   const pi=e.target.dataset.mep;if(pi!==undefined){const r=rows[+pi],v=Math.round(+e.target.value*100)/100;if(e.target.value!==""&&isFinite(v)&&v>=0){if(v===r.p0)delete meDraft.price[r.n];else meDraft.price[r.n]=v;e.target.parentElement.classList.toggle("chg",v!==r.p0);meDirty=true;$("xFoot").querySelector("[data-mesave]").textContent="💾 Save menu"}}
   const xi=e.target.dataset.mexl;if(xi!==undefined){const r=rows[+xi],v=xlRule(e.target.value);meDraft.xl=meDraft.xl||{};if(v)meDraft.xl[r.n]=v;else delete meDraft.xl[r.n];
@@ -5082,7 +5162,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261122191500";const APP_VER=57;   // both stamped by the publish script
+const APP_BUILD="20261122230000";const APP_VER=58;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
