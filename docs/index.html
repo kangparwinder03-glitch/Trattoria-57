@@ -2219,7 +2219,7 @@ let mgrUntil=0;const MGR_GRACE=5*60000;   // after the manager PIN, other manage
 const money=n=>"£"+n.toFixed(2);
 function cleanTicket(id,d){
   if(!d||typeof d!=="object")return null;
-  const items=Array.isArray(d.items)?d.items.slice(0,80).map(x=>{const n=str(x&&x.n,80);if(n&&!ITEMS[n])regCustom(n,+(x&&x.p)||0,d.station,"");return Object.assign({n,q:Math.max(1,Math.min(99,Math.floor(+(x&&x.q))||1)),p:Math.max(0,+(x&&x.p)||0),note:str(x&&x.note,120),v:!!(x&&x.v),vr:str(x&&x.vr,40),vb:str(x&&x.vb,40),g:str(x&&x.g,20),c:/^[smd]$/.test(x&&x.c)?x.c:""},x&&x.wm?{wm:true}:{},x&&x.en?{en:str(x.en,80)}:{})}):[];
+  const items=Array.isArray(d.items)?d.items.slice(0,80).map(x=>{const n=str(x&&x.n,80);if(n&&!ITEMS[n])regCustom(n,+(x&&x.p)||0,d.station,"");return Object.assign({n,q:Math.max(1,Math.min(99,Math.floor(+(x&&x.q))||1)),p:Math.max(0,+(x&&x.p)||0),note:str(x&&x.note,120),v:!!(x&&x.v),vr:str(x&&x.vr,40),vb:str(x&&x.vb,40),g:str(x&&x.g,20),c:/^[smd]$/.test(x&&x.c)?x.c:""},x&&x.wm?{wm:true}:{},x&&x.ws?{ws:true}:{},x&&x.en?{en:str(x.en,80)}:{})}):[];
   const tables=Array.isArray(d.tables)?d.tables.map(Number).filter(i=>i>=1&&i<=N):[];
   return {id,date:str(d.date,10),tables,label:str(d.label,30),items,note:str(d.note,200),
     status:FLOW.includes(d.status)?d.status:"new",createdAt:+d.createdAt||0,updatedAt:+d.updatedAt||0,closed:!!d.closed,no:+d.no||0,station:d.station==="bar"?"bar":"kitchen",hold:!!d.hold,qr:!!d.qr,rejected:!!d.rejected,disc:cleanDisc(d.disc),discAmt:Math.max(0,+d.discAmt||0),wait:!!d.wait,printed:+d.printed||0,pickup:!!d.pickup,walk:!!d.walk,pno:Math.max(0,Math.floor(+d.pno)||0),pname:str(d.pname,40),pphone:str(d.pphone,30),pat:/^\d\d:\d\d$/.test(d.pat||"")?d.pat:"",fireAt:+d.fireAt||0,covers:Math.max(0,Math.min(99,Math.floor(+d.covers)||0)),paid:['card','cash','split'].includes(d.paid)?d.paid:'',by:str(d.by,40),byName:str(d.byName,40),pays:cleanPays(d.pays),idisc:cleanIdisc(d.idisc),discBy:cleanNumMap(d.discBy),paidAt:+d.paidAt||0,tRec:+d.tRec||0,tPrep:+d.tPrep||0,tSrv:+d.tSrv||0};
@@ -2726,6 +2726,7 @@ function renderOrder(){
     body.innerHTML=(ord.pickup&&!ord.walk&&c.length?patChips():"")+(ord.pickup&&c.length?`<div class="guests" style="gap:8px"><input id="pName" placeholder="Name (optional)" maxlength="40" value="${esc(ord.pname||"")}" style="flex:1.2"><input id="pPhone" type="tel" inputmode="tel" placeholder="Phone (optional)" maxlength="30" value="${esc(ord.pphone||"")}" style="flex:1"></div>`:"")+(firstOrder&&c.length?`<div class="guests"><b>Guests at table</b><div class="step"><button data-g="-1">−</button><span>${ord.covers}</span><button class="add" data-g="1">+</button></div></div>`:"")+(c.length?c.map((x,i)=>`<div class="cl" data-i="${i}"><div class="r1"><b>${esc(x.n)}</b><span class="pr">${money(linePrice(x)*x.q)}</span>
       <div class="step">${x.g?`<span class="gtag">👤 ${esc(x.g)}</span>`:""}${x.ds!=null?`<span title="Part of the deal above — change it from the Deals tab">${x.q}</span>`:`<button data-a="dec">−</button><span>${x.q}</span><button class="add" data-a="inc">+</button>`}</div></div>
       ${!ord.pickup&&courseOf(x.n)==="s"?`<div class="wmrow"><button class="wmbtn${x.wm?" on":""}" data-wm>${x.wm?"🍝 With main course":"🥗 Starter"}</button><span>${x.wm?"Goes out with the mains · tap to make it a starter again":"Tap if they want it with their main"}</span></div>`:""}
+      ${!ord.pickup&&courseOf(x.n)==="m"?`<div class="wmrow"><button class="wmbtn${x.ws?" on":""}" data-ws>${x.ws?"🥗 As a starter":"🍝 Main course"}</button><span>${x.ws?"Goes out with the starters · tap to make it a main again":"Tap if they want it as a starter"}</span></div>`:""}
       ${outSet.has(x.n)?`<div class="note" style="margin:4px 0">⛔ Out of stock — remove this</div>`:""}
       ${ITEMS[x.n].station==="bar"?`<input class="ln" data-ac="note" placeholder="Note for the bar (e.g. no ice)" maxlength="120" value="${esc(x.note)}">
       <div class="qn">${x.of?"":drinkChips(ITEMS[x.n].cat,x.n).map(t=>`<button data-q="${t}">${t}</button>`).join("")}</div></div>`:`<input class="ln${isAlg(x.note)?" alg":""}" data-ac="note" placeholder="Note for kitchen (e.g. no onions)" maxlength="120" value="${esc(x.note)}">
@@ -2746,7 +2747,7 @@ function renderOrder(){
       const sub=t.items.reduce((a,x)=>a+lv(x),0);if(!t.hold)total+=sub;
       return `<div class="st-card"${t.hold?' style="border-color:#3f5f86;background:#eef3f9"':""}><div class="h"><span>${t.qr?"📱 ":""}Order ${t.no||""} · ${timeOf(t.createdAt)}${t.byName?" · "+esc(t.byName):""}<span class="stpill ${stOf(t)==="bar"?"sp-bar":"sp-kit"}">${stOf(t)==="bar"?"Bar":"Kitchen"}</span>${t.wait?`<span class="stpill heldp">⏸ Held</span>`:""}${t.hold||t.items.every(x=>x.v)?"":`<button class="delt" data-delt="${t.id}" title="Delete this order">🗑</button>`}</span><span class="pill ${t.hold?"hold":t.status}">${t.hold?"QR · check":t.status}</span></div>
         ${t.items.map((x,xi)=>x.v?`<div class="ln void"><span><s>${x.q}× ${esc(x.n)}</s><i>VOID · ${esc(x.vr)}${x.vb?" · "+esc(x.vb):""}</i></span><span><s>${money(x.q*x.p)}</s></span></div>`
-          :`<div class="ln"><span>${x.q}× ${esc(x.n)}${x.wm?`<em class="wmtag">with main</em>`:""}${ord.pickup||t.hold||!(x.g||hasTabs)?"":`<button class="gtag rt${x.g?"":" g0"}" data-retab="${t.id}|${xi}">👤 ${esc(x.g||"Table")}</button>`}${x.note?`<i${isAlg(x.note)?' class="alg"':""}>${esc(x.note)}</i>`:""}</span><span>${money(x.q*x.p)}${t.hold?"":`<button class="vd" data-void="${t.id}|${xi}" title="Void">✕</button>`}</span></div>`).join("")}
+          :`<div class="ln"><span>${x.q}× ${esc(x.n)}${x.wm?`<em class="wmtag">with main</em>`:""}${x.ws?`<em class="wmtag">as starter</em>`:""}${ord.pickup||t.hold||!(x.g||hasTabs)?"":`<button class="gtag rt${x.g?"":" g0"}" data-retab="${t.id}|${xi}">👤 ${esc(x.g||"Table")}</button>`}${x.note?`<i${isAlg(x.note)?' class="alg"':""}>${esc(x.note)}</i>`:""}</span><span>${money(x.q*x.p)}${t.hold?"":`<button class="vd" data-void="${t.id}|${xi}" title="Void">✕</button>`}</span></div>`).join("")}
         ${t.note?`<div class="ln"><i>Note: ${esc(t.note)}</i></div>`:""}
         ${t.hold?`<div class="qrbtns"><button class="btn no2" data-f="qrno" data-id="${t.id}">✕ Reject</button><button class="btn ok2" data-f="qrok" data-id="${t.id}">✓ Approve &amp; send</button></div>`:""}</div>`}).join("")+tabsHtml(all)+receiptHtml(billOf(all))
       :`<div class="empty">No orders sent for this table yet.</div>`}</div>`;
@@ -2883,6 +2884,7 @@ $("oBody").addEventListener("click",e=>{if(ord&&ord.openedAt&&Date.now()-ord.ope
     if(i>=0)L.pc.splice(i,1);else{const ex=[DONENESS,CHOICES[L.n]||[]].find(g=>g.includes(t));if(ex)L.pc=L.pc.filter(x=>!ex.includes(x));L.pc.push(t)}L.note=popNote(L);renderOrder();return}
   if(e.target.closest("[data-pdone]")){ord.pop=null;renderOrder();return}
   const wb=e.target.closest("[data-wm]");if(wb){const row=wb.closest(".cl[data-i]"),x=row&&c[+row.dataset.i];if(!x)return;if(x.wm)delete x.wm;else x.wm=true;renderOrder();return}
+  const sb=e.target.closest("[data-ws]");if(sb){const row=sb.closest(".cl[data-i]"),x=row&&c[+row.dataset.i];if(!x)return;if(x.ws)delete x.ws;else x.ws=true;renderOrder();return}
   const gb=e.target.closest("[data-g]");if(gb){ord.covers=Math.max(1,Math.min(40,(ord.covers||2)+(+gb.dataset.g)));renderOrder();return}
   const q=e.target.closest("[data-q]");
   if(q){const row=q.closest(".cl"),inp=row.querySelector(".ln"),t=q.dataset.q;if((inp.value||"").includes(t))return;inp.value=(inp.value?inp.value+", "+t:t).slice(0,120);c[+row.dataset.i].note=inp.value;inp.classList.toggle("alg",isAlg(inp.value));return}
@@ -2902,11 +2904,11 @@ $("oBody").addEventListener("click",e=>{if(ord&&ord.openedAt&&Date.now()-ord.ope
   const hp=e.target.closest("[data-half]");
   if(hp&&ord.half){const n=hp.dataset.half;if(outSet.has(n)){toast(halfShort(n)+" is out of stock");return}
     if(!ord.half.a){ord.half.a=n;renderOrder();$("oBody").scrollTop=0;return}
-    const hn=halfName(ord.half.a,n),gg=ord.pickup?"":tabFor(hn);let line=c.find(x=>x.n===hn&&!x.note&&!x.wm&&(x.g||"")===gg);
+    const hn=halfName(ord.half.a,n),gg=ord.pickup?"":tabFor(hn);let line=c.find(x=>x.n===hn&&!x.note&&!x.wm&&!x.ws&&(x.g||"")===gg);
     if(line)line.q++;else c.push(Object.assign({n:hn,q:1,note:""},gg?{g:gg}:{}));
     ord.half=null;renderOrder();toast("Added "+hn+" · "+money(priceOf(hn)));return}
   const mi=e.target.closest(".mi[data-n]"),cl=e.target.closest(".cl[data-i]");const a=e.target.closest("[data-a]");
-  if(mi){const n=mi.dataset.n,gg=ord.pickup?"":tabFor(n);let line=c.find(x=>x.n===n&&x.cp==null&&!x.note&&!x.wm&&(x.g||"")===gg);
+  if(mi){const n=mi.dataset.n,gg=ord.pickup?"":tabFor(n);let line=c.find(x=>x.n===n&&x.cp==null&&!x.note&&!x.wm&&!x.ws&&(x.g||"")===gg);
     if(a&&a.dataset.a==="dec"){const l=[...c].reverse().find(x=>!x.of&&(x.n===n||(ITEMS[x.n]&&ITEMS[x.n].xl===n))&&(x.g||"")===gg);if(l){l.q--;if(l.q<=0)c.splice(c.indexOf(l),1)}}
     else{if(outSet.has(n)){toast(n+" is out of stock");return}if(line)line.q++;else{line=Object.assign({n,q:1,note:""},gg?{g:gg}:{});c.push(line)}
       ord.pop=isDeal(n)||optsFor(n).opts.length?{n,plain:line,cur:null}:null}
@@ -2963,7 +2965,7 @@ $("oFoot").addEventListener("click",async e=>{if(Date.now()<footLockUntil){e.sto
     const pace=false;   // everything goes to the kitchen together (one ticket, grouped STARTERS / MAINS / DESSERTS)
     if(pace)parts=[["kitchen",pace.st],["kitchen",pace.mn,true]].concat(parts.filter(p=>p[0]==="bar"));
     const made=parts.map(([st,list,hold])=>{const t={wait:!!hold,id:"t"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)+st[0],date:dateKey,tables:ids,station:st,
-      label:ord.pickup?(ord.walk?"Bar walk-up #":"Takeaway #")+ord.pno:gname(g),items:list.map(x=>(x.dn||isDeal(x.n)||x.da?0:learnNote(x.note),0)||Object.assign({n:x.n,q:x.q,p:linePrice(x),note:(x.note||"").trim(),c:ord.pickup?"":x.wm&&courseOf(x.n)==="s"?"m":courseOf(x.n)},x.g?{g:x.g}:{},!ord.pickup&&x.wm&&courseOf(x.n)==="s"?{wm:true}:{})),
+      label:ord.pickup?(ord.walk?"Bar walk-up #":"Takeaway #")+ord.pno:gname(g),items:list.map(x=>(x.dn||isDeal(x.n)||x.da?0:learnNote(x.note),0)||Object.assign({n:x.n,q:x.q,p:linePrice(x),note:(x.note||"").trim(),c:ord.pickup?"":x.wm&&courseOf(x.n)==="s"?"m":x.ws&&courseOf(x.n)==="m"?"s":courseOf(x.n)},x.g?{g:x.g}:{},!ord.pickup&&x.wm&&courseOf(x.n)==="s"?{wm:true}:{},!ord.pickup&&x.ws&&courseOf(x.n)==="m"?{ws:true}:{})),
       note:[st==="kitchen"?bkAlg:"",(ord.note||"").trim()].filter(Boolean).join(" · ").slice(0,200),status:"new",createdAt:Date.now(),updatedAt:Date.now(),closed:false,no,covers:coversLeft,by:waiter?waiter.id:"",byName:waiter?waiter.name:"",
       pickup:!!ord.pickup,walk:!!(ord.pickup&&ord.walk),pno:ord.pickup?ord.pno:0,pname:ord.pickup?(ord.pname||"").trim():"",pphone:ord.pickup?(ord.pphone||"").trim():""};coversLeft=0;
       if(ord.pickup&&!ord.walk&&ord.pat)t.pat=ord.pat;   // pickups go to the kitchen straight away, collection time printed big on top
@@ -3020,7 +3022,7 @@ function renderStation(st){
       <div class="th">${t.walk?`<span class="tt" style="color:var(--olive-dk)">🍸 #${t.pno}</span><span class="tag">WALK-UP${t.pname?" · "+esc(t.pname):""}</span>`:t.pickup?`<span class="tt" style="color:#3f5f86">🍕 #${t.pno}</span><span class="tag">TAKEAWAY${t.pname?" · "+esc(t.pname):""}${t.pat?` · <b class="patb">FOR ${esc(t.pat)}</b>`:""}</span>`:`<span class="tt">${esc(t.label)}</span><span class="tag">#${t.no||""}</span>`}
         <span class="tm">${t.status==="served"?"Served "+timeOf(t.updatedAt):`${timeOf(t.createdAt)} · <b>⏱ ${mins<1?"now":mins+" min"}</b>`}</span></div>
       ${ot?"":`<div class="prog">${KSTEPS.map(([k,l],i)=>`<div class="pg${i<=si?" done":""}${i===si?" cur":""}"><i></i><span>${st==="bar"&&k==="preparing"?"Making":l}</span></div>`).join("")}</div>`}
-      <ul>${t.items.map(x=>x.v?`<li class="void"><b>${x.q}</b><span><s>${esc(x.n)}</s><i>VOID — don't make</i></span></li>`:`<li><b>${x.q}</b><span>${esc(x.n)}${x.wm?`<em class="wmtag">WITH MAINS</em>`:""}${x.g?`<em class="kg">· ${esc(x.g)}</em>`:""}${x.note?`<i${isAlg(x.note)?' class="alg"':""}>${isAlg(x.note)?"⚠ ":""}${esc(x.note)}</i>`:""}</span></li>`).join("")}</ul>
+      <ul>${t.items.map(x=>x.v?`<li class="void"><b>${x.q}</b><span><s>${esc(x.n)}</s><i>VOID — don't make</i></span></li>`:`<li><b>${x.q}</b><span>${esc(x.n)}${x.wm?`<em class="wmtag">WITH MAINS</em>`:""}${x.ws?`<em class="wmtag">AS STARTER</em>`:""}${x.g?`<em class="kg">· ${esc(x.g)}</em>`:""}${x.note?`<i${isAlg(x.note)?' class="alg"':""}>${isAlg(x.note)?"⚠ ":""}${esc(x.note)}</i>`:""}</span></li>`).join("")}</ul>
       ${t.note?`<div class="tn${isAlg(t.note)?" alg":""}">⚠ ${esc(t.note)}</div>`:""}
       ${ot?`<div class="ta">${t.status==="served"?`<button class="bk" data-k="back">Undo</button>`:`<button class="go srv ready" data-k="ready">✓ ${st==="bar"?"Drinks ready":"Ready"}</button>`}</div>`
         :`<div class="ta">${si>0?`<button class="bk" data-k="back">Undo</button>`:""}${nb?`<button class="go ${nb[1]}" data-k="next">${nb[0]} →</button>`:""}</div>`}
@@ -5080,7 +5082,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261122165000";const APP_VER=56;   // both stamped by the publish script
+const APP_BUILD="20261122191500";const APP_VER=57;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
