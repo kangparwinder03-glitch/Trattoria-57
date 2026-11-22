@@ -131,10 +131,11 @@ async function checkUpdate(manual) {
   finally { updBusy = false; }
 }
 
-ipcMain.handle("version", () => ({ build: BUILD, version: app.getVersion(), packaged: app.isPackaged, site: SITE, autostart: app.getLoginItemSettings().openAtLogin }));
+ipcMain.handle("version", () => ({ build: BUILD, version: app.getVersion(), packaged: app.isPackaged, site: SITE, autostart: app.getLoginItemSettings().openAtLogin, printersFirst: process.argv.includes("--printers") }));
 ipcMain.handle("zoom", (_e, which, step) => { const w = which === "till" ? till : printer; if (step !== null) zoomWin(w, step); return Math.round(zoomOf(which === "till" ? "till" : "printer") * 100); });
 ipcMain.handle("check-update", () => checkUpdate(true));
 ipcMain.handle("show-till", () => showWin(till));
+ipcMain.handle("show-printer", () => showWin(printer));
 ipcMain.handle("open-path", (_e, p) => shell.openPath(p));
 ipcMain.handle("autostart", (_e, on) => { if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: !!on }); return app.getLoginItemSettings().openAtLogin; });
 ipcMain.handle("test-done", (_e, code) => { if (TEST) { quitting = true; app.exit(code || 0); } });
@@ -144,7 +145,8 @@ ipcMain.handle("screenshot", async (_e, which, file) => {
   fs.writeFileSync(file, img.toPNG()); return file;
 });
 
-app.on("second-instance", () => { showWin(till); });
+// opening the app again (desktop icons): "T57 Printers & Backups" brings that window to the front
+app.on("second-instance", (_e, argv) => { showWin(argv.includes("--printers") ? printer : till); });
 app.on("before-quit", () => { quitting = true; });
 app.on("window-all-closed", () => { if (quitting) app.quit(); });
 

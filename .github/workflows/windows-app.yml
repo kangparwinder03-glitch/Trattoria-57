@@ -39,6 +39,10 @@ jobs:
           "T57_EXE=$($exe.FullName)" >> $env:GITHUB_ENV
           if (-not (Test-Path "$env:USERPROFILE\Desktop\Trattoria 57.lnk") -and -not (Test-Path "$env:PUBLIC\Desktop\Trattoria 57.lnk")) { throw "no desktop icon" }
           "Desktop icon: OK"
+          if (-not (Test-Path "$env:USERPROFILE\Desktop\T57 Printers & Backups.lnk")) { throw "no Printers & Backups desktop icon" }
+          $lnk = (New-Object -ComObject WScript.Shell).CreateShortcut("$env:USERPROFILE\Desktop\T57 Printers & Backups.lnk")
+          if ($lnk.Arguments -ne "--printers") { throw "Printers & Backups icon opens the wrong thing: $($lnk.Arguments)" }
+          "Printers & Backups desktop icon: OK ($($lnk.TargetPath) $($lnk.Arguments))"
 
       - name: Add a pretend USB printer to Windows (prints into a file)
         shell: pwsh

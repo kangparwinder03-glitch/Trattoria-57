@@ -167,6 +167,8 @@ ipcRenderer.on("updating", (_e, v) => { Hub.say(`⬇ Installing update ${v} — 
   showAuth(); showStation(); showBackup(); refresh(); showZoom();
   await loadDevices(); showStation();
   if (process.env.T57_AUTOTEST) return autotest(process.env.T57_AUTOTEST);
+  // printing not set up yet, or opened from the "T57 Printers & Backups" icon: this window comes to the front
+  if (!S.cfg.running || v.printersFirst) setTimeout(() => ipcRenderer.invoke("show-printer"), 2500);
   if (S.cfg.running) S.start();                      // printing switches back on after a restart or an update
   else Hub.say("Pick the printer, tick the station, then tap Start.", true);
   if (Cloud.signedInAs && B.due()) setTimeout(() => backupNow(true), 30000);
