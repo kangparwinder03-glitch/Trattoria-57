@@ -139,14 +139,20 @@ object Format {
             val name = "$q x $dish"; val price = money(amt)
             val guest = x.optString("g")
             val note = x.optString("note")
-            if (big) {
+            val isAlg = note.isNotBlank() && ALG.containsMatchIn(note)
+            if (isAlg) alg = true
+            if (!bar) {
+                // kitchen: no prices. Dish ("1x Garlic Mushrooms") and options drawn big and heavy, normal letter spacing
+                val paper = if (cols >= 48) 576 else 384
+                image(TextPic.make("${q}x $dish", paper, if (big) 64f else 52f, 40))
+                if (guest.isNotBlank()) bold(true).size(1, 2).line("   for: $guest").size(1, 1).bold(false)
+                if (note.isNotBlank()) image(TextPic.make((if (isAlg) "> !! " else "> ") + note, paper, if (big) 52f else 42f, 32))
+                feed(1)
+            } else if (big) {
                 // extra-large: dish name double width + double height (the printer wraps long names), price small underneath
                 bold(true).size(2, 2).wline(name).size(1, 1).bold(false)
                 lr(if (guest.isNotBlank()) "   for: $guest" else "", price)
-                if (note.isNotBlank()) {
-                    if (ALG.containsMatchIn(note)) alg = true
-                    bold(true).size(1, 2).wline((if (ALG.containsMatchIn(note)) " > !! " else " > ") + note, "   ").size(1, 1).bold(false)
-                }
+                if (note.isNotBlank()) bold(true).size(1, 2).wline((if (isAlg) " > !! " else " > ") + note, "   ").size(1, 1).bold(false)
                 feed(1)
             } else {
                 bold(true).size(1, 2)
@@ -154,13 +160,12 @@ object Format {
                 size(1, 1).bold(false)
                 if (guest.isNotBlank()) line("   for: $guest")
                 if (note.isNotBlank()) {
-                    if (ALG.containsMatchIn(note)) { alg = true; bold(true).wline("   > !! $note", "     ").bold(false) } else wline("   > $note", "     ")
+                    if (isAlg) bold(true).wline("   > !! $note", "     ").bold(false) else wline("   > $note", "     ")
                 }
             }
         }
         rule()
-        bold(true).lr("TOTAL", money(total)).bold(false)
-        rule()
+        if (bar) { bold(true).lr("TOTAL", money(total)).bold(false); rule() }   // kitchen tickets: no prices
         val tn = t.optString("note")
         if (tn.isNotBlank()) { bold(true); if (big) size(1, 2); wline("NOTE: $tn").size(1, 1).bold(false); rule() }
         if (alg) align(1).bold(true).size(1, 2).line("!! ALLERGY - CHECK NOTES !!").size(1, 1).bold(false).align(0)
