@@ -23,7 +23,9 @@ function ticket(t, cols, lg, { copy = 1, copies = 1, training = false, big = fal
     const pat = str(t.pat);
     if (!bar) { p.line("COLLECTION TIME"); p.size(4, 4).line(pat.trim() ? pat : "ASAP").size(1, 1); p.bar(8); }
     else if (pat.trim()) p.size(2, 2).line("FOR " + pat).size(1, 1);
-    p.line("TAKEAWAY").size(2, 2).line("#" + int(t.pno)).size(1, 1);
+    // takeaway number: kitchen prints it as big as the collection time, centred, so it can be called out at a glance
+    const n = bar ? 2 : 4;
+    p.align(1).line("TAKEAWAY").size(n, n).line("#" + int(t.pno)).size(1, 1).align(0);
     const who = [str(t.pname), str(t.pphone)].filter(s => s.trim()).join(" · ");
     if (who.trim()) p.wline(who);
   } else p.size(2, 2).line(str(t.label).toUpperCase()).size(1, 1);

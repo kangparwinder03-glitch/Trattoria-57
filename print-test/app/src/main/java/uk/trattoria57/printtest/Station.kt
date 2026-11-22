@@ -99,7 +99,8 @@ object Format {
             val pat = t.optString("pat")
             if (!bar) { line("COLLECTION TIME"); size(4, 4).line(if (pat.isNotBlank()) pat else "ASAP").size(1, 1); bar(8) }
             else if (pat.isNotBlank()) size(2, 2).line("FOR $pat").size(1, 1)
-            line("TAKEAWAY").size(2, 2).line("#" + t.optInt("pno")).size(1, 1)
+            // takeaway number: kitchen prints it as big as the collection time, centred, so it can be called out at a glance
+            align(1).line("TAKEAWAY").size(if (bar) 2 else 4, if (bar) 2 else 4).line("#" + t.optInt("pno")).size(1, 1).align(0)
             val who = listOf(t.optString("pname"), t.optString("pphone")).filter { it.isNotBlank() }.joinToString(" · ")
             if (who.isNotBlank()) wline(who)
         } else size(2, 2).line(t.optString("label").uppercase(Locale.UK)).size(1, 1)
