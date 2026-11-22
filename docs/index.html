@@ -1980,7 +1980,7 @@ const pastaStarterOf=n=>{const m=String(n).match(/^(.*) \(Starter\)$/);return m&
 (()=>{const st=MENU.find(c=>c[0]==="Starters"),pa=MENU.find(c=>c[0]==="Pasta");
   pa[1].forEach(([n,,d])=>st[1].push([n+STARTER_SIZE,STARTER_PASTA_P,"Smaller portion"+(d?" · "+d:"")]))})();
 // ---------- orders & kitchen ----------
-// ---- English on every screen and kitchen/bar ticket; the customer's bill & receipt on the till printer stay in Italian ----
+// ---- English names: shown next to the Italian on screen, and printed on kitchen tickets; bar tickets, bills & receipts stay in Italian ----
 const EN_OF={"Acqua del Rubinetto":"Tap Water","Acqua Frizzante":"Sparkling Water","Antipasto Misto": "Mixed Antipasti", "Polpette della Casa": "House Meatballs", "Cocktail di Gamberetti": "Prawn Cocktail", "Melone Fresco": "Fresh Melon", "Melone & Prosciutto": "Melon & Parma Ham", "Pasticcio de Fegato": "Chicken Liver Pâté", "Brie Fritto": "Deep Fried Brie", "Salmone Affumicato": "Smoked Salmon", "Costolette di Maiale in Salsa": "BBQ Spare Ribs", "Alette di Pollo in Salsa": "BBQ Chicken Wings", "Funghi all'Aglio": "Garlic Mushrooms", "Funghi Andreas": "Deep Fried Mushrooms", "Calamari Fritti": "Fried Calamari", "Gamberetti alla Diavola (Hot)": "Devilled Prawns (Hot)", "Gamberoni in Tempura": "Tempura King Prawns", "Sardine Fritte": "Fried Sardines", "Bruschetta Classica": "Classic Bruschetta", "Bruschetta Ezios": "Bruschetta Ezio's", "Bruschetta Diavola": "Spicy Salami Bruschetta", "Pizza all'Aglio": "Garlic Pizza", "Pizza all'Aglio e Pomodoro": "Garlic & Tomato Pizza", "Pizza all'Aglio e Mozzarella": "Garlic & Mozzarella Pizza", "Pizza Messicana": "Mexican Garlic Pizza", "Pizza Funghi": "Mushroom Pizza", "Pizza Prosciutto": "Ham Pizza", "Pizza Marinara": "Seafood Pizza", "Pizza Diavola": "Hot Salami Pizza", "Pizza Garibaldi": "Garibaldi Pizza", "Pizza Margherita": "Margherita Pizza", "Pizza Capricciosa": "Ham & Mushroom Pizza", "Pizza Hawaiana": "Hawaiian Pizza", "Pizza House Special": "House Special Pizza", "Pizza 4 Formaggi": "Four Cheese Pizza", "Pizza Vegetariana": "Vegetarian Pizza", "Pizza Trastevere": "Stilton & Parma Ham Pizza", "Pizza 4 Stagioni": "Four Seasons Pizza", "Pizza Vulcano": "Volcano Pizza", "Linguine Marinara": "Seafood Linguine", "Tortellini House Special": "House Special Tortellini", "Penne Napoli": "Penne Tomato & Basil", "Tagliatelle Stilton": "Stilton Tagliatelle", "Tagliatelle Mare e Monti": "Prawn & Mushroom Tagliatelle", "Linguine al Salmone": "Smoked Salmon Linguine", "Lasagna Vegetariana": "Vegetable Lasagne", "Lasagna": "Lasagne", "Cannelloni Contadina": "Spinach & Ricotta Cannelloni", "Tortellini alla Panna": "Creamy Tortellini", "Risotto al Salmone": "Salmon Risotto", "Risotto Formaggio & Prosciutto": "Cheese & Parma Ham Risotto", "Risotto alla Panna": "Creamy Risotto", "Risotto Marinara": "Seafood Risotto", "Pollo alla Panna": "Chicken in Cream Sauce", "Pollo alla Cacciatora": "Chicken Cacciatore", "Pollo Principessa": "Chicken Principessa", "Pollo Diavola (Hot)": "Devilled Chicken (Hot)", "Pollo al Pepe": "Peppered Chicken", "Pollo Corso": "Chicken Corso", "Pollo alla Strogonoff": "Chicken Stroganoff", "Filetto alla Strogonoff": "Beef Fillet Stroganoff", "Fracosta di Bue": "Sirloin Steak", "Filetto di Bue Extra Mature": "Fillet Steak", "Scampi alla Panna": "Scampi in Cream Sauce", "Scampi alla Provinciale": "Scampi Provinciale", "Scampi Fritti": "Breaded Scampi", "Salmone Aurora": "Salmon Aurora", "Salmone Navona": "Salmon Navona", "Sauce: Pepe": "Sauce: Peppercorn", "Sauce: All'Aglio": "Sauce: Garlic", "Sauce: Panna": "Sauce: Cream", "Maionese all'Aglio": "Garlic Mayo", "Pomodoro dip": "Tomato Dip"};
 // ---- shown on screen only, after a "#" next to the Italian name (tickets, bills and saved orders are not affected) ----
 const EN_SHOW=Object.assign({},EN_OF,{"Bruschetta Ezios":"Tomato, Garlic & Parmesan Bruschetta","Pizza Garibaldi":"Hot Salami, Onion & Pepper Pizza","Calzone":"Folded Pizza","Calzone Kiev":"Folded Chicken Kiev Pizza",
@@ -1989,6 +1989,7 @@ const EN_SHOW=Object.assign({},EN_OF,{"Bruschetta Ezios":"Tomato, Garlic & Parme
  "Scampi alla Provinciale":"Scampi in Tomato & Garlic","Salmone Aurora":"Salmon with Prawns in Pink Sauce","Salmone Navona":"Salmon in Asparagus Cream",
  "Sauce: Pizzaiola":"Sauce: Tomato & Oregano","Sauce: Diana":"Sauce: Mushroom & Brandy Cream","Sauce: Rossini":"Sauce: Pâté & Red Wine",
  "Tiramisù":"Coffee & Mascarpone Dessert","Coppa":"Ice Cream Sundae","Affogato":"Ice Cream with Espresso","Affogato with a spirit":"Ice Cream with Espresso & a Spirit","Limoncello":"Lemon Liqueur","Sambuca":"Aniseed Liqueur","Lasagna":""});
+const KIT_EN=Object.assign({},EN_SHOW);   // kept before the blanking below: kitchen tickets always want the English name
 // no # where the English line underneath already says the same thing
 for(const n of ["Cocktail di Gamberetti","Melone Fresco","Melone & Prosciutto","Pasticcio de Fegato","Brie Fritto","Costolette di Maiale in Salsa","Alette di Pollo in Salsa","Funghi Andreas","Calamari Fritti","Gamberoni in Tempura","Sardine Fritte","Bruschetta Ezios","Pizza all'Aglio e Pomodoro","Pizza all'Aglio e Mozzarella","Pizza Garibaldi","Pizza Trastevere","Spaghetti Carbonara","Spaghetti Amatriciana","Penne Napoli","Penne Mascarpone","Lasagna Vegetariana","Lasagna","Cannelloni Contadina","Fracosta di Bue","Filetto di Bue Extra Mature","Scampi alla Provinciale","Scampi Fritti","Salmone Aurora","Salmone Navona","Maionese all'Aglio","Pomodoro dip","Affogato","Affogato with a spirit"])EN_SHOW[n]="";
 for(const k of Object.keys(EN_SHOW))if(EN_SHOW[k]&&pastaStarterOf(k+STARTER_SIZE))EN_SHOW[k+STARTER_SIZE]=EN_SHOW[k];
@@ -1997,6 +1998,15 @@ const IT_OF={};for(const k in EN_OF)IT_OF[EN_OF[k]]=k;          // English name 
 const enName=n=>IT_OF[n]||n;                                  // English name saved by v15–v21 (prices, stock lists…) → today's Italian one
 function itName(n){const it=ITEMS[n];if(it&&it.half)return halfName(IT_OF[it.half[0]]||it.half[0],IT_OF[it.half[1]]||it.half[1]);
   if(it&&it.alias)return it.alias;return IT_OF[n]||n}
+// the English name printed on a kitchen ticket: "Pizza Funghi" → "Mushroom Pizza", "½ Funghi / ½ Diavola" → "½ Mushroom / ½ Hot Salami",
+// "(Starter)" / "(XL)" kept on the end. Dishes already in English (sides, desserts, extras) and manager-added ones print as they are.
+function kitchenEn(n){n=String(n||"");const it=ITEMS[n];
+  if(it&&it.half)return halfName(kitchenEn(it.half[0]),kitchenEn(it.half[1]));
+  if(it&&it.alias)return n;
+  const m=n.match(/^(.+)( \((?:Starter|XL)\))$/);if(m)return kitchenEn(m[1])+m[2];
+  return KIT_EN[n]||EN_OF[n]||n}
+// kitchen lines carry that English name as "en" (the T57 Printer app prints it); "n" stays Italian for the bill, receipts and reports
+const withEn=(st,items)=>st==="bar"||!Array.isArray(items)?items:items.map(x=>{if(!x||!x.n)return x;const y=Object.assign({},x),e=kitchenEn(x.n);if(e&&e!==x.n)y.en=e;else delete y.en;return y});
 function addAliases(){for(const it in EN_OF){const e=EN_OF[it];if(ITEMS[it]&&(!ITEMS[e]||ITEMS[e].alias))ITEMS[e]=Object.assign({},ITEMS[it],{n:e,hidden:true,alias:it})}}
 const CATS=MENU.map(c=>c[0]);
 // "Specials" only shows when there's something on it (add them in ⭐ Manager → Edit menu & prices → Specials)
@@ -2207,7 +2217,7 @@ let mgrUntil=0;const MGR_GRACE=5*60000;   // after the manager PIN, other manage
 const money=n=>"£"+n.toFixed(2);
 function cleanTicket(id,d){
   if(!d||typeof d!=="object")return null;
-  const items=Array.isArray(d.items)?d.items.slice(0,80).map(x=>{const n=str(x&&x.n,80);if(n&&!ITEMS[n])regCustom(n,+(x&&x.p)||0,d.station,"");return Object.assign({n,q:Math.max(1,Math.min(99,Math.floor(+(x&&x.q))||1)),p:Math.max(0,+(x&&x.p)||0),note:str(x&&x.note,120),v:!!(x&&x.v),vr:str(x&&x.vr,40),vb:str(x&&x.vb,40),g:str(x&&x.g,20),c:/^[smd]$/.test(x&&x.c)?x.c:""},x&&x.wm?{wm:true}:{})}):[];
+  const items=Array.isArray(d.items)?d.items.slice(0,80).map(x=>{const n=str(x&&x.n,80);if(n&&!ITEMS[n])regCustom(n,+(x&&x.p)||0,d.station,"");return Object.assign({n,q:Math.max(1,Math.min(99,Math.floor(+(x&&x.q))||1)),p:Math.max(0,+(x&&x.p)||0),note:str(x&&x.note,120),v:!!(x&&x.v),vr:str(x&&x.vr,40),vb:str(x&&x.vb,40),g:str(x&&x.g,20),c:/^[smd]$/.test(x&&x.c)?x.c:""},x&&x.wm?{wm:true}:{},x&&x.en?{en:str(x.en,80)}:{})}):[];
   const tables=Array.isArray(d.tables)?d.tables.map(Number).filter(i=>i>=1&&i<=N):[];
   return {id,date:str(d.date,10),tables,label:str(d.label,30),items,note:str(d.note,200),
     status:FLOW.includes(d.status)?d.status:"new",createdAt:+d.createdAt||0,updatedAt:+d.updatedAt||0,closed:!!d.closed,no:+d.no||0,station:d.station==="bar"?"bar":"kitchen",hold:!!d.hold,qr:!!d.qr,rejected:!!d.rejected,disc:cleanDisc(d.disc),discAmt:Math.max(0,+d.discAmt||0),wait:!!d.wait,printed:+d.printed||0,pickup:!!d.pickup,walk:!!d.walk,pno:Math.max(0,Math.floor(+d.pno)||0),pname:str(d.pname,40),pphone:str(d.pphone,30),pat:/^\d\d:\d\d$/.test(d.pat||"")?d.pat:"",fireAt:+d.fireAt||0,covers:Math.max(0,Math.min(99,Math.floor(+d.covers)||0)),paid:['card','cash','split'].includes(d.paid)?d.paid:'',by:str(d.by,40),byName:str(d.byName,40),pays:cleanPays(d.pays),idisc:cleanIdisc(d.idisc),discBy:cleanNumMap(d.discBy),paidAt:+d.paidAt||0,tRec:+d.tRec||0,tPrep:+d.tPrep||0,tSrv:+d.tSrv||0};
@@ -2400,6 +2410,7 @@ function updOutbox(){const el=$("status");if(!el)return;let w=$("obx");
   w.textContent=`⏳ No connection — ${n?n+" order"+(n===1?"":"s"):""}${n&&m?" + ":""}${m?m+" change"+(m===1?"":"s"):""} waiting, will send automatically`}
 setTimeout(updOutbox,0);
 async function putTicket(t){
+  if(t.station!=="bar")t.items=withEn(t.station,t.items);
   if(!db){const i=tickets.findIndex(x=>x.id===t.id);if(i>=0)tickets[i]=t;else tickets.push(t);storeLocal();ticketsChanged();return}
   if(outbox.length){queueWrite("set",t.id,t);flushOutbox();return}   // keep the order of things
   try{await Promise.race([db.collection("tickets").doc(t.id).set(t),new Promise((_,no)=>setTimeout(()=>no({code:"unavailable",message:"timeout"}),10000))])}
@@ -2409,6 +2420,7 @@ async function putTicket(t){
 // so paying or changing an order never waits on a slow or hung connection
 const tkChain={},tkBusy=new Set(),tkPend={};
 async function patchTicket(t,fields){
+  if(fields&&fields.items)fields=Object.assign({},fields,{items:withEn(t.station,fields.items)});
   Object.assign(t,fields,{updatedAt:Date.now()});
   if(!db){storeLocal();ticketsChanged();return}
   const f={...fields,updatedAt:t.updatedAt};
@@ -4029,7 +4041,7 @@ async function delCore(list,why,closeAll){const by=waiter?waiter.name:"Manager";
     const items=t.items.map(x=>x.v?x:Object.assign({},x,{v:true,vr:"Deleted · "+why,vb:by}));
     await patchTicket(t,Object.assign({items,status:"served"},closeAll?{closed:true}:{}));
     if(wasLive&&canThermal())printJob(stOf(t),"cancel","CANCELLED "+t.label,[{t:"*** CANCELLED ***",a:"c",b:1,s:2},{t:t.label+" · order "+(t.no||""),a:"c"},{rule:"-"},
-      ...t.items.filter(x=>!x.v).map(x=>({t:x.q+" x "+x.n,b:1})),{rule:"-"},{t:"Reason: "+why},{t:"By: "+by}],"small")}}
+      ...t.items.filter(x=>!x.v).map(x=>({t:x.q+" x "+(stOf(t)==="bar"?x.n:x.en||kitchenEn(x.n)),b:1})),{rule:"-"},{t:"Reason: "+why},{t:"By: "+by}],"small")}}
 // ---- Report → All orders: every order that day, open any, delete (manager) ----
 let aoOpen=null,aoDel=null,aoF="all";
 function openAllOrders(){aoOpen=null;aoDel=null;aoF="all";
@@ -5048,7 +5060,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261120163000";const APP_VER=51;   // both stamped by the publish script
+const APP_BUILD="20261122003000";const APP_VER=52;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}

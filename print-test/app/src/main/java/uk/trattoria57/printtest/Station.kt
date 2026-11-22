@@ -134,7 +134,9 @@ object Format {
                 }
             }
             val q = x.optInt("q", 1); val amt = q * x.optDouble("p", 0.0); total += amt
-            val name = "$q x ${x.optString("n")}"; val price = money(amt)
+            // kitchen prints the English name the website saves as "en" (older orders: the Italian "n"); bar stays Italian
+            val dish = if (bar) x.optString("n") else x.optString("en").ifBlank { x.optString("n") }
+            val name = "$q x $dish"; val price = money(amt)
             val guest = x.optString("g")
             val note = x.optString("note")
             if (big) {
