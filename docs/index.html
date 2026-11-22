@@ -580,6 +580,12 @@ body.tiles #floor,body.tiles .hint,body.tiles .ctrls{display:none}
 .bkrow .tb{font-weight:800;font-size:13px;text-align:right;white-space:nowrap}
 .bkrow .tb i{display:block;font-style:normal;font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--pine)}
 .bkrow .tb i.p{color:var(--wine)}
+.wbbox{background:#fbf1e4;border:1.5px solid var(--wine);border-radius:16px;padding:4px 10px 10px;margin-bottom:6px}
+.wbbox h4{color:var(--wine)!important}
+.wbrow{cursor:default;flex-wrap:wrap}
+.wbrow .acts{display:flex;gap:6px;width:100%}
+.wbrow .acts button{flex:1;border:0;border-radius:10px;padding:9px;font-weight:700;font-size:13px}
+.wbrow .acts .go{background:var(--pine);color:#fff}.wbrow .acts .no{background:#efe6d6;color:#5d5640}
 .tpick{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin-top:6px}
 .tpick button{border:1.5px solid var(--parch2);background:#fffaf0;border-radius:12px;padding:8px 6px;font-weight:800;font-size:15px;line-height:1.15}
 .tpick button small{display:block;font-weight:600;font-size:11px;color:#8a7d62}
@@ -935,7 +941,7 @@ a[href^="#"]:active{filter:brightness(.9)}
 <div id="app">
   <header>
     <div class="brand"><h1>Trattoria <em>57</em></h1><span>Floor · Kitchen · Staff</span></div>
-    <nav class="vsw"><a href="#floor" id="vFloor" class="on">Floor</a><a href="#kitchen" id="vKitchen">Kitchen<span class="bdg" id="kBadge">0</span></a><a href="#bar" id="vBar">Bar<span class="bdg" id="bBadge">0</span></a><a id="pickBtn" class="vact" style="--ac:#3f5f86" role="button" tabindex="0">Takeaway</a><a id="bkBtn" class="vact" style="--ac:var(--wine)" role="button" tabindex="0">Bookings</a><a href="#staff" id="vStaff">Staff</a><a href="#report" id="vReport">Report</a></nav>
+    <nav class="vsw"><a href="#floor" id="vFloor" class="on">Floor</a><a href="#kitchen" id="vKitchen">Kitchen<span class="bdg" id="kBadge">0</span></a><a href="#bar" id="vBar">Bar<span class="bdg" id="bBadge">0</span></a><a id="pickBtn" class="vact" style="--ac:#3f5f86" role="button" tabindex="0">Takeaway</a><a id="bkBtn" class="vact" style="--ac:var(--wine)" role="button" tabindex="0">Bookings<span class="bdg" id="wbBadge">0</span></a><a href="#staff" id="vStaff">Staff</a><a href="#report" id="vReport">Report</a></nav>
     <div class="datenav">
       <button id="prevDay" aria-label="Previous day">‹</button>
       <label><span id="dateLabel">Today</span><input type="date" id="dateInput"></label>
@@ -3878,7 +3884,8 @@ async function openBookings(){
       return `<div class="bkrow" data-d="${k}" data-l="${x.L}"><div class="tm">${esc(x.b.time||"—")}</div><div class="nm"><b>${regStar(n.phone,x.b.email)}${esc(n.name||"Guest")} · ${partyOf(x.b)}</b><small>${esc(n.phone||"")}${x.b.notes?" · "+esc(x.b.notes):""}</small></div>
         <div class="tb">${esc(gname(x.g))}<i class="${x.b.status==="confirmed"?"":"p"}">${x.b.walkin?"seated":x.b.status==="confirmed"?"confirmed":"pending"}</i></div></div>`}).join("")+`</div>`;}
   $("bkSub").textContent=total?`${total} booking${total===1?"":"s"} from today onwards`:"Today and upcoming";
-  $("bkBody").innerHTML=html||`<div class="empty">No upcoming bookings yet.<br>Tap <b>+ New booking</b> to book any day.</div>`;
+  $("bkBody").innerHTML=`<div id="wbList"></div>`+(html||`<div class="empty">No upcoming bookings yet.<br>Tap <b>+ New booking</b> to book any day.</div>`);
+  renderWebReq();
 }
 $("bkBtn").onclick=openBookings;
 ["pickBtn","bkBtn"].forEach(id=>$(id).addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();$(id).click()}}));
@@ -3887,6 +3894,40 @@ $("bkBody").addEventListener("click",e=>{const r2=e.target.closest(".bkrow");if(
   $("bkOv").classList.remove("show");
   const go=()=>{if(state.bookings[L])openSheet(L)};
   if(k!==dateKey){setDate(k);toast("Showing "+dayLabel(k));setTimeout(go,700)}else go()});
+// ---- bookings from the public website: they wait here until staff give them a table ----
+let webReq=[],webPlacing=null,webKnown=null;
+function subscribeWebBookings(){
+  if(!db||db.guest||TRAIN||view==="guest")return;
+  try{db.collection("webbook").onSnapshot(sn=>{
+    const t=todayKey();
+    webReq=sn.docs.map(d=>Object.assign({id:d.id},d.data()||{})).filter(r=>r.status==="new"&&String(r.date||"")>=t)
+      .sort((a,c)=>(a.date+a.time).localeCompare(c.date+c.time));
+    const fresh=webKnown?webReq.filter(r=>!webKnown.has(r.id)):[];
+    webKnown=new Set(webReq.map(r=>r.id));
+    if(fresh.length){const r=fresh[0];toast(`🌐 New website booking: ${r.name} · ${r.size} · ${dayLabel(r.date)} ${r.time}`+(fresh.length>1?` (+${fresh.length-1} more)`:""),6000)}
+    const b=$("wbBadge");b.textContent=webReq.length;b.classList.toggle("show",webReq.length>0);
+    renderWebReq();
+  },()=>{})}catch(e){}
+}
+function renderWebReq(){
+  const box=$("wbList");if(!box)return;
+  if(!webReq.length){box.innerHTML="";return}
+  box.innerHTML=`<div class="wbbox bkday"><h4><span>🌐 FROM THE WEBSITE · GIVE THEM A TABLE</span><span>${webReq.length}</span></h4>`+webReq.map(r=>
+    `<div class="bkrow wbrow" data-w="${esc(r.id)}"><div class="tm">${esc(r.time||"—")}</div><div class="nm"><b>${esc(r.name||"Guest")} · ${+r.size||0}</b>
+      <small>${esc(dayLabel(r.date))} · ${esc(r.phone||"")}${r.email?" · "+esc(r.email):""}${r.notes?"<br>"+esc(r.notes):""}</small></div>
+      <div class="acts"><button class="no" data-wno="${esc(r.id)}">Can't do it</button><button class="go" data-wgo="${esc(r.id)}">Give a table ›</button></div></div>`).join("")+`</div>`;
+}
+$("bkBody").addEventListener("click",e=>{
+  if(!e.target.closest(".wbrow"))return;e.stopPropagation();
+  const go=e.target.closest("[data-wgo]"),no=e.target.closest("[data-wno]");if(!go&&!no)return;if(readOnly){toast("View only");return}
+  const r=webReq.find(x=>x.id===(go||no).dataset[go?"wgo":"wno"]);if(!r)return;
+  if(no){ask(`Turn down ${r.name}'s booking?`,`The website doesn't tell them. Please ring them on ${r.phone||"their number"} to let them know.`,async()=>{
+    try{await db.collection("webbook").doc(r.id).update({status:"declined",doneAt:Date.now()});toast("Removed from website bookings")}catch(_){toast("Couldn't save — try again")}});return}
+  openNewBooking();webPlacing=r.id;
+  $("nbDate").value=r.date;if(!TIMES.includes(r.time))$("nbTime").insertAdjacentHTML("beforeend",`<option>${esc(r.time)}</option>`);$("nbTime").value=r.time;
+  $("nbSize").value=String(Math.min(30,Math.max(1,+r.size||2)));$("nbName").value=r.name||"";$("nbPhone").value=r.phone||"";$("nbEmail").value=r.email||"";
+  $("nbNotes").value=("Website"+(r.notes?": "+r.notes:"")).slice(0,200);nbRefresh();
+},true);
 // new booking form
 let nb={table:null,day:null};
 async function nbRefresh(){
@@ -3902,6 +3943,7 @@ async function nbRefresh(){
   $("nbHint").textContent=fits.length?"Green = best fit. Need tables joined? Join them on that day's floor plan first.":"";
 }
 function openNewBooking(){
+  webPlacing=null;
   const t=todayKey();$("nbDate").value=dateKey>=t?dateKey:t;$("nbDate").min=t;
   $("nbTime").innerHTML=TIMES.map(x=>`<option>${x}</option>`).join("");$("nbTime").value="19:00";
   $("nbSize").innerHTML=Array.from({length:30},(_,i)=>`<option value="${i+1}">${i+1}</option>`).join("");$("nbSize").value="2";
@@ -3929,6 +3971,7 @@ $("nbSave").onclick=async()=>{
   try{await saveDay(k,st)}catch(e){toast("Couldn't save — try again");return}
   {const ph=$("nbPhone").value.trim(),nt=$("nbNotes").value.trim(),bd=parseBday($("nbBday").value);
    if(normPh(ph))upsertGuest(ph,Object.assign({name},em?{email:em}:{},bd?{bday:bd}:{},isAlg(nt)?{allergy:nt}:{}))}
+  if(webPlacing){const wid=webPlacing;webPlacing=null;try{await db.collection("webbook").doc(wid).update({status:"placed",table:gname(g),placedAt:Date.now()})}catch(e){}}
   $("nbOv").classList.remove("show");
   toast(`Booked ${name} · ${dayLabel(k)} ${$("nbTime").value} · ${gname(g)}`);
   if(k!==dateKey)setDate(k);
@@ -5184,7 +5227,7 @@ async function bootSupa(lib){
   if(view==="guest"){startDb(makeGuestDb(sbc));return}
   setStatus("local","Not signed in");showLogin(()=>startDb(makeSupaDb(sbc)),false);
 }
-function startDb(d){db=TRAIN?nsDb(d):d;subscribeLive();subscribePrinters();subscribeAlexa();subscribe();subscribeSettings();subscribeTickets();startStaffStores();gIdx=null}
+function startDb(d){db=TRAIN?nsDb(d):d;subscribeLive();subscribeWebBookings();subscribePrinters();subscribeAlexa();subscribe();subscribeSettings();subscribeTickets();startStaffStores();gIdx=null}
 if(window.claude&&typeof window.claude.use==="function"){
   window.claude.use("db").then(d=>{if(!d){setStatus("local","This device");return}startDb(d)}).catch(()=>setStatus("local","This device"));
 }else if(SUPA_URL&&location.protocol.startsWith("http")){
