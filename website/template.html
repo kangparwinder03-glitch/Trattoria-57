@@ -1,0 +1,290 @@
+<title>Trattoria 57 Website</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Trattoria 57, Italian kitchen and bar in Barnoldswick. See the menu and book a table online.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Layout: a cream hero styled like the printed menu (arched TRATTORIA, red 57, olive branches), then a printed trattoria menu on paper, then booking and "find us" side by side. */
+:root{
+  --paper:#F3EAD8; --paper2:#EADFC8; --ink:#2A2A22; --ink-soft:#5F5B49;
+  --olive:#1F3D2F; --olive-deep:#1A3327; --on-olive:#F3EAD8; --on-olive-soft:#C7CDB9;
+  --wine:#B0432B; --wine-hi:#953722; --on-wine:#FFF8EC; --price:#B0432B;
+  --leaf:#7C8A3A; --leaf-dk:#4E5B22; --fruit:#3C4418; --logo-green:#1F3D2F;
+  --rule:#D2C3A3; --sel:#1F3D2F; --field:#FBF6EB; --ok:#4F6B2A; --warn-bg:#F7E3B8; --warn-fg:#6A4A0E;
+  --f-display:"Cormorant Garamond",Georgia,"Times New Roman",serif;
+  --f-caps:Cinzel,"Trajan Pro",Georgia,serif;
+  --f-body:Inter,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#1E2213; --paper2:#262B19; --ink:#EDE5D0; --ink-soft:#B5AD93;
+  --olive:#2A3216; --olive-deep:#171B0C; --on-olive:#F3EBD8; --on-olive-soft:#BDB597;
+  --wine:#D4694A; --wine-hi:#E07D5E; --on-wine:#1B1208; --price:#E08A6B; --leaf:#8E9C4A; --leaf-dk:#6B7A33; --fruit:#C7D08F; --logo-green:#D9E2CC;
+  --rule:#4A4E33; --sel:#5B6B2F; --field:#2A2F1C; --ok:#9DBB63; --warn-bg:#4A3A14; --warn-fg:#F2D898; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#1E2213; --paper2:#262B19; --ink:#EDE5D0; --ink-soft:#B5AD93;
+  --olive:#2A3216; --olive-deep:#171B0C; --on-olive:#F3EBD8; --on-olive-soft:#BDB597;
+  --wine:#D4694A; --wine-hi:#E07D5E; --on-wine:#1B1208; --price:#E08A6B; --leaf:#8E9C4A; --leaf-dk:#6B7A33; --fruit:#C7D08F; --logo-green:#D9E2CC;
+  --rule:#4A4E33; --sel:#5B6B2F; --field:#2A2F1C; --ok:#9DBB63; --warn-bg:#4A3A14; --warn-fg:#F2D898; color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.6}
+a{color:inherit}
+.wrap{max-width:1080px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.caps{font-family:var(--f-caps);letter-spacing:.22em;text-transform:uppercase}
+:focus-visible{outline:2px solid var(--wine);outline-offset:3px}
+
+/* top bar */
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--olive-deep)}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;background:var(--olive-deep);color:var(--on-olive)}
+.bar .wrap{display:flex;align-items:center;gap:16px;padding-block:10px}
+.bar .mark{font-family:var(--f-caps);font-size:13px;letter-spacing:.25em;text-decoration:none;margin-right:auto;white-space:nowrap}
+.bar .mark b{font-family:var(--f-display);font-size:22px;letter-spacing:0;font-weight:700;margin-left:4px}
+.bar nav{display:flex;gap:18px;font-size:14px}
+.bar nav a{text-decoration:none;color:var(--on-olive-soft)}
+.bar nav a:hover{color:var(--on-olive)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:999px;background:var(--wine);color:var(--on-wine);
+  font:600 15px/1 var(--f-body);padding:13px 22px;text-decoration:none;cursor:pointer}
+.btn:hover{background:var(--wine-hi)}
+.bar .btn{padding:9px 16px;font-size:14px}
+@media (max-width:640px){.bar nav{display:none}}
+
+/* hero: like the printed menu cover */
+.hero{background:var(--paper);color:var(--logo-green);text-align:center;overflow:hidden;position:relative;border-bottom:1px solid var(--rule)}
+.hero .wrap{padding-block:48px 60px;display:grid;justify-items:center;gap:4px;position:relative;z-index:1}
+.hero .branch{position:absolute;width:clamp(110px,24vw,280px);height:auto;pointer-events:none}
+.hero .branch.tl{top:-6px;left:-10px}
+.hero .branch.br{bottom:-6px;right:-10px;transform:rotate(180deg)}
+.logo{width:min(100%,440px);height:auto;display:block}
+.logo .arch{font-family:var(--f-caps);font-weight:600;font-size:46px;letter-spacing:6px;fill:var(--logo-green)}
+.logo .n{font-family:var(--f-display);font-weight:500;font-size:124px;fill:var(--wine);font-variant-numeric:lining-nums;font-feature-settings:"lnum"}
+.logo .sub{font-family:var(--f-caps);font-weight:600;font-size:25px;letter-spacing:3px;fill:var(--logo-green)}
+.logo line{stroke:var(--logo-green);stroke-width:2.5}
+.hero .rule{width:min(80%,420px);height:1px;background:var(--rule);margin-top:18px}
+.hero .tag{font-family:var(--f-display);font-style:italic;font-size:clamp(22px,3.4vw,28px);color:var(--logo-green);margin-top:10px}
+.hero .lead{max-width:34em;margin:10px auto 0;color:var(--ink-soft);font-size:17px;text-wrap:balance}
+.hero .acts{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:24px}
+.btn.ghost{background:transparent;color:var(--logo-green);box-shadow:inset 0 0 0 1.5px var(--logo-green)}
+.btn.ghost:hover{background:rgba(31,61,47,.07)}
+.quick{background:var(--olive-deep);color:var(--on-olive-soft);font-size:14px}
+.quick .wrap{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 28px;padding-block:12px}
+.quick b{color:var(--on-olive);font-weight:600}
+
+/* sections */
+section{padding-block:72px}
+.h{display:grid;gap:4px;margin-bottom:32px}
+.h .caps{font-size:12px;color:var(--wine)}
+.h h2{margin:0;font-family:var(--f-display);font-weight:600;font-size:clamp(34px,5vw,48px);line-height:1.05;text-wrap:balance}
+.h p{margin:6px 0 0;color:var(--ink-soft);max-width:60ch}
+
+/* menu */
+.tabs{position:sticky;top:calc(env(safe-area-inset-top,0px) + 52px);z-index:5;background:var(--paper);display:flex;gap:6px;overflow-x:auto;padding-block:10px;margin-bottom:24px;border-bottom:1px solid var(--rule);scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{flex:none;border:1px solid var(--rule);background:transparent;color:var(--ink);border-radius:999px;padding:8px 14px;font:500 14px var(--f-body);cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--sel);border-color:var(--sel);color:var(--on-olive)}
+.course{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 56px}
+@media (max-width:760px){.course{grid-template-columns:minmax(0,1fr)}}
+.course h3{grid-column:1/-1;margin:24px 0 4px;font-family:var(--f-caps);font-size:14px;letter-spacing:.24em;font-weight:600;color:var(--olive);display:flex;align-items:center;gap:14px}
+:root:not([data-theme="light"]) .course h3{color:var(--ink-soft)}
+.course h3::after{content:"";flex:1;height:1px;background:var(--rule)}
+.course h3:first-child{margin-top:0}
+.dish{padding-block:12px;border-bottom:1px dotted var(--rule);min-width:0}
+.dish .top{display:flex;align-items:baseline;gap:12px}
+.dish .it{font-family:var(--f-display);font-weight:700;font-size:21px;line-height:1.2;margin-right:auto}
+.dish .p{font-variant-numeric:tabular-nums;font-weight:600;font-size:15px;white-space:nowrap;color:var(--price)}
+.dish .en{font-family:var(--f-display);font-style:italic;font-size:17px;color:var(--ink-soft);line-height:1.3}
+.dish .d{font-size:14px;color:var(--ink-soft);margin-top:2px}
+.note{font-size:14px;color:var(--ink-soft);margin-top:20px}
+
+/* book + find */
+.paper2{background:var(--paper2)}
+.split{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:48px;align-items:start}
+@media (max-width:860px){.split{grid-template-columns:minmax(0,1fr)}}
+form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 16px}
+.f{display:grid;gap:6px;min-width:0}
+.f.w{grid-column:1/-1}
+@media (max-width:520px){form{grid-template-columns:minmax(0,1fr)}}
+label{font-size:13px;font-weight:600;color:var(--ink-soft)}
+input,select,textarea{font:16px var(--f-body);color:var(--ink);background:var(--field);border:1px solid var(--rule);border-radius:10px;padding:11px 12px;width:100%}
+textarea{min-height:84px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--olive);outline-offset:0;border-color:transparent}
+.sizes{display:flex;flex-wrap:wrap;gap:6px}
+.sizes button{width:44px;height:44px;border-radius:10px;border:1px solid var(--rule);background:var(--field);color:var(--ink);font:600 15px var(--f-body);cursor:pointer}
+.sizes button[aria-pressed="true"]{background:var(--sel);border-color:var(--sel);color:var(--on-olive)}
+.small{font-size:13px;color:var(--ink-soft)}
+.err{color:var(--wine);font-size:14px;min-height:1.2em}
+.done{border:1px solid var(--rule);background:var(--field);border-radius:14px;padding:28px}
+.done h3{margin:0 0 6px;font-family:var(--f-display);font-size:30px;font-weight:600}
+.flag{display:inline-block;background:var(--warn-bg);color:var(--warn-fg);font-size:12px;font-weight:600;border-radius:6px;padding:2px 8px;vertical-align:2px}
+.card{background:var(--field);border:1px solid var(--rule);border-radius:14px;padding:24px;display:grid;gap:18px}
+.card h3{margin:0;font-family:var(--f-caps);font-size:13px;letter-spacing:.22em;font-weight:600;color:var(--wine)}
+.card p{margin:0}
+table.hrs{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:15px}
+table.hrs td{padding:5px 0;border-bottom:1px dotted var(--rule)}
+table.hrs td:last-child{text-align:right}
+table.hrs tr.today td{font-weight:600;color:var(--wine)}
+.links{display:flex;flex-wrap:wrap;gap:10px}
+.links a{font-size:14px;font-weight:600;text-decoration:none;border:1px solid var(--rule);border-radius:999px;padding:8px 14px}
+footer{background:var(--olive-deep);color:var(--on-olive-soft);font-size:14px}
+footer .wrap{display:flex;flex-wrap:wrap;gap:8px 24px;justify-content:space-between;padding-block:28px calc(28px + env(safe-area-inset-bottom,0px))}
+footer b{font-family:var(--f-caps);letter-spacing:.2em;color:var(--on-olive);font-weight:600}
+.preview{background:var(--warn-bg);color:var(--warn-fg);font-size:13px;text-align:center;padding:8px 16px}
+</style>
+
+<!--PREVIEW_BANNER-->
+<div class="bar"><div class="wrap">
+  <a class="mark" href="#top">Trattoria<b>57</b></a>
+  <nav aria-label="Sections"><a href="#menu">Menu</a><a href="#book">Book</a><a href="#find">Find us</a></nav>
+  <a class="btn" href="#book">Book a table</a>
+</div></div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><symbol id="olive" viewBox="0 0 280 170">
+  <path d="M0 22 C70 30 140 52 230 120" fill="none" stroke="var(--leaf-dk)" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M120 44 C150 40 175 44 205 56" fill="none" stroke="var(--leaf-dk)" stroke-width="1.8" stroke-linecap="round"/>
+  <g fill="var(--leaf)">
+    <path d="M24 24 q20 -22 46 -18 q-18 20 -46 18z"/><path d="M30 25 q18 24 44 24 q-14 -22 -44 -24z" fill="var(--leaf-dk)"/>
+    <path d="M70 32 q24 -22 50 -14 q-22 20 -50 14z" fill="var(--leaf-dk)"/><path d="M78 35 q14 28 40 32 q-10 -26 -40 -32z"/>
+    <path d="M118 52 q28 -14 52 -2 q-26 14 -52 2z"/><path d="M128 58 q8 30 32 40 q-4 -28 -32 -40z" fill="var(--leaf-dk)"/>
+    <path d="M160 74 q30 -6 50 10 q-28 8 -50 -10z" fill="var(--leaf-dk)"/><path d="M166 82 q2 28 22 42 q2 -26 -22 -42z"/>
+    <path d="M200 100 q24 2 36 22 q-24 -2 -36 -22z"/>
+    <path d="M150 44 q20 -16 40 -8 q-18 14 -40 8z"/><path d="M178 50 q22 -8 36 6 q-22 6 -36 -6z" fill="var(--leaf-dk)"/>
+  </g>
+  <g fill="var(--fruit)"><ellipse cx="104" cy="58" rx="8" ry="10" transform="rotate(-20 104 58)"/><ellipse cx="148" cy="80" rx="8" ry="10" transform="rotate(-30 148 80)"/><ellipse cx="190" cy="66" rx="7" ry="9" transform="rotate(-10 190 66)"/></g>
+  <g fill="#fff" opacity=".35"><circle cx="101" cy="54" r="2"/><circle cx="145" cy="76" r="2"/><circle cx="188" cy="62" r="1.8"/></g>
+</symbol></defs></svg>
+<header class="hero" id="top">
+  <svg class="branch tl" viewBox="0 0 280 170" aria-hidden="true"><use href="#olive"/></svg>
+  <svg class="branch br" viewBox="0 0 280 170" aria-hidden="true"><use href="#olive"/></svg>
+  <div class="wrap">
+  <h1 style="margin:0;width:100%;display:grid;justify-items:center"><svg class="logo" viewBox="0 0 440 262" role="img" aria-label="Trattoria 57, Italian Kitchen and Bar">
+    <defs><path id="arc" d="M60 118 Q220 18 380 118"/></defs>
+    <text class="arch" text-anchor="middle"><textPath href="#arc" startOffset="50%">TRATTORIA</textPath></text>
+    <line x1="92" y1="170" x2="160" y2="170"/><line x1="280" y1="170" x2="348" y2="170"/>
+    <text class="n" x="220" y="212" text-anchor="middle">57</text>
+    <text class="sub" x="220" y="254" text-anchor="middle">ITALIAN KITCHEN &amp; BAR</text>
+  </svg></h1>
+  <div class="rule"></div>
+  <div class="tag">Authentic Italian Cuisine</div>
+  <p class="lead">Family-run, with pizza, fresh pasta and Italian classics in the heart of Barnoldswick. Come in for dinner, or book your table online in a minute.</p>
+  <div class="acts"><a class="btn" href="#book">Book a table</a><a class="btn ghost" href="#menu">See the menu</a></div>
+</div></header>
+<div class="quick"><div class="wrap">
+  <span id="qOpen">Open today <span class="flag">example</span></span>
+  <span><b>{{PHONE}}</b></span>
+  <span>{{ADDRESS_SHORT}}</span>
+</div></div>
+
+<section id="menu"><div class="wrap">
+  <div class="h"><span class="caps">Il menù</span><h2>The menu</h2>
+    <p>Every dish has its Italian name with the English underneath. Any pasta can also be ordered as a smaller starter for £8.90. Please tell us about allergies when you book or order.</p></div>
+  <div class="tabs" role="tablist" id="tabs"></div>
+  <div class="course" id="course" role="tabpanel"></div>
+  <p class="note">Gluten-free pizza bases are available. Prices include VAT.</p>
+</div></section>
+
+<section id="book" class="paper2"><div class="wrap split">
+  <div>
+    <div class="h"><span class="caps">Prenota</span><h2>Book a table</h2>
+      <p>Book here and we'll hold a table for you straight away. For more than <span id="maxTxt">6</span> people, please call us.</p></div>
+    <div id="bookArea">
+    <form id="bk" novalidate>
+      <div class="f"><label for="bDate">Date</label><input type="date" id="bDate" required></div>
+      <div class="f"><label for="bTime">Time</label><select id="bTime" required></select></div>
+      <div class="f w"><label id="sizeLbl">Number of guests</label><div class="sizes" id="bSize" role="group" aria-labelledby="sizeLbl"></div></div>
+      <div class="f"><label for="bName">Your name</label><input id="bName" autocomplete="name" maxlength="60" required></div>
+      <div class="f"><label for="bPhone">Phone</label><input id="bPhone" type="tel" autocomplete="tel" maxlength="30" required></div>
+      <div class="f w"><label for="bEmail">Email <span class="small">(optional, for your confirmation)</span></label><input id="bEmail" type="email" autocomplete="email" maxlength="80"></div>
+      <div class="f w"><label for="bNotes">Anything we should know? <span class="small">(allergies, birthday, high chair)</span></label><textarea id="bNotes" maxlength="200"></textarea></div>
+      <input id="bHp" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px">
+      <div class="f w"><div class="err" id="bErr" role="alert"></div><button class="btn" type="submit" id="bGo">Send booking</button></div>
+    </form>
+    </div>
+  </div>
+  <aside class="card" id="find" aria-label="Find us">
+    <div><h3>Find us</h3><p style="margin-top:8px">{{ADDRESS}}</p></div>
+    <div><h3>Call</h3><p style="margin-top:8px"><a href="tel:{{PHONE_TEL}}">{{PHONE}}</a></p></div>
+    <div><h3>Opening hours</h3><table class="hrs" id="hrs" style="margin-top:6px"></table></div>
+    <div class="links">
+      <a href="https://maps.app.goo.gl/sYsLiAabsE6TCct89" target="_blank" rel="noopener">Google Maps</a>
+      <a href="https://www.instagram.com/trattoria_57/" target="_blank" rel="noopener">Instagram</a>
+      <a href="https://www.tripadvisor.co.uk/Restaurant_Review-g668053-d2211833-Reviews-Trattoria_57-Barnoldswick_Lancashire_England.html" target="_blank" rel="noopener">Tripadvisor</a>
+    </div>
+  </aside>
+</div></section>
+
+<footer><div class="wrap"><b>Trattoria 57</b><span>Italian Kitchen &amp; Bar · Barnoldswick, Lancashire</span><span>© <span id="yr"></span> Trattoria 57</span></div></footer>
+
+<script>
+const FOOD={{FOOD}};
+// Opening hours: [day, open, close] in 24h, or null when closed. Booking slots are every 30 min from open until LAST_BOOK minutes before close.
+const HOURS={{HOURS}};
+const LAST_BOOK=90, MAX_PARTY=6, BOOK_DAYS_AHEAD=90;
+const BOOKING={{BOOKING}};   // null in the preview
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const money=p=>p===0?"Free":"£"+p.toFixed(2);
+$("yr").textContent=new Date().getFullYear();$("maxTxt").textContent=MAX_PARTY;
+
+// menu
+function showCourse(i){
+  [...$("tabs").children].forEach((b,k)=>b.setAttribute("aria-selected",k===i));
+  $("course").innerHTML=FOOD[i][1].map(([sec,items])=>(FOOD[i][1].length>1?`<h3>${esc(sec)}</h3>`:"")+
+    items.map(([it,en,d,p])=>`<div class="dish"><div class="top"><span class="it">${esc(it)}</span><span class="p">${money(p)}</span></div>${en?`<div class="en">${esc(en)}</div>`:""}${d&&d.toLowerCase()!==en.toLowerCase()?`<div class="d">${esc(d)}</div>`:""}</div>`).join("")).join("");
+}
+$("tabs").innerHTML=FOOD.map((c,i)=>`<button role="tab" type="button" data-i="${i}">${esc(c[0])}</button>`).join("");
+$("tabs").addEventListener("click",e=>{const b=e.target.closest("button");if(b)showCourse(+b.dataset.i)});
+showCourse(0);
+
+// hours
+const DAYS=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const t12=t=>{let[h,m]=t.split(":").map(Number);const ap=h>=12?"pm":"am";h=h%12||12;return h+(m?":"+String(m).padStart(2,"0"):"")+ap};
+const today=new Date().getDay();
+$("hrs").innerHTML=[1,2,3,4,5,6,0].map(d=>{const h=HOURS[d];return `<tr class="${d===today?"today":""}"><td>${DAYS[d]}</td><td>${h?t12(h[0])+" – "+t12(h[1]):"Closed"}</td></tr>`}).join("");
+{const h=HOURS[today];$("qOpen").innerHTML=(h?`Open today <b>${t12(h[0])} – ${t12(h[1])}</b>`:"<b>Closed today</b>")+($("qOpen").querySelector(".flag")?' <span class="flag">example</span>':"")}
+
+// booking form
+const pad=n=>String(n).padStart(2,"0");
+const ymd=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+let size=2;
+$("bSize").innerHTML=Array.from({length:MAX_PARTY},(_,i)=>`<button type="button" data-n="${i+1}" aria-pressed="${i+1===size}">${i+1}</button>`).join("");
+$("bSize").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;size=+b.dataset.n;[...$("bSize").children].forEach(x=>x.setAttribute("aria-pressed",x===b))});
+function slots(){
+  const v=$("bDate").value;if(!v){$("bTime").innerHTML="";return}
+  const d=new Date(v+"T12:00"),h=HOURS[d.getDay()];
+  if(!h){$("bTime").innerHTML=`<option value="">Closed that day</option>`;return}
+  const toM=t=>{const[a,b]=t.split(":").map(Number);return a*60+b};let s=toM(h[0]),e=toM(h[1])-LAST_BOOK;if(e<s)e=s;
+  const now=new Date(),isToday=v===ymd(now),nowM=now.getHours()*60+now.getMinutes()+60;
+  const out=[];for(let m=s;m<=e;m+=30){if(isToday&&m<nowM)continue;out.push(pad(Math.floor(m/60))+":"+pad(m%60))}
+  const keep=$("bTime").value;
+  $("bTime").innerHTML=out.length?out.map(t=>`<option value="${t}">${t12(t)}</option>`).join(""):`<option value="">No times left today</option>`;
+  if(out.includes(keep))$("bTime").value=keep;else if(out.includes("19:00"))$("bTime").value="19:00";
+}
+{const t=new Date(),mx=new Date();mx.setDate(mx.getDate()+BOOK_DAYS_AHEAD);$("bDate").min=ymd(t);$("bDate").max=ymd(mx);
+ let d=new Date();for(let i=0;i<8&&!HOURS[d.getDay()];i++)d.setDate(d.getDate()+1);$("bDate").value=ymd(d);slots()}
+$("bDate").addEventListener("change",slots);
+const longDate=v=>new Date(v+"T12:00").toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"});
+$("bk").addEventListener("submit",async e=>{
+  e.preventDefault();const err=m=>{$("bErr").textContent=m};err("");
+  const r={date:$("bDate").value,time:$("bTime").value,size,name:$("bName").value.trim(),phone:$("bPhone").value.trim(),email:$("bEmail").value.trim(),notes:$("bNotes").value.trim()};
+  if(!r.date||r.date<$("bDate").min)return err("Please pick a date from today onwards.");
+  if(!r.time)return err("We're closed then. Please pick another day.");
+  if(!r.name)return err("Please add your name."),$("bName").focus();
+  if(r.phone.replace(/\D/g,"").length<10)return err("Please add a phone number we can reach you on."),$("bPhone").focus();
+  if(r.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r.email))return err("That email doesn't look right."),$("bEmail").focus();
+  if($("bHp").value)return;
+  $("bGo").disabled=true;$("bGo").textContent="Sending…";
+  try{
+    if(BOOKING){
+      const res=await fetch(BOOKING.url+"/rest/v1/rpc/t57_web_book",{method:"POST",headers:{"Content-Type":"application/json",apikey:BOOKING.key,Authorization:"Bearer "+BOOKING.key},body:JSON.stringify({r})});
+      const ans=res.ok?await res.json():false;if(ans!==true)throw new Error(ans===null?"full":"refused");
+    }
+    $("bookArea").innerHTML=`<div class="done" role="status"><h3>Grazie, ${esc(r.name.split(" ")[0])}!</h3>
+      <p>We've received your booking for <b>${r.size} ${r.size===1?"guest":"guests"}</b> on <b>${esc(longDate(r.date))} at ${esc(t12(r.time))}</b>.</p>
+      <p class="small">We've held a table for you. We may call or email to confirm. ${BOOKING?"":'<span class="flag">preview: nothing was sent</span>'}</p></div>`;
+  }catch(x){
+    $("bGo").disabled=false;$("bGo").textContent="Send booking";
+    err(x.message==="full"?"Sorry, we're fully booked that evening for "+size+". Please try another day, or call us on {{PHONE}}.":"Sorry, that didn't go through. Please try again, or call us on {{PHONE}}.");
+  }
+});
+</script>
