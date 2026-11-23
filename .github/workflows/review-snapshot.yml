@@ -1,0 +1,50 @@
+name: Service review snapshot (read-only, encrypted, today only)
+# Reads only rows changed today (GET only, nothing is written) to keep Supabase egress small,
+# and saves them locked with a one-off reviewer key. The public log shows counts and sizes only.
+on:
+  push:
+    branches: ["review/**"]
+    paths: ["tools/review/**", ".github/workflows/review-snapshot.yml"]
+permissions:
+  contents: read
+jobs:
+  snap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read today's rows (signed in as the restaurant, read only)
+        env:
+          T57_EMAIL: ${{ secrets.T57_EMAIL }}
+          T57_PASSWORD: ${{ secrets.T57_PASSWORD }}
+        run: |
+          python3 - <<'PY'
+          import json, os, gzip, urllib.request, collections
+          BASE = "https://uzrkewizkqdnqpovwune.supabase.co"; KEY = "sb_publishable_Hix2EgA_xpjxMYFvmarVIQ_Hj0qx3YM"
+          SINCE = "2026-11-23T00:00:00Z"   # London is on GMT in November
+          total = 0
+          def call(url, data=None, headers={}):
+              global total
+              req = urllib.request.Request(BASE + url, data=json.dumps(data).encode() if data is not None else None,
+                                           headers={"apikey": KEY, "Content-Type": "application/json", **headers})
+              with urllib.request.urlopen(req, timeout=60) as r:
+                  b = r.read(); total += len(b); return json.loads(b or b"null")
+          tok = call("/auth/v1/token?grant_type=password", {"email": os.environ["T57_EMAIL"], "password": os.environ["T57_PASSWORD"]})["access_token"]
+          A = {"Authorization": "Bearer " + tok}
+          ids = call(f"/rest/v1/t57_docs?select=coll,id,updated_at&updated_at=gte.{SINCE}&order=coll.asc,id.asc&limit=5000", headers=A)
+          print("changed today:", sorted(collections.Counter(r["coll"] for r in ids).items()))
+          rows = []
+          for c in sorted({r["coll"] for r in ids}):
+              part = call(f"/rest/v1/t57_docs?select=coll,id,data,updated_at&coll=eq.{c}&updated_at=gte.{SINCE}&order=id.asc&limit=3000", headers=A)
+              print(c, len(part), "rows", len(json.dumps(part)), "bytes")
+              rows += part
+          rows += call("/rest/v1/t57_docs?select=coll,id,data,updated_at&coll=eq.printers", headers=A)
+          print("total downloaded bytes:", total)
+          with gzip.open("snap.json.gz", "wt", encoding="utf-8") as f: json.dump(rows, f)
+          PY
+          openssl rand -out k.bin 32
+          openssl enc -aes-256-cbc -pbkdf2 -salt -in snap.json.gz -out snap.enc -pass file:k.bin
+          openssl pkeyutl -encrypt -pubin -inkey tools/review/reviewer-public-key.pem -pkeyopt rsa_padding_mode:oaep -in k.bin -out k.enc
+          rm -f snap.json.gz k.bin; mkdir out; mv snap.enc k.enc out/
+          echo KEYB64BEGIN; base64 -w0 out/k.enc; echo; echo KEYB64END; echo SNAPB64BEGIN; base64 -w0 out/snap.enc; echo; echo SNAPB64END
+      - uses: actions/upload-artifact@v4
+        with: { name: review-snapshot, path: out, retention-days: 1 }
