@@ -749,6 +749,7 @@ body.training{padding-top:30px}
 .aost.open{background:#fdf3d6;color:#8a6a10}.aost.paid{background:#e6efd8;color:var(--olive-dk)}.aost.del,.aost.rej{background:#f6e1dc;color:var(--wine)}
 .aoitems{padding:0 4px 12px 10px;font-size:14px}.aoitems>div{display:flex;justify-content:space-between;gap:8px;padding:3px 0}.aoitems i{color:#6d6448;font-size:12px}
 .aoitems .void span{text-decoration:line-through;color:#9a917a}.aodel{margin-top:8px;width:100%;max-width:none}
+.aoitems>.rcpt{display:block}
 .hhbox input[type=checkbox]{width:18px!important;height:18px;flex:none;margin:0;padding:0}.hhchips label{white-space:nowrap}.hhon{justify-content:flex-start}.hhon b{margin-right:2px}
 .hhbox{border:1px solid var(--parch2);border-radius:12px;padding:10px 12px;margin:4px 0 12px;background:#fffaf0}.hhon{display:flex;gap:8px;align-items:center;font-size:14px;margin-bottom:8px}
 .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}.hhchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.hhchips label{display:flex;gap:4px;align-items:center;font-size:13px;border:1px solid var(--parch2);border-radius:14px;padding:4px 10px;background:#fff}
@@ -3379,17 +3380,20 @@ function hoursPdf(){
   y+=40;P.text(48,y,"Checked by ______________________      Date ____________",{size:10});
   return P;
 }
-function receiptPdf(B){
-  const P=makePdf().page(),W=P.W;let y=pdfHeader(P,"Receipt",new Date().toLocaleDateString("en-GB")+" "+timeOf(Date.now()));
-  const who=ord&&ord.pickup?`Takeaway #${ord.pno}${ord.pname?" · "+ord.pname:""}`:gnameLong(curGroup());
+function receiptPdf(B,cx){cx=cx||{};const at=cx.at||Date.now();
+  const P=makePdf().page(),W=P.W;let y=pdfHeader(P,"Receipt",new Date(at).toLocaleDateString("en-GB")+" "+timeOf(at));
+  const who=cx.who||(ord&&ord.pickup?`Takeaway #${ord.pno}${ord.pname?" · "+ord.pname:""}`:gnameLong(curGroup()));
   P.text(40,y,who,{font:"HB",size:12});y+=24;
   B.lines.forEach(l=>{if(y>760){P.page();y=50}P.text(48,y,`${l.q} × ${l.n}`,{size:10.5});P.text(W-48,y,money(l.q*l.p),{size:10.5,align:"right"});y+=17;
+    (cx.notes&&cx.notes[l.k]||[]).forEach(n=>{if(y>760){P.page();y=50}P.text(60,y,n,{size:9.5,color:PDFC.muted});y+=15});
     if(l.d){P.text(60,y,"> "+idiscLabel(l.d),{size:9.5,color:PDFC.olive});P.text(W-48,y,"-"+money(l.dAmt),{size:9.5,align:"right",color:PDFC.olive});y+=15}});
   y+=4;P.line(40,y,W-40,y,0.6,PDFC.line,true);y+=18;
   P.text(48,y,"Subtotal",{size:11});P.text(W-48,y,money(B.sub),{size:11,align:"right"});y+=18;
   if(B.itemDisc){P.text(48,y,"Item discounts",{size:11,color:PDFC.olive,font:"HB"});P.text(W-48,y,"-"+money(B.itemDisc),{size:11,align:"right",color:PDFC.olive,font:"HB"});y+=18}
   if(B.disc){P.text(48,y,`Discount (${discLabel(B.disc)})`,{size:11,color:PDFC.olive,font:"HB"});P.text(W-48,y,"-"+money(B.orderDiscAmt),{size:11,align:"right",color:PDFC.olive,font:"HB"});y+=18}
   P.line(40,y,W-40,y,1.4,PDFC.ink);y+=26;P.text(48,y,"TOTAL",{font:"TB",size:20});P.text(W-48,y,money(B.total),{font:"TB",size:20,align:"right"});
+  (cx.tnotes||[]).forEach(n=>{y+=20;P.text(48,y,"Note: "+n,{size:10,color:PDFC.muted})});
+  if(cx.pays){y+=10;cx.pays.forEach(p=>{y+=18;P.text(48,y,p.l,{size:11,font:"HB",color:PDFC.olive});P.text(W-48,y,money(p.a),{size:11,align:"right",font:"HB",color:PDFC.olive})})}
   y+=40;P.text(W/2,y,"Grazie! Thank you for dining with us.",{size:10,align:"center",color:PDFC.muted});
   return P;
 }
@@ -4055,6 +4059,8 @@ function openAllOrders(){aoOpen=null;aoDel=null;aoF="all";
     const f=e.target.closest("[data-aof]");if(f){aoF=f.dataset.aof;renderAllOrders();return}
     if(e.target.closest("[data-aoprint]")){const all=tickets.filter(t=>t.items.length&&!t.hold).sort((a,b)=>b.createdAt-a.createdAt).filter(t=>aoF==="all"||aoState(t)[0]===aoF);
       {const f0=aoF;pickPrinter(to=>{printJob(to,"orders","Orders list",aoListLines(all),"small");openAllOrders();aoF=f0;renderAllOrders()},"Print the orders list")};return}
+    const rc=e.target.closest("[data-aorcp]");if(rc){const t=tickets.find(x=>x.id===rc.dataset.aorcp),R=t&&aoBill(t);if(R){const f0=aoF,id0=aoOpen;pickPrinter(to=>{printJob(to,"receipt","Receipt "+R.head+" (copy)",aoReceiptLines(R),"full",...qrPair());openAllOrders();aoF=f0;aoOpen=id0;renderAllOrders()},"Reprint the customer's receipt")};return}
+    const rf=e.target.closest("[data-aorpdf]");if(rf){const t=tickets.find(x=>x.id===rf.dataset.aorpdf),R=t&&aoBill(t);if(R)offerPdf(receiptPdf(R.B,{who:R.who,at:R.cx.at,notes:R.cx.notes,tnotes:R.cx.tnotes,pays:R.pays}),`Trattoria57_Receipt_${R.head.replace(/[^A-Za-z0-9+]/g,"")}_${dateKey}.pdf`);return}
     const rp=e.target.closest("[data-aorep]");if(rp){const t=tickets.find(x=>x.id===rp.dataset.aorep);if(t){const f0=aoF;pickPrinter(to=>{printJob(to,"order","Order "+(t.no||"")+" "+t.label,orderLines(t),"small");openAllOrders();aoF=f0;aoOpen=t.id;renderAllOrders()},"Reprint this order")};return}
     const d=e.target.closest("[data-aodel]");if(d){const go=()=>{aoDel=d.dataset.aodel;renderAllOrders()};if(Date.now()<repUnlockUntil)go();else mgrCheck(go,"Deleting orders needs a manager");return}
     if(e.target.closest("[data-aoback]")){aoDel=null;renderAllOrders();return}
@@ -4062,6 +4068,29 @@ function openAllOrders(){aoOpen=null;aoDel=null;aoF="all";
       delCore([t],r.dataset.aodr,!t.closed).then(()=>{toast(`Order ${t.no||""} deleted · ${r.dataset.aodr}`);aoDel=null;ticketsChanged();renderAllOrders()});return}
     const o=e.target.closest("[data-aoid]");if(o){aoOpen=aoOpen===o.dataset.aoid?null:o.dataset.aoid;renderAllOrders()}});
   renderAllOrders()}
+// a paid order's whole bill: every ticket closed in the same payment (a table can send several orders)
+function aoBill(t){if(!t.closed||!t.paid||t.rejected)return null;
+  const list=tickets.filter(x=>x.closed&&x.paid&&!x.rejected&&!x.hold&&(t.paidAt?x.paidAt===t.paidAt:x.id===t.id)&&(x.pickup?x.pno===t.pno:!t.pickup)).sort((a,b)=>a.createdAt-b.createdAt);
+  if(!list.length)return null;const B=billOf(list),a=B.anchor||list[0];
+  const tbs=[...new Set(list.flatMap(x=>x.tables))];
+  const head=a.pickup?"Takeaway #"+a.pno:tbs.length?gnameLong(tbs):a.label;
+  const notes={};list.forEach(x=>x.items.forEach(i=>{if(i.v||!i.note)return;const k=i.n+"|"+i.p,arr=notes[k]||(notes[k]=[]);if(!arr.includes(i.note))arr.push(i.note)}));
+  const tnotes=[...new Set(list.map(x=>x.note).filter(Boolean))];if(B.disc&&B.disc.note)tnotes.push("Discount: "+B.disc.note);
+  const pays=B.pays.length?B.pays.map(p=>({l:"PAID "+p.m+(p.tab?" ("+p.tab+")":""),a:p.a,at:p.at,who:p.who})):[{l:"PAID ("+(a.paid==="split"?"split":a.paid)+")",a:B.total,at:a.paidAt,who:""}];
+  return {list,B,a,head,who:a.pickup?head+(a.pname?" · "+a.pname:""):head,cx:{pickup:a.pickup,pno:a.pno,head,at:a.paidAt||a.updatedAt||a.createdAt,notes,tnotes,noPays:true},pays}}
+// the receipt exactly as the customer got it at the end (+ notes), payments listed once
+function aoReceiptLines(R){const L=billLines(R.B,"",R.cx);L.splice(L.length-3,0,...R.pays.map(p=>PL.lr(p.l,money(p.a),1)),PL.rule());return L}
+function aoReceiptHtml(R){const B=R.B;
+  return `<div class="rcpt"><div class="rc-m"><span>${esc(R.who)}${R.list.length>1?` · ${R.list.length} orders`:""}</span><span>Paid ${new Date(R.cx.at).toLocaleDateString("en-GB")} ${timeOf(R.cx.at)}</span></div>
+    ${B.lines.map(l=>`<div class="rc-l"><span>${l.q} × ${esc(l.n)}${(R.cx.notes[l.k]||[]).map(n=>`<i>${esc(n)}</i>`).join("")}</span><span>${money(l.q*l.p)}</span></div>${l.d?`<div class="rc-l rc-disc"><span>↳ ${esc(idiscLabel(l.d))}</span><span>−${money(l.dAmt)}</span></div>`:""}`).join("")}
+    ${R.cx.tnotes.map(n=>`<div class="rc-l"><span><i>Note: ${esc(n)}</i></span></div>`).join("")}
+    <div class="rc-l rc-sub"><span>Subtotal</span><span>${money(B.sub)}</span></div>
+    ${B.itemDisc?`<div class="rc-l rc-disc"><span>Item discounts</span><span>−${money(B.itemDisc)}</span></div>`:""}
+    ${B.disc?`<div class="rc-l rc-disc"><span>Discount (${esc(discLabel(B.disc))})</span><span>−${money(B.orderDiscAmt)}</span></div>`:""}
+    ${!B.discAmt?`<div class="rc-l"><span><i>No discount</i></span></div>`:""}
+    <div class="rc-l rc-tot"><span>TOTAL</span><span>${money(B.total)}</span></div>
+    ${R.pays.map(p=>`<div class="rc-l rc-pay"><span>${p.l.replace(/^PAID/,"Paid")}${p.at?" · "+timeOf(p.at):""}${p.who?" · "+esc(p.who):""}</span><span>${money(p.a)}</span></div>`).join("")}
+    <div style="display:flex;gap:8px;margin-top:10px">${canThermal()?`<button class="btn sec" data-aorcp="${R.a.id}" style="flex:1">🧾 Reprint receipt</button>`:""}<button class="btn sec" data-aorpdf="${R.a.id}" style="flex:1">📄 Save receipt PDF</button></div></div>`}
 function aoState(t){if(t.rejected)return ["rej","Rejected"];if(t.items.length&&t.items.every(x=>x.v))return ["del","Deleted"];if(t.closed&&t.paid)return ["paid","Paid "+t.paid];if(t.closed)return ["paid","Closed"];return ["open","Open"]}
 function renderAllOrders(){
   if(xKind!=="allord")return;
@@ -4075,10 +4104,10 @@ function renderAllOrders(){
   const cnt=k=>all.filter(t=>k==="all"||aoState(t)[0]===k).length;
   const list=all.filter(t=>aoF==="all"||aoState(t)[0]===aoF);
   $("xBody").innerHTML=`<div class="aofilt">${[["all","All"],["open","Open"],["paid","Paid"],["del","Deleted"]].map(([k,l])=>`<button data-aof="${k}" class="${aoF===k?"on":""}">${l} <b>${cnt(k)}</b></button>`).join("")}</div>
-    ${list.map(t=>{const [k,lab]=aoState(t),val=t.items.reduce((a,x)=>a+lv(x),0),open=aoOpen===t.id;
-      return `<div class="aorow ${k}${open?" open":""}"><button class="aohead" data-aoid="${t.id}"><span><b>${t.walk?"🍸":t.pickup?"🍕":""}${esc(t.label)}</b> · #${t.no||""} · ${timeOf(t.createdAt)} · ${stOf(t)==="bar"?"Bar":"Kitchen"}${t.byName?" · "+esc(t.byName):""}</span><em class="aost ${k}">${esc(lab)}</em><b class="amt">${money(val)}</b></button>
+    ${list.map(t=>{const [k,lab]=aoState(t),val=t.items.reduce((a,x)=>a+lv(x),0),open=aoOpen===t.id,R=k==="paid"?aoBill(t):null;
+      return `<div class="aorow ${k}${open?" open":""}"><button class="aohead" data-aoid="${t.id}"><span><b>${t.walk?"🍸":t.pickup?"🍕":""}${esc(t.label)}</b> · #${t.no||""} · ${timeOf(t.createdAt)} · ${stOf(t)==="bar"?"Bar":"Kitchen"}${t.byName?" · "+esc(t.byName):""}</span><em class="aost ${k}">${esc(lab)}${R&&R.B.discAmt?" · 🏷 −"+money(R.B.discAmt):""}</em><b class="amt">${money(val)}</b></button>
         ${open?`<div class="aoitems">${t.items.map(x=>`<div class="${x.v?"void":""}"><span>${x.q}× ${esc(x.n)}${x.g?" · "+esc(x.g):""}${x.note?` <i>${esc(x.note)}</i>`:""}${x.v?` <i>${esc(x.vr||"void")}${x.vb?" · "+esc(x.vb):""}</i>`:""}</span><span>${money(x.q*x.p)}</span></div>`).join("")}
-          ${t.note?`<div><i>Note: ${esc(t.note)}</i></div>`:""}${canThermal()?`<button class="btn sec aodel" data-aorep="${t.id}">🖨 Reprint this order</button>`:""}${k==="del"||k==="rej"?"":`<button class="btn dng aodel" data-aodel="${t.id}">🗑 Delete this order</button>`}</div>`:""}</div>`}).join("")||`<p class="trial">No orders here.</p>`}`;
+          ${t.note?`<div><i>Note: ${esc(t.note)}</i></div>`:""}${R?`<div class="gl-title" style="margin-top:10px"><span>Final bill · what the customer paid</span></div>${aoReceiptHtml(R)}`:""}${canThermal()?`<button class="btn sec aodel" data-aorep="${t.id}">🖨 Reprint order slip</button>`:""}${k==="del"||k==="rej"?"":`<button class="btn dng aodel" data-aodel="${t.id}">🗑 Delete this order</button>`}</div>`:""}</div>`}).join("")||`<p class="trial">No orders here.</p>`}`;
   $("xFoot").innerHTML=`${canThermal()&&list.length?`<button class="btn sec" data-aoprint>🖨 Print list</button>`:""}<button class="btn pri" data-xdone>Done</button>`}
 function aoListLines(list){const L=[PL.t("ORDERS · "+$("dateLabel").textContent.toUpperCase(),"c",1),PL.t({all:"All",open:"Open",paid:"Paid",del:"Deleted"}[aoF]+" · "+list.length+" orders","c"),PL.rule()];let tot=0;
   list.slice().reverse().forEach(t=>{const v=t.items.reduce((a,x)=>a+lv(x),0);tot+=v;L.push(PL.lr(`${timeOf(t.createdAt)} #${t.no||""} ${t.label}`,money(v)),PL.t(`  ${stOf(t)==="bar"?"Bar":"Kitchen"} · ${aoState(t)[1]}${t.byName?" · "+t.byName:""}`))});
@@ -4545,7 +4574,7 @@ async function finishBill(pay){
     const paidTabs=new Set(pays.filter(p=>p.tab).map(p=>p.tab)),tablePays=pays.filter(p=>!p.tab);
     const paidLines=tot=>tablePays.length?tablePays.map(p=>PL.lr("PAID "+p.m,money(p.a),1)):[PL.lr("PAID ("+pay+")",money(tot),1)];
     if(named&&!isP){const TB=tabBillBy(all,x=>!x.g||!paidTabs.has(x.g));L=TB.live.some(t=>t.items.some(x=>!x.v))?billLines(TB,paidTabs.size?"":"Table"):null;if(L)L.splice(L.length-3,0,...paidLines(TB.total),PL.rule())}
-    else{L=billLines(B);L.splice(L.length-3,0,...paidLines(B.total),PL.rule())}
+    else{L=billLines(B,"",{noPays:true});L.splice(L.length-3,0,...paidLines(B.total),PL.rule())}
     if(L)
     printJob(rcpPrinter(),"receipt","Receipt "+(isP?"Takeaway "+pno:gname(g)),L,"full",...qrPair());
   }
@@ -4675,18 +4704,22 @@ function pickupReceipt(){if(!ord||!ord.pickup||ord.walk||!canThermal())return;
   L.splice(L.findIndex(x=>"rule" in x),0,...[ord.pat?PL.t("Collection "+ord.pat,"l",1):null,who?PL.t(who):null].filter(Boolean));
   // just a reference slip that goes with the order: no review / social QR codes (saves paper)
   printJob("till","bill","Receipt Takeaway "+ord.pno,L,"full",[],"",true)}
-function billLines(B,tab){
-  const when=new Date().toLocaleString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
+// cx (optional) describes a bill that isn't the open order, e.g. a paid one from All orders:
+// {pickup,pno,head,at,notes:{lineKey:[notes]},tnotes:[order notes],noPays}
+function billLines(B,tab,cx){cx=cx||{};
+  const pk="pickup" in cx?cx.pickup:!!(ord&&ord.pickup),pno="pno" in cx?cx.pno:ord&&ord.pno;
+  const when=new Date(cx.at||Date.now()).toLocaleString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
   // takeaways: the number prints big and centred so it can be matched to the bag at a glance
-  const L=ord.pickup?[PL.t("TAKEAWAY","c",1),PL.t("#"+ord.pno,"c",1,4),PL.lr(tab||"",when),PL.rule()]
-    :[PL.lr(gnameLong(curGroup())+(tab?" · "+tab:""),when),PL.rule()];
-  B.lines.forEach(l=>{L.push(PL.lr(`${l.q} x ${itName(l.n)}`,money(l.q*l.p)));if(l.d)L.push(PL.lr(`  > ${idiscLabel(l.d)}`,"-"+money(l.dAmt)))});
+  const L=pk?[PL.t("TAKEAWAY","c",1),PL.t("#"+pno,"c",1,4),PL.lr(tab||"",when),PL.rule()]
+    :[PL.lr((cx.head||gnameLong(curGroup()))+(tab?" · "+tab:""),when),PL.rule()];
+  B.lines.forEach(l=>{L.push(PL.lr(`${l.q} x ${itName(l.n)}`,money(l.q*l.p)));(cx.notes&&cx.notes[l.k]||[]).forEach(n=>L.push(PL.t("  "+n)));if(l.d)L.push(PL.lr(`  > ${idiscLabel(l.d)}`,"-"+money(l.dAmt)))});
+  (cx.tnotes||[]).forEach(n=>L.push(PL.t("Note: "+n)));
   L.push(PL.rule(),PL.lr("Subtotal",money(B.sub)));
   if(B.itemDisc)L.push(PL.lr("Item discounts","-"+money(B.itemDisc)));
   if(B.disc)L.push(PL.lr(`Discount ${B.disc.type==="pct"?B.disc.value+"%":""}${B.disc.reason?" ("+B.disc.reason+")":""}`,"-"+money(B.orderDiscAmt)));
   L.push(PL.rule("="),PL.lr("TOTAL",money(B.total),1,2),PL.rule("="));
-  B.pays.forEach(p=>L.push(PL.lr(`Paid ${p.m}`,"-"+money(p.a))));
-  if(B.pays.length)L.push(PL.lr("LEFT TO PAY",money(B.left),1));
+  if(!cx.noPays){B.pays.forEach(p=>L.push(PL.lr(`Paid ${p.m}`,"-"+money(p.a))));
+  if(B.pays.length)L.push(PL.lr("LEFT TO PAY",money(B.left),1))}
   L.push(PL.gap(),PL.t("Grazie! Thank you for","c"),PL.t("dining with us.","c"));
   return L;
 }
