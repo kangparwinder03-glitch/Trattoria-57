@@ -186,7 +186,7 @@ footer b{font-family:var(--f-caps);letter-spacing:.2em;color:var(--on-olive);fon
 <section id="book" class="paper2"><div class="wrap split">
   <div>
     <div class="h"><span class="caps">Prenota</span><h2>Book a table</h2>
-      <p>Send us your booking and it goes straight to the restaurant. We'll confirm by phone or email. For parties over <span id="maxTxt">10</span>, please call us.</p></div>
+      <p>Book here and we'll hold a table for you straight away. For more than <span id="maxTxt">6</span> people, please call us.</p></div>
     <div id="bookArea">
     <form id="bk" novalidate>
       <div class="f"><label for="bDate">Date</label><input type="date" id="bDate" required></div>
@@ -219,7 +219,7 @@ footer b{font-family:var(--f-caps);letter-spacing:.2em;color:var(--on-olive);fon
 const FOOD={{FOOD}};
 // Opening hours: [day, open, close] in 24h, or null when closed. Booking slots are every 30 min from open until LAST_BOOK minutes before close.
 const HOURS={{HOURS}};
-const LAST_BOOK=90, MAX_PARTY=10, BOOK_DAYS_AHEAD=90;
+const LAST_BOOK=90, MAX_PARTY=6, BOOK_DAYS_AHEAD=90;
 const BOOKING={{BOOKING}};   // null in the preview
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -277,14 +277,14 @@ $("bk").addEventListener("submit",async e=>{
   try{
     if(BOOKING){
       const res=await fetch(BOOKING.url+"/rest/v1/rpc/t57_web_book",{method:"POST",headers:{"Content-Type":"application/json",apikey:BOOKING.key,Authorization:"Bearer "+BOOKING.key},body:JSON.stringify({r})});
-      const ok=res.ok&&(await res.json())===true;if(!ok)throw new Error("refused");
+      const ans=res.ok?await res.json():"error";if(ans!=="ok")throw new Error(ans==="full"?"full":"refused");
     }
     $("bookArea").innerHTML=`<div class="done" role="status"><h3>Grazie, ${esc(r.name.split(" ")[0])}!</h3>
       <p>We've received your booking for <b>${r.size} ${r.size===1?"guest":"guests"}</b> on <b>${esc(longDate(r.date))} at ${esc(t12(r.time))}</b>.</p>
-      <p class="small">It isn't confirmed until we get back to you, usually within a few hours. ${BOOKING?"":'<span class="flag">preview: nothing was sent</span>'}</p></div>`;
+      <p class="small">We've held a table for you. We may call or email to confirm. ${BOOKING?"":'<span class="flag">preview: nothing was sent</span>'}</p></div>`;
   }catch(x){
     $("bGo").disabled=false;$("bGo").textContent="Send booking";
-    err("Sorry, that didn't go through. Please try again, or call us on {{PHONE}}.");
+    err(x.message==="full"?"Sorry, we're fully booked that evening for "+size+". Please try another day, or call us on {{PHONE}}.":"Sorry, that didn't go through. Please try again, or call us on {{PHONE}}.");
   }
 });
 </script>

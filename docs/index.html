@@ -3894,17 +3894,20 @@ $("bkBody").addEventListener("click",e=>{const r2=e.target.closest(".bkrow");if(
   $("bkOv").classList.remove("show");
   const go=()=>{if(state.bookings[L])openSheet(L)};
   if(k!==dateKey){setDate(k);toast("Showing "+dayLabel(k));setTimeout(go,700)}else go()});
-// ---- bookings from the public website: they wait here until staff give them a table ----
+// ---- bookings from the public website: the website puts them straight on a free table (see supabase/web-bookings.sql); older requests wait here for staff ----
 let webReq=[],webPlacing=null,webKnown=null;
 function subscribeWebBookings(){
   if(!db||db.guest||TRAIN||view==="guest")return;
   try{db.collection("webbook").onSnapshot(sn=>{
     const t=todayKey();
-    webReq=sn.docs.map(d=>Object.assign({id:d.id},d.data()||{})).filter(r=>r.status==="new"&&String(r.date||"")>=t)
+    const all=sn.docs.map(d=>Object.assign({id:d.id},d.data()||{}));
+    webReq=all.filter(r=>r.status==="new"&&String(r.date||"")>=t)
       .sort((a,c)=>(a.date+a.time).localeCompare(c.date+c.time));
-    const fresh=webKnown?webReq.filter(r=>!webKnown.has(r.id)):[];
-    webKnown=new Set(webReq.map(r=>r.id));
-    if(fresh.length){const r=fresh[0];toast(`🌐 New website booking: ${r.name} · ${r.size} · ${dayLabel(r.date)} ${r.time}`+(fresh.length>1?` (+${fresh.length-1} more)`:""),6000)}
+    // website bookings now go straight onto a free table (status "placed", auto) — just tell staff
+    const seenNow=all.filter(r=>r.status==="new"||(r.auto&&r.status==="placed"));
+    const fresh=webKnown?seenNow.filter(r=>!webKnown.has(r.id)):[];
+    webKnown=new Set(seenNow.map(r=>r.id));
+    if(fresh.length){const r=fresh[0];toast(`🌐 New website booking: ${r.name} · ${r.size} · ${dayLabel(r.date)} ${r.time}`+(r.auto&&r.table?` · ${r.table}`:"")+(fresh.length>1?` (+${fresh.length-1} more)`:""),8000)}
     const b=$("wbBadge");b.textContent=webReq.length;b.classList.toggle("show",webReq.length>0);
     renderWebReq();
   },()=>{})}catch(e){}
