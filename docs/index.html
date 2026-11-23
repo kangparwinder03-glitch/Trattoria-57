@@ -2368,8 +2368,9 @@ function updPrinters(){let el=$("prnLights");const st=Object.keys(printers);
   el.innerHTML="🖨 "+["kitchen","bar","till"].filter(k=>printers[k]).map(k=>{const [c,t]=prnState(printers[k]);return `<span class="pd ${c}" title="${prName(k)}: ${esc(t)}"><i></i>${prName(k)}</span>`}).join("")}
 // why a printer can't print right now ("" = fine, or we've never heard from it)
 function prnDown(k){const p=printers&&printers[k];if(!p)return "";const [c,t]=prnState(p);return c==="red"?t.charAt(0).toUpperCase()+t.slice(1):""}
+const PRN_STALE=180000;   // printer tablets/PCs report in once a minute (and straight away when something changes)
 function prnState(p){const age=Date.now()-(+p.at||0);
-  if(p.off)return ["red","printing switched off"];if(p.down&&Date.now()-(+p.at||0)<=60000)return ["red",p.msg||"printer off or out of range"];if(age>60000)return ["red","not heard from for "+Math.round(age/60000)+" min — check the printer tablet"];
+  if(p.off)return ["red","printing switched off"];if(p.down&&age<=PRN_STALE)return ["red",p.msg||"printer off or out of range"];if(age>PRN_STALE)return ["red","not heard from for "+Math.round(age/60000)+" min — check the printer tablet"];
   if(p.ok===false)return ["amber",p.msg||"last print failed — check paper / power"];return ["green","printing OK"]}
 function subscribePrinters(){const base=db&&db.base?db.base:db;if(!base)return;
   base.collection("printers").onSnapshot(sn=>{printers={};sn.docs.forEach(d=>{printers[d.id]=d.data()||{}});updPrinters()},()=>{})}
@@ -3864,9 +3865,22 @@ async function saveDay(k,st){
   if(db){let base=defaultState();try{const sn=await db.doc("plan23/"+k).get();if(sn.exists)base=sanitize(clone(sn.data()))}catch(e){}
     const patch=planPatch(base,st);if(Object.keys(patch).length){patch.updatedAt=Date.now();await db.doc("plan23/"+k).update(patch)}}
 }
+// Every saved day from the cloud. The first time it downloads them all; after that only the days that changed
+// (the list of days grows every day, so downloading it all each time used a lot of data).
+const planHist={db:null,days:{},cursor:""};
+async function cloudDays(){
+  const c=db.collection("plan23");
+  if(typeof c.changedSince!=="function"){const out={},sn=await c.get();sn.docs.forEach(d=>{out[d.id]=d.data()});return out}
+  if(planHist.db!==db){planHist.db=db;planHist.days={};planHist.cursor=""}
+  // look back a minute in case two saves landed at nearly the same moment
+  const since=planHist.cursor?new Date(Date.parse(planHist.cursor)-60000).toISOString():"";
+  const rows=await c.changedSince(since);
+  rows.forEach(r=>{planHist.days[r.id]=r.data;if(!planHist.cursor||Date.parse(r.updated_at)>Date.parse(planHist.cursor))planHist.cursor=r.updated_at});
+  return planHist.days;
+}
 async function allDays(){
   const out={},t=todayKey();
-  if(db){try{const sn=await db.collection("plan23").get();sn.docs.forEach(d=>{if(d.id>=t)out[d.id]=sanitize(clone(d.data()))})}catch(e){}}
+  if(db){try{const days=await cloudDays();Object.entries(days).forEach(([k,v])=>{if(k>=t)out[k]=sanitize(clone(v))})}catch(e){}}
   try{for(let i=0;i<localStorage.length;i++){const key=localStorage.key(i);if(key&&key.startsWith(LK+"p23-")){const k=key.slice((LK+"p23-").length);if(k>=t&&!out[k]){const v=loadLocal(k);if(v)out[k]=v}}}}catch(e){}
   if(dateKey>=t)out[dateKey]=state;
   return out;
@@ -4562,7 +4576,7 @@ var gIdx=null,gIdxAt=0;const regLast={};
 const normPh=p=>{const d=String(p||"").replace(/\D/g,"");return d.length>=7?d.slice(-10):""};
 async function allDaysAny(){
   const out={};
-  if(db){try{const sn=await db.collection("plan23").get();sn.docs.forEach(d=>{out[d.id]=sanitize(clone(d.data()))})}catch(e){}}
+  if(db){try{const days=await cloudDays();Object.entries(days).forEach(([k,v])=>{out[k]=sanitize(clone(v))})}catch(e){}}
   try{for(let i=0;i<localStorage.length;i++){const key=localStorage.key(i);if(key&&key.startsWith(LK+"p23-")){const k=key.slice((LK+"p23-").length);if(!out[k]){const v=loadLocal(k);if(v)out[k]=v}}}}catch(e){}
   out[dateKey]=state;return out;
 }
@@ -4970,6 +4984,8 @@ function rebase(server,key){let mine;
   setSynced(server,key);
   const n=Object.keys(mine).length;state=n?applyPlanPatch(server,mine):clone(server);saveLocal();if(n&&!writing)save();else if(n)again=true}
 function applySnapshotLater(){if(pendingSnap&&!dragging&&!$("sheetOv").classList.contains("show")){const s=pendingSnap;pendingSnap=null;rebase(s,dateKey);afterRemote()}}
+// a change from another tablet held back while the booking form was open is never left waiting (the app used to re-download everything every 20s, which hid this)
+setInterval(applySnapshotLater,3000);
 // another tablet changed the floor: redraw, and if the table open here was paid & cleared over there, say so and close it
 // a party moved tables on another tablet: anything not yet sent from this tablet follows them
 function followMoves(){for(const L in carts){if(!carts[L]||!carts[L].length||String(L).startsWith("P"))continue;const k=cartOwner[L];if(!k||k==="free"||partyKey(+L)===k)continue;
@@ -5020,19 +5036,42 @@ function makeSupaDb(sb){
   async function fetchColl(coll,w){let q=sb.from(TB).select("id,data").eq("coll",coll);q=applyWhere(q,w);const {data,error}=await q.limit(5000);if(error)throw err(error);return (data||[]).filter(r=>okWhere(r.data,w))}
   async function fetchDoc(coll,id){const {data,error}=await sb.from(TB).select("id,data").eq("coll",coll).eq("id",id).maybeSingle();if(error)throw err(error);return data}
   function refreshAll(coll){subs.forEach(s=>{if(!coll||s.coll===coll)s.kick()})}
-  let chan=null;
-  function ensureChannel(){if(chan)return;chan=sb.channel("t57-all").on("postgres_changes",{event:"*",schema:"public",table:TB},p=>{const r=(p.new&&p.new.coll)?p.new:p.old;refreshAll(r&&r.coll)}).subscribe(st=>{if(st==="SUBSCRIBED")refreshAll()})}
-  setInterval(()=>refreshAll(),20000);   // safety net if live updates drop
-  document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshAll()});
+  // Data use (Supabase free plan = 5 GB a month): a change arrives over the live connection WITH the changed item,
+  // so we update our copy from that instead of downloading the whole list again on every tablet.
+  let chan=null,live=false,newest=0;
+  const seen=t=>{const v=Date.parse(t||"")||0;if(v>newest)newest=v};
+  function onChange(p){const ev=p.eventType,nw=p.new||{},od=p.old||{},c=nw.coll||od.coll;seen(nw.updated_at);
+    if(!c){refreshAll();return}
+    const full=ev==="DELETE"?od.id!=null:(nw.id!=null&&nw.data&&typeof nw.data==="object"&&!(p.errors&&p.errors.length));
+    subs.forEach(s=>{if(s.coll!==c)return;if(!full){s.kick();return}s.apply(ev==="DELETE"?null:{id:nw.id,data:nw.data},od.id)})}
+  function ensureChannel(){if(chan)return;chan=sb.channel("t57-all").on("postgres_changes",{event:"*",schema:"public",table:TB},onChange)
+    .subscribe(st=>{if(st==="SUBSCRIBED"){live=true;refreshAll()}else if(st==="CHANNEL_ERROR"||st==="TIMED_OUT"||st==="CLOSED")live=false})}
+  // safety net if live updates drop: once a minute ask only "when did anything last change?" (a few bytes),
+  // and download again only if something changed that we didn't hear about. Used to re-download everything every 20s.
+  async function check(){if(document.hidden||!subs.size)return;if(!live){refreshAll();return}
+    try{const {data,error}=await sb.from(TB).select("updated_at").order("updated_at",{ascending:false}).limit(1);if(error||!data||!data[0])return;
+      const v=Date.parse(data[0].updated_at)||0;if(!newest){newest=v;return}if(v>newest){newest=v;refreshAll()}}catch(_){}}
+  setInterval(check,60000);
+  document.addEventListener("visibilitychange",()=>{if(!document.hidden)check()});
   function listen(coll,id,w,cb,ecb){
-    ensureChannel();let alive=true,t=null,running=false,again=false;
+    ensureChannel();let alive=true,t=null,running=false,again=false,loaded=false,rows=null;
+    const k=coll+"/"+id;
+    const emitDoc=row=>{const same=row&&lastSent[k]&&JSON.stringify(row.data)===lastSent[k];cb(snapDoc(coll,id,row,same))};
+    const emitColl=()=>{const arr=[...rows].map(([i,d])=>({id:i,data:d}));cb({docs:arr.map(r=>snapDoc(coll,r.id,r,false)),size:arr.length,empty:!arr.length})};
     const run=async()=>{if(!alive)return;if(running){again=true;return}running=true;
-      try{if(id){const k=coll+"/"+id;if(inflight[k]){running=false;setTimeout(run,300);return}
-          const row=await fetchDoc(coll,id);if(!alive)return;const same=row&&lastSent[k]&&JSON.stringify(row.data)===lastSent[k];cb(snapDoc(coll,id,row,same))}
-        else{const rows=await fetchColl(coll,w);if(!alive)return;cb({docs:rows.map(r=>snapDoc(coll,r.id,r,false)),size:rows.length,empty:!rows.length})}}
+      try{if(id){if(inflight[k]){running=false;setTimeout(run,300);return}
+          const row=await fetchDoc(coll,id);if(!alive)return;loaded=true;emitDoc(row)}
+        else{const r=await fetchColl(coll,w);if(!alive)return;rows=new Map(r.map(x=>[x.id,x.data]));loaded=true;emitColl()}}
       catch(e){if(ecb)ecb(err(e))}
       running=false;if(again){again=false;run()}};
-    const s={coll,kick:()=>{clearTimeout(t);t=setTimeout(run,120)}};subs.add(s);run();
+    const s={coll,kick:()=>{clearTimeout(t);t=setTimeout(run,120)},
+      // one item changed (row) or was deleted (row=null, oldId): update our copy without downloading anything
+      apply:(row,oldId)=>{if(!alive)return;if(!loaded||running){s.kick();return}
+        const i=row?row.id:oldId;
+        if(id){if(i!==id)return;if(inflight[k]){s.kick();return}emitDoc(row);return}
+        if(row&&okWhere(row.data,w))rows.set(i,row.data);else if(rows.has(i))rows.delete(i);else return;
+        emitColl()}};
+    subs.add(s);run();
     return ()=>{alive=false;subs.delete(s)};
   }
   function docRef(coll,id){const k=coll+"/"+id;return {id,
@@ -5046,6 +5085,8 @@ function makeSupaDb(sb){
   async function claim(coll,id,data){const {error}=await sb.from(TB).insert({coll,id,data:data||{},updated_at:new Date().toISOString()});
     if(!error)return true;if(error.code==="23505"||/duplicate|conflict/i.test(error.message||""))return false;throw err(error)}
   function query(coll,w){return {where:(f,op,v)=>query(coll,w.concat([[f,op,v]])),doc:id=>docRef(coll,id),
+    changedSince:async since=>{let q=sb.from(TB).select("id,data,updated_at").eq("coll",coll);if(since)q=q.gt("updated_at",since);
+      const {data,error}=await q.limit(5000);if(error)throw err(error);return data||[]},
     get:async()=>{const rows=await fetchColl(coll,w);return {docs:rows.map(r=>snapDoc(coll,r.id,r,false)),size:rows.length,empty:!rows.length}},
     onSnapshot:(cb,ecb)=>listen(coll,null,w,cb,ecb)}}
   return {collection:name=>query(name,[]),doc:path=>{const [c,i]=path.split("/");return docRef(c,i)},claim,supa:true};
@@ -5082,7 +5123,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261122191500";const APP_VER=57;   // both stamped by the publish script
+const APP_BUILD="20261123030000";const APP_VER=58;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
@@ -5133,7 +5174,7 @@ function makeGuestDb(sb){
   let cache=null,busy=false;const subs=new Set(),ns=TRAIN?"train":"";
   const base=n=>String(n).replace(/^train_/,"");
   async function pull(){if(busy)return;busy=true;try{const {data,error}=await sb.rpc("t57_guest",{ns,d:dateKey});if(!error){cache=data||{};subs.forEach(s=>s())}}catch(_){}busy=false}
-  setInterval(pull,5000);document.addEventListener("visibilitychange",()=>{if(!document.hidden)pull()});pull();
+  setInterval(()=>{if(!document.hidden)pull()},15000);document.addEventListener("visibilitychange",()=>{if(!document.hidden)pull()});pull();
   const sd=(id,data)=>({id,exists:data!=null,data:()=>data==null?undefined:clone(data),metadata:{fromCache:false,hasPendingWrites:false}});
   const docData=(c,id)=>{if(!cache)return undefined;c=base(c);
     if(c==="plan23")return id===dateKey?cache.plan:undefined;

@@ -401,6 +401,8 @@ async def main():
     busy_left = await E(A, "Object.keys(state.bookings).length")
     if busy_left: bad(f"{busy_left} tables still marked busy at close")
     summary = {"minutes": MIN, "speed": SPEED, "tickets": len(ts), "sold": sold, "report": rep, "stats": dict(stats), "problems": problems}
+    fetched = {w._n: await E(w, "window.__fetches||0") for w in (A, B, BAR)}
+    say(f"database downloads per tablet: {fetched}"); summary["downloads"] = fetched
     json.dump(summary, open(OUT + "/summary.json", "w"), indent=1, ensure_ascii=False)
     say(f"RESULT: {len(problems)} problem(s) · {len(ts)} tickets · £{sold:.2f} · {dict(stats)}")
     for x in problems: say(" -", x)

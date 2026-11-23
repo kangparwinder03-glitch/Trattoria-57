@@ -74,10 +74,16 @@ const Cloud = {
     return r.text ? JSON.parse(r.text) : null;
   },
 
-  /** Saved items in a collection, filtered on text fields: [[id, data], …] */
-  async list(coll, filters = []) {
+  /** Saved items in a collection, filtered on text fields: [[id, data], …]
+   *  unprinted = only items no printer has printed yet; since = only items created at/after that time.
+   *  (These checks run every few seconds all day, so the database only sends what's still waiting:
+   *  usually nothing. Downloading the whole day each time used most of the free data allowance.) */
+  async list(coll, filters = [], { unprinted = false, since = 0 } = {}) {
     let q = `/rest/v1/t57_docs?select=id,data&coll=eq.${encodeURIComponent(coll)}`;
     for (const [k, v] of filters) q += `&${encodeURIComponent("data->>" + k)}=eq.${encodeURIComponent(v)}`;
+    // (an order saved back by a tablet can carry printed = 0, which still means "not printed")
+    if (unprinted) q += `&or=${encodeURIComponent("(data->>printed.is.null,data->>printed.eq.0)")}`;
+    if (since > 0) q += `&${encodeURIComponent("data->createdAt")}=gte.${Math.floor(since)}`;
     const arr = await this.call(q);
     return (arr || []).map(o => [o.id, o.data || {}]);
   },

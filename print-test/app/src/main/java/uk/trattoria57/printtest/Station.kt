@@ -61,10 +61,16 @@ object Cloud {
 
     private fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
 
-    /** Saved items in a collection, filtered on text fields (e.g. "date" to "2026-11-09"). */
-    fun list(coll: String, filters: List<Pair<String, String>>): List<Pair<String, JSONObject>> {
+    /** Saved items in a collection, filtered on text fields (e.g. "date" to "2026-11-09").
+     *  unprinted = only items no printer has printed yet; since = only items created at/after that time.
+     *  (These checks run every few seconds all day, so the database only sends what's still waiting:
+     *  usually nothing. Downloading the whole day each time used most of the free data allowance.) */
+    fun list(coll: String, filters: List<Pair<String, String>>, unprinted: Boolean = false, since: Long = 0L): List<Pair<String, JSONObject>> {
         val q = StringBuilder("/rest/v1/t57_docs?select=id,data&coll=eq.").append(enc(coll))
         filters.forEach { (k, v) -> q.append('&').append(enc("data->>$k")).append("=eq.").append(enc(v)) }
+        // (an order saved back by a tablet can carry printed = 0, which still means "not printed")
+        if (unprinted) q.append("&or=").append(enc("(data->>printed.is.null,data->>printed.eq.0)"))
+        if (since > 0) q.append('&').append(enc("data->createdAt")).append("=gte.").append(since)
         val c = conn(q.toString(), "GET")
         try {
             if (c.responseCode !in 200..299) throw Exception("HTTP ${c.responseCode} " + (c.errorStream?.bufferedReader()?.readText()?.take(100) ?: ""))
