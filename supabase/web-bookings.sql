@@ -7,11 +7,11 @@
 -- count as taken, so the website can never overbook. Bar tables are kept for walk-ins.
 -- If nothing fits, the website tells the customer to call.
 --
--- The website can't read anything or change anything else. It only gets back "ok", "full" or "error".
+-- The website can't read anything or change anything else. It only gets back true (booked), null (full) or false (error).
 
 drop function if exists public.t57_web_book(jsonb);
 
-create or replace function public.t57_web_book(r jsonb) returns text
+create or replace function public.t57_web_book(r jsonb) returns boolean
 language plpgsql security definer set search_path = public as $$
 declare
   d date; t text; n int; nm text; ph text; em text; nt text; digits text;
@@ -22,8 +22,8 @@ declare
   u jsonb; ids int[]; i int; s int; best_lead int := 0; best_seats int := 999; best_name text;
   used int[] := '{}'; booking jsonb;
 begin
-  if r is null or length(r::text) > 2000 then return 'error'; end if;
-  begin d := (r ->> 'date')::date; exception when others then return 'error'; end;
+  if r is null or length(r::text) > 2000 then return false; end if;
+  begin d := (r ->> 'date')::date; exception when others then return false; end;
   t  := coalesce(r ->> 'time', '');
   n  := case when (r ->> 'size') ~ '^\d{1,2}$' then (r ->> 'size')::int else 0 end;
   nm := left(btrim(coalesce(r ->> 'name', '')), 60);
@@ -33,14 +33,14 @@ begin
   digits := regexp_replace(ph, '\D', '', 'g');
 
   -- sensible bookings only
-  if d < (now() at time zone 'Europe/London')::date or d > (now() at time zone 'Europe/London')::date + 120 then return 'error'; end if;
-  if t !~ '^([01]\d|2[0-3]):[0-5]\d$' then return 'error'; end if;
-  if n < 1 or n > 20 or nm = '' or length(digits) < 10 then return 'error'; end if;
-  if em <> '' and em !~ '^[^\s@]+@[^\s@]+\.[^\s@]+$' then return 'error'; end if;
+  if d < (now() at time zone 'Europe/London')::date or d > (now() at time zone 'Europe/London')::date + 120 then return false; end if;
+  if t !~ '^([01]\d|2[0-3]):[0-5]\d$' then return false; end if;
+  if n < 1 or n > 20 or nm = '' or length(digits) < 10 then return false; end if;
+  if em <> '' and em !~ '^[^\s@]+@[^\s@]+\.[^\s@]+$' then return false; end if;
 
   -- stop floods: at most 3 bookings a day from one phone number, and 30 an hour in total
-  if (select count(*) from t57_docs where coll = 'webbook' and data ->> 'digits' = digits and updated_at > now() - interval '1 day') >= 3 then return 'error'; end if;
-  if (select count(*) from t57_docs where coll = 'webbook' and updated_at > now() - interval '1 hour') >= 30 then return 'error'; end if;
+  if (select count(*) from t57_docs where coll = 'webbook' and data ->> 'digits' = digits and updated_at > now() - interval '1 day') >= 3 then return false; end if;
+  if (select count(*) from t57_docs where coll = 'webbook' and updated_at > now() - interval '1 hour') >= 30 then return false; end if;
 
   -- that night's floor plan, locked so two website bookings can't take the same table at once
   insert into t57_docs (coll, id, data, updated_at) values ('plan23', d::text, '{}'::jsonb, now()) on conflict do nothing;
@@ -90,7 +90,7 @@ begin
                        'table', coalesce(best_name, ''), 'at', (extract(epoch from now()) * 1000)::bigint),
     now());
 
-  if best_lead = 0 then return 'full'; end if;
+  if best_lead = 0 then return null; end if;
 
   -- put it on the table, the same way a tablet saves a booking
   booking := jsonb_build_object('time', t, 'notes', left('Website' || case when nt <> '' then ': ' || nt else '' end, 200),
@@ -98,7 +98,7 @@ begin
     'status', 'pending', 'sentOwner', 0, 'sentCustomer', 0, 'reminded', 0);
   update t57_docs set data = data || jsonb_build_object('b:' || best_lead, booking, 'updatedAt', (extract(epoch from now()) * 1000)::bigint),
     updated_at = now() where coll = 'plan23' and id = d::text;
-  return 'ok';
+  return true;
 end $$;
 
 revoke all on function public.t57_web_book(jsonb) from public;

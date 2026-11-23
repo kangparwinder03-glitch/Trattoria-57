@@ -277,7 +277,7 @@ $("bk").addEventListener("submit",async e=>{
   try{
     if(BOOKING){
       const res=await fetch(BOOKING.url+"/rest/v1/rpc/t57_web_book",{method:"POST",headers:{"Content-Type":"application/json",apikey:BOOKING.key,Authorization:"Bearer "+BOOKING.key},body:JSON.stringify({r})});
-      const ans=res.ok?await res.json():"error";if(ans!=="ok")throw new Error(ans==="full"?"full":"refused");
+      const ans=res.ok?await res.json():false;if(ans!==true)throw new Error(ans===null?"full":"refused");
     }
     $("bookArea").innerHTML=`<div class="done" role="status"><h3>Grazie, ${esc(r.name.split(" ")[0])}!</h3>
       <p>We've received your booking for <b>${r.size} ${r.size===1?"guest":"guests"}</b> on <b>${esc(longDate(r.date))} at ${esc(t12(r.time))}</b>.</p>
