@@ -3873,9 +3873,9 @@ async function cloudDays(){
   if(typeof c.changedSince!=="function"){const out={},sn=await c.get();sn.docs.forEach(d=>{out[d.id]=d.data()});return out}
   if(planHist.db!==db){planHist.db=db;planHist.days={};planHist.cursor=""}
   // look back a minute in case two saves landed at nearly the same moment
-  const since=planHist.cursor?new Date(Date.parse(planHist.cursor)-60000).toISOString():"";
+  const since=planHist.cursor?new Date(tms(planHist.cursor)-60000).toISOString():"";
   const rows=await c.changedSince(since);
-  rows.forEach(r=>{planHist.days[r.id]=r.data;if(!planHist.cursor||Date.parse(r.updated_at)>Date.parse(planHist.cursor))planHist.cursor=r.updated_at});
+  rows.forEach(r=>{planHist.days[r.id]=r.data;if(!planHist.cursor||tms(r.updated_at)>tms(planHist.cursor))planHist.cursor=r.updated_at});
   return planHist.days;
 }
 async function allDays(){
@@ -5027,6 +5027,8 @@ const SUPA_KEY="sb_publishable_Hix2EgA_xpjxMYFvmarVIQ_Hj0qx3YM";
 const SUPA_LIB="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js";
 function loadSupaLib(){return new Promise((res,rej)=>{if(window.supabase&&window.supabase.createClient){res(window.supabase);return}
   const s=document.createElement("script");s.src=SUPA_LIB;s.async=true;s.onload=()=>window.supabase?res(window.supabase):rej(new Error("no lib"));s.onerror=()=>rej(new Error("lib failed"));document.head.appendChild(s)})}
+// the database writes times like "2026-11-23 21:05:01.123456+00": make them readable for every browser
+const tms=t=>{if(!t)return 0;let x=String(t).trim().replace(" ","T").replace(/(\.\d{3})\d+/,"$1");if(/[+-]\d\d$/.test(x))x+=":00";else if(!/(Z|[+-]\d\d:?\d\d)$/.test(x))x+="Z";return Date.parse(x)||0};
 function makeSupaDb(sb){
   const TB="t57_docs",subs=new Set(),inflight={},lastSent={};
   const err=e=>{const x=new Error((e&&e.message)||"db error");x.code=(e&&/fetch|network|Failed/i.test(e.message||""))?"unavailable":"unknown";return x};
@@ -5039,18 +5041,26 @@ function makeSupaDb(sb){
   // Data use (Supabase free plan = 5 GB a month): a change arrives over the live connection WITH the changed item,
   // so we update our copy from that instead of downloading the whole list again on every tablet.
   let chan=null,live=false,newest=0;
-  const seen=t=>{const v=Date.parse(t||"")||0;if(v>newest)newest=v};
+  const seen=t=>{const v=tms(t);if(v>newest)newest=v};
   function onChange(p){const ev=p.eventType,nw=p.new||{},od=p.old||{},c=nw.coll||od.coll;seen(nw.updated_at);
     if(!c){refreshAll();return}
     const full=ev==="DELETE"?od.id!=null:(nw.id!=null&&nw.data&&typeof nw.data==="object"&&!(p.errors&&p.errors.length));
     subs.forEach(s=>{if(s.coll!==c)return;if(!full){s.kick();return}s.apply(ev==="DELETE"?null:{id:nw.id,data:nw.data},od.id)})}
   function ensureChannel(){if(chan)return;chan=sb.channel("t57-all").on("postgres_changes",{event:"*",schema:"public",table:TB},onChange)
-    .subscribe(st=>{if(st==="SUBSCRIBED"){live=true;refreshAll()}else if(st==="CHANNEL_ERROR"||st==="TIMED_OUT"||st==="CLOSED")live=false})}
-  // safety net if live updates drop: once a minute ask only "when did anything last change?" (a few bytes),
-  // and download again only if something changed that we didn't hear about. Used to re-download everything every 20s.
-  async function check(){if(document.hidden||!subs.size)return;if(!live){refreshAll();return}
-    try{const {data,error}=await sb.from(TB).select("updated_at").order("updated_at",{ascending:false}).limit(1);if(error||!data||!data[0])return;
-      const v=Date.parse(data[0].updated_at)||0;if(!newest){newest=v;return}if(v>newest){newest=v;refreshAll()}}catch(_){}}
+    .subscribe(st=>{
+      // back online: after a short drop just fetch what changed meanwhile; after a long one (or the first time) download everything
+      if(st==="SUBSCRIBED"){const gap=lostAt?Date.now()-lostAt:Infinity;live=true;lostAt=0;if(newest&&gap<1800000)catchUp();else refreshAll()}
+      else if(st==="CHANNEL_ERROR"||st==="TIMED_OUT"||st==="CLOSED"){if(live||!lostAt)lostAt=Date.now();live=false}})}
+  let lostAt=0,catching=false;
+  // safety net if live updates drop: once a minute fetch ONLY the items changed since the newest change we know of
+  // (usually none, or the one we just heard about). It used to re-download everything (every 20s, then every minute).
+  async function catchUp(){if(catching)return;catching=true;
+    try{if(!newest){const {data,error}=await sb.from(TB).select("updated_at").order("updated_at",{ascending:false}).limit(1);if(!error&&data&&data[0])seen(data[0].updated_at);return}
+      const {data,error}=await sb.from(TB).select("coll,id,data,updated_at").gt("updated_at",new Date(newest+1).toISOString()).order("updated_at",{ascending:true}).limit(300);
+      if(error||!data)return;if(data.length>=300){refreshAll();data.forEach(r=>seen(r.updated_at));return}
+      data.forEach(r=>onChange({eventType:"UPDATE",new:r,old:{}}))}
+    catch(_){}finally{catching=false}}
+  async function check(){if(document.hidden||!subs.size)return;catchUp()}
   setInterval(check,60000);
   document.addEventListener("visibilitychange",()=>{if(!document.hidden)check()});
   function listen(coll,id,w,cb,ecb){
@@ -5123,7 +5133,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261123030000";const APP_VER=58;   // both stamped by the publish script
+const APP_BUILD="20261123230000";const APP_VER=59;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
@@ -5174,7 +5184,10 @@ function makeGuestDb(sb){
   let cache=null,busy=false;const subs=new Set(),ns=TRAIN?"train":"";
   const base=n=>String(n).replace(/^train_/,"");
   async function pull(){if(busy)return;busy=true;try{const {data,error}=await sb.rpc("t57_guest",{ns,d:dateKey});if(!error){cache=data||{};subs.forEach(s=>s())}}catch(_){}busy=false}
-  setInterval(()=>{if(!document.hidden)pull()},15000);document.addEventListener("visibilitychange",()=>{if(!document.hidden)pull()});pull();
+  // customers' phones: every 20s for 5 minutes after opening or ordering, then once a minute (each check downloads today's orders)
+  let busyUntil=Date.now()+300000,lastPull=0;const pullNow=()=>{lastPull=Date.now();pull()};
+  setInterval(()=>{if(document.hidden)return;const gap=Date.now()<busyUntil?20000:60000;if(Date.now()-lastPull>=gap-500)pullNow()},5000);
+  document.addEventListener("visibilitychange",()=>{if(!document.hidden&&Date.now()-lastPull>10000)pullNow()});pullNow();
   const sd=(id,data)=>({id,exists:data!=null,data:()=>data==null?undefined:clone(data),metadata:{fromCache:false,hasPendingWrites:false}});
   const docData=(c,id)=>{if(!cache)return undefined;c=base(c);
     if(c==="plan23")return id===dateKey?cache.plan:undefined;
@@ -5186,7 +5199,7 @@ function makeGuestDb(sb){
   const many=r=>({docs:r.map(x=>sd(x.id,x.data)),size:r.length,empty:!r.length});
   function docRef(c,id){return {id,
     get:async()=>{if(!cache)await pull();return sd(id,docData(c,id))},
-    set:async d=>{const {data,error}=await sb.rpc("t57_guest_put",{c,i:id,d});if(error||data!==true){const e=new Error("not allowed");e.code="denied";throw e}setTimeout(pull,300)},
+    set:async d=>{busyUntil=Date.now()+300000;const {data,error}=await sb.rpc("t57_guest_put",{c,i:id,d});if(error||data!==true){const e=new Error("not allowed");e.code="denied";throw e}setTimeout(pull,300)},
     update:async()=>{},delete:async()=>{},
     onSnapshot:cb=>{let last;const s=()=>{const d=docData(c,id),j=JSON.stringify(d===undefined?null:d);if(j===last)return;last=j;cb(sd(id,d))};subs.add(s);if(cache)s();return ()=>subs.delete(s)}}}
   function query(c,w){return {where:(f,op,v)=>query(c,w.concat([[f,op,v]])),doc:id=>docRef(c,id),
