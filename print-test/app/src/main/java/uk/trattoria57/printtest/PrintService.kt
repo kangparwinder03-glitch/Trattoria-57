@@ -37,6 +37,7 @@ class PrintService : Service() {
     private var worker: Thread? = null
     private var wake: PowerManager.WakeLock? = null
     private var lastBeat = 0L
+    @Volatile private var lastPrint = System.currentTimeMillis()   // when something last printed (quiet = check less often)
     private var lastUpd = System.currentTimeMillis() - 3540_000L   // first check ~1 min after start
     private val prefs by lazy { getSharedPreferences("t57", Context.MODE_PRIVATE) }
 
@@ -89,7 +90,8 @@ class PrintService : Service() {
                 }
             }
             // heartbeat: the website shows a green / red light for each printer
-            if (System.currentTimeMillis() - lastBeat > 15000) {
+            // (once a minute, or straight away when the printer goes off/on: every heartbeat is sent to every tablet)
+            if (System.currentTimeMillis() - lastBeat > 60_000) {
                 for (st in sts) try {
                     val b = Bt.state(st)
                     Cloud.merge("printers", st, org.json.JSONObject().put("at", System.currentTimeMillis()).put("ok", b.lastOk).put("msg", b.lastMsg).put("off", false).put("down", b.down)
@@ -100,7 +102,9 @@ class PrintService : Service() {
             }
             // self-update: check once an hour (only between 3am and 3pm, never during service)
             if (System.currentTimeMillis() - lastUpd > 3600_000L) { lastUpd = System.currentTimeMillis(); Updater.check(this, false) }
-            try { Thread.sleep(3000) } catch (_: InterruptedException) { break }
+            // every 3s while orders are coming in; after 10 quiet minutes every 10s (each check uses a little of the free data allowance)
+            val wait = if (System.currentTimeMillis() - lastPrint < 600_000L) 3000L else 10_000L
+            try { Thread.sleep(wait) } catch (_: InterruptedException) { break }
         }
     }
 
@@ -129,7 +133,7 @@ class PrintService : Service() {
         // kitchen / bar: order tickets (real ones, plus training ones marked TRAINING). The till gets none.
         if (st != "till") {
             val tickets = listOf("tickets", "train_tickets").flatMap { coll ->
-                Cloud.list(coll, listOf("date" to today, "station" to st)).map { Triple(coll, it.first, it.second) } }
+                Cloud.list(coll, listOf("date" to today, "station" to st), unprinted = true, since = since).map { Triple(coll, it.first, it.second) } }
                 .filter { (_, id, d) -> id !in done && !d.optBoolean("hold") && !d.optBoolean("wait") && !d.optBoolean("rejected") && d.optLong("printed", 0L) == 0L && d.optLong("createdAt") >= since }
                 .sortedBy { it.third.optLong("createdAt") }
             for ((coll, id, d) in tickets) {
@@ -154,7 +158,7 @@ class PrintService : Service() {
             }
         }
         // bills, receipts and reports sent from the website to this printer
-        val jobs = Cloud.list("printjobs", listOf("to" to st))
+        val jobs = Cloud.list("printjobs", listOf("to" to st), unprinted = true, since = dayStart())
             // anything sent today still prints when the printer comes back (it used to be dropped after 2 hours)
             .filter { (id, d) -> id !in done && d.optLong("printed", 0L) == 0L && d.optLong("createdAt") >= dayStart() }
             .sortedBy { it.second.optLong("createdAt") }
@@ -169,7 +173,7 @@ class PrintService : Service() {
     }
 
     private fun markDone(done: MutableSet<String>, coll: String, id: String, st: String) {
-        done.add(id)
+        done.add(id); lastPrint = System.currentTimeMillis()
         val keep = if (done.size > 600) done.toList().takeLast(400).toMutableSet() else done
         prefs.edit().putStringSet("done", keep).apply()
         try { Cloud.merge(coll, id, JSONObject().put("printed", System.currentTimeMillis()).put("printedBy", st)) } catch (_: Exception) {}

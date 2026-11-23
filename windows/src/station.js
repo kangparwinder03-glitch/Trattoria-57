@@ -124,12 +124,12 @@ function speak(text) {
 }
 
 // ---- the loop ----
-let running = false, timer = null, lastBeat = 0;
+let running = false, timer = null, lastBeat = 0, lastPrint = Date.now();   // quiet for 10 min = check less often
 const ymd = ms => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 function dayStart() { const d = new Date(Date.now() - 5 * 3600000); d.setHours(5, 0, 0, 0); return d.getTime(); }
 
 async function markDone(coll, id, s) {
-  done.push(id); saveDone();
+  done.push(id); saveDone(); lastPrint = Date.now();
   try { await Cloud.merge(coll, id, { printed: Date.now(), printedBy: s }); } catch (e) {}
 }
 
@@ -138,7 +138,7 @@ async function pollStation(s, ready) {
   const today = ymd(Date.now() - 5 * 3600000);
   if (s !== "till") {
     let tickets = [];
-    for (const coll of ["tickets", "train_tickets"]) for (const [id, d] of await Cloud.list(coll, [["date", today], ["station", s]])) tickets.push([coll, id, d]);
+    for (const coll of ["tickets", "train_tickets"]) for (const [id, d] of await Cloud.list(coll, [["date", today], ["station", s]], { unprinted: true, since: cfg.since || 0 })) tickets.push([coll, id, d]);
     tickets = tickets.filter(([, id, d]) => !done.includes(id) && !d.hold && !d.wait && !d.rejected && !(d.printed > 0) && (d.createdAt || 0) >= cfg.since)
       .sort((a, b) => (a[2].createdAt || 0) - (b[2].createdAt || 0));
     for (const [coll, id, d] of tickets) {
@@ -159,7 +159,7 @@ async function pollStation(s, ready) {
       if (c.speak) speak(speakWords(label, training));
     }
   }
-  const jobs = (await Cloud.list("printjobs", [["to", s]]))
+  const jobs = (await Cloud.list("printjobs", [["to", s]], { unprinted: true, since: dayStart() }))
     .filter(([id, d]) => !done.includes(id) && !(d.printed > 0) && (d.createdAt || 0) >= dayStart())
     .sort((a, b) => (a[1].createdAt || 0) - (b[1].createdAt || 0));
   for (const [id, d] of jobs) {
@@ -188,7 +188,7 @@ async function tick() {
       if (b.down !== was) { lastBeat = 0; Hub.say(b.down ? `⚠ Can't reach the ${NAME[s]} printer — is it switched on?` : `🖨 ${NAME[s]} printer back on`, !b.down); }
     }
   }
-  if (Date.now() - lastBeat > 15000) {
+  if (Date.now() - lastBeat > 60000) {   // once a minute (or at once when a printer goes off/on): every heartbeat goes to every tablet
     for (const s of sts) {
       const b = state(s);
       try { await Cloud.merge("printers", s, { at: Date.now(), ok: b.lastOk, msg: b.lastMsg, off: false, down: b.down,
@@ -196,7 +196,8 @@ async function tick() {
     }
     lastBeat = Date.now();
   }
-  if (running) timer = setTimeout(tick, 3000);
+  // every 3s while orders are coming in; after 10 quiet minutes every 10s (each check uses a little of the free data allowance)
+  if (running) timer = setTimeout(tick, Date.now() - lastPrint < 600000 ? 3000 : 10000);
 }
 
 function start() {

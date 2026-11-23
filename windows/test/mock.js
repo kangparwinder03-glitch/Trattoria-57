@@ -60,6 +60,12 @@ const server = http.createServer((req, res) => {
     if (u.pathname === "/rest/v1/t57_docs" && req.method === "GET") {
       let rows = Object.values(docs);
       for (const [k, v] of filt(u.searchParams)) rows = rows.filter(r => k.startsWith("data->>") ? String(r.data[k.slice(7)] ?? "") === v && r.data[k.slice(7)] !== undefined : String(r[k]) === v);
+      // the printer apps only ask for what still needs printing (like Supabase does with these filters)
+      const or = u.searchParams.get("or");
+      if (or) { const f = or.replace(/^\(|\)$/g, "").split(",").map(x => /^data->>(\w+)\.(is|eq)\.(.*)$/.exec(x));
+        rows = rows.filter(r => f.some(([, k, op, v]) => op === "is" ? r.data[k] == null : r.data[k] != null && String(r.data[k]) === v)); }
+      for (const [k, v] of u.searchParams) { const m = /^data->(\w+)$/.exec(k), g = /^gte\.(.*)$/.exec(v);
+        if (m && g) rows = rows.filter(r => typeof r.data[m[1]] === "number" && r.data[m[1]] >= +g[1]); }
       rows.sort((a, b) => (a.coll + a.id).localeCompare(b.coll + b.id));
       const off = +(u.searchParams.get("offset") || 0), lim = +(u.searchParams.get("limit") || 1e9);
       rows = rows.slice(off, off + lim);
