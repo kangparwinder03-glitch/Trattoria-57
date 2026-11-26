@@ -302,7 +302,10 @@ class Hub {
   async stop() {
     this.store.compact();
     try { if (this.online.creds) await this.online.push(); } catch (e) {}
-    await this.online.goodbye(); try { this.server.close(); } catch (e) {} }
+    await this.online.goodbye();
+    for (const c of this.clients) { try { c.end(); } catch (e) {} }
+    try { this.server.close(); if (this.server.closeAllConnections) this.server.closeAllConnections(); } catch (e) {}
+  }
 
   broadcast(ev) {
     const msg = `data: ${JSON.stringify(ev)}\n\n`;

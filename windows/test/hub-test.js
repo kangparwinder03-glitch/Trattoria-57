@@ -15,14 +15,14 @@ let fails = 0;
 const check = (name, ok, info) => { console.log((ok ? "PASS " : "FAIL ") + name + (info ? "  — " + info : "")); if (!ok) fails++; };
 function call(method, p, body, tok) {
   return new Promise((ok, bad) => {
-    const req = http.request({ host: "127.0.0.1", port: 57571, path: p, method, headers: Object.assign({ "Content-Type": "application/json" }, tok ? { Authorization: "Bearer " + tok } : {}) }, res => {
+    const req = http.request({ agent: false, host: "127.0.0.1", port: 57571, path: p, method, headers: Object.assign({ "Content-Type": "application/json" }, tok ? { Authorization: "Bearer " + tok } : {}) }, res => {
       const parts = []; res.on("data", d => parts.push(d)); res.on("end", () => { const t = Buffer.concat(parts).toString(); let j = null; try { j = JSON.parse(t); } catch (e) {} ok({ status: res.statusCode, j, t }); });
     });
     req.on("error", bad); if (body) req.write(JSON.stringify(body)); req.end();
   });
 }
 const mockCall = (method, p, body) => new Promise((ok, bad) => {
-  const req = http.request({ host: "127.0.0.1", port: 54331, path: p, method, headers: { "Content-Type": "application/json" } }, res => {
+  const req = http.request({ agent: false, host: "127.0.0.1", port: 54331, path: p, method, headers: { "Content-Type": "application/json" } }, res => {
     const parts = []; res.on("data", d => parts.push(d)); res.on("end", () => ok(JSON.parse(Buffer.concat(parts).toString() || "null")));
   });
   req.on("error", bad); if (body) req.write(JSON.stringify(body)); req.end();
