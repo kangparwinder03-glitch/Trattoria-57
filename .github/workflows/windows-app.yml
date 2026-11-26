@@ -25,6 +25,9 @@ jobs:
       - name: Set the version number
         shell: bash
         run: npm version "1.0.${GITHUB_RUN_NUMBER}" --no-git-tag-version --allow-same-version
+      - name: Bundle the database library (so the tablets work even if the internet is down when the app first starts)
+        shell: bash
+        run: curl -fsSL -o assets/supabase.min.js https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js && ls -l assets/supabase.min.js
       - name: Build the installer
         run: npm run dist
         env: { CSC_IDENTITY_AUTO_DISCOVERY: "false" }
@@ -68,6 +71,20 @@ jobs:
           Copy-Item C:\t57\usb-printer.prn test\out\usb-printer.bin
           Get-ChildItem test\out, test\out\backups | Format-Table Name, Length
 
+      - name: Test the restaurant hub (tablets connect to this computer)
+        shell: pwsh
+        run: |
+          node test/hub-test.js
+          if ($LASTEXITCODE -ne 0) { throw "hub test failed" }
+
+      - name: Two pretend iPads on the hub, then the till goes off and comes back
+        shell: pwsh
+        env: { PW_CHANNEL: "chrome" }
+        run: |
+          npm i --no-save --no-audit --no-fund playwright@1.48.0
+          node test/tablets-test.js
+          if ($LASTEXITCODE -ne 0) { throw "tablets test failed" }
+
       - name: Check the printer helper (Bluetooth / USB list)
         shell: pwsh
         run: powershell -NoProfile -ExecutionPolicy Bypass -File "$((Get-Item $env:T57_EXE).DirectoryName)\resources\rawprint.ps1" list
@@ -76,7 +93,9 @@ jobs:
         if: always()
         with:
           name: T57-Windows-test-results
-          path: windows/test/out/
+          path: |
+            windows/test/out/
+            windows/test/out-tablets/*.png
       - uses: actions/upload-artifact@v4
         with:
           name: T57-Windows-Setup

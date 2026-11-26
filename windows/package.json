@@ -10,7 +10,9 @@
   "scripts": {
     "start": "electron .",
     "test": "node test/run-local.js",
-    "dist": "electron-builder --win nsis --x64 --publish never"
+    "dist": "electron-builder --win nsis --x64 --publish never",
+    "test:hub": "node test/hub-test.js",
+    "test:tablets": "node test/tablets-test.js"
   },
   "devDependencies": {
     "electron": "33.2.1",
@@ -35,6 +37,13 @@
       {
         "from": "assets/printers.ico",
         "to": "printers.ico"
+      },
+      {
+        "from": "../docs",
+        "to": "site",
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "win": {

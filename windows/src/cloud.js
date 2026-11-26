@@ -47,6 +47,7 @@ async function authCall(grant, body) {
 }
 
 const Cloud = {
+  local: null,   // set when this computer is the restaurant hub: the printers and backups then use the data kept here
   BASE, KEY, request,
   get signedInAs() { return store.get("auth_email"); },
 
@@ -79,6 +80,7 @@ const Cloud = {
    *  (These checks run every few seconds all day, so the database only sends what's still waiting:
    *  usually nothing. Downloading the whole day each time used most of the free data allowance.) */
   async list(coll, filters = [], { unprinted = false, since = 0 } = {}) {
+    if (this.local) return this.local.list(coll, filters, { unprinted, since });
     let q = `/rest/v1/t57_docs?select=id,data&coll=eq.${encodeURIComponent(coll)}`;
     for (const [k, v] of filters) q += `&${encodeURIComponent("data->>" + k)}=eq.${encodeURIComponent(v)}`;
     // (an order saved back by a tablet can carry printed = 0, which still means "not printed")
@@ -89,10 +91,11 @@ const Cloud = {
   },
 
   /** Adds fields to a saved item (used to mark an order as printed). */
-  async merge(coll, id, patch) { await this.call("/rest/v1/rpc/t57_merge", "POST", { c: coll, i: id, patch }); },
+  async merge(coll, id, patch) { if (this.local) return this.local.merge(coll, id, patch); await this.call("/rest/v1/rpc/t57_merge", "POST", { c: coll, i: id, patch }); },
 
   /** Every record in the database, for the backup. */
   async everything() {
+    if (this.local) return this.local.everything();
     const rows = [], step = 1000;
     for (;;) {
       const part = await this.call(`/rest/v1/t57_docs?select=coll,id,data,updated_at&order=coll.asc,id.asc&offset=${rows.length}&limit=${step}`);
