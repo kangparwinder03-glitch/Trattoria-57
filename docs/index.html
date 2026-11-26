@@ -782,6 +782,10 @@ body.training{padding-top:30px}
 .patb{background:#3f5f86;color:#fff;border-radius:6px;padding:1px 6px}
 .station.handsoff .tk button,.station.handsoff .tk .prog,.station.handsoff .heldbar button,.station.handsoff .kseg,.station.handsoff [data-onetap],.station.handsoff .ksum{display:none!important}
 .station.handsoff .tk{cursor:default}
+.station .tk{touch-action:pan-y;transition:transform .18s ease,opacity .18s ease;user-select:none;-webkit-user-select:none}
+.station .tk.swiping{transition:none}
+.station .kundo{display:none;background:var(--ink);color:#fff}.station .kundo.show{display:inline-flex}
+.station .ksw{font-size:12px;color:#8a7d62;margin:-4px 0 8px}
 .heldbar{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:#fff6e6;border:1px dashed #d9b04a;border-radius:12px;padding:10px 12px;margin-bottom:10px;font-size:15px}
 .heldt{display:inline-flex;gap:8px;align-items:center;background:#fff;border:1px solid #ecd9a6;border-radius:10px;padding:4px 6px 4px 10px;font-weight:700}
 .heldt button,.firebtn{background:#c0501b!important;color:#fff!important;border:0!important;border-radius:8px;padding:6px 10px;font-weight:800}
@@ -1000,7 +1004,7 @@ a[href^="#"]:active{filter:brightness(.9)}
       <div class="khead">
         <span class="sttitle">KITCHEN</span><button class="sndbtn" data-snd>🔔 Sound on</button><button class="sndbtn vib" data-vib>📳 Buzz on</button><button class="sndbtn ld" data-loud="kitchen"></button><button class="sndbtn" data-big="kitchen">🔠 Large text</button><button class="sndbtn ot" data-onetap="kitchen"></button><button class="sndbtn" data-stock="kitchen">⛔ Out of stock<span class="n-out"></span></button><div class="kseg"><button data-kf="todo" class="on">To do <span class="n-todo">0</span></button><button data-kf="served">Served <span class="n-served">0</span></button></div>
       </div>
-      <div class="ksum"></div>
+      <div class="ksum"></div><div class="ksw">👉 Swipe an order sideways to clear it. Orders clear themselves after 10 minutes.</div>
       <div class="klist"></div>
     </div>
   </section>
@@ -1010,7 +1014,7 @@ a[href^="#"]:active{filter:brightness(.9)}
       <div class="khead">
         <span class="sttitle">BAR</span><button class="sndbtn takeord" id="barTake">➕ Take drinks order</button><button class="sndbtn" id="barWho" style="color:var(--ink)">👤 Who's on the bar?</button><button class="sndbtn" data-snd>🔔 Sound on</button><button class="sndbtn vib" data-vib>📳 Buzz on</button><button class="sndbtn ld" data-loud="bar"></button><button class="sndbtn" data-big="bar">🔠 Large text</button><button class="sndbtn ot" data-onetap="bar"></button><button class="sndbtn" data-stock="bar">⛔ Out of stock<span class="n-out"></span></button><div class="kseg"><button data-kf="todo" class="on">To do <span class="n-todo">0</span></button><button data-kf="served">Served <span class="n-served">0</span></button></div>
       </div>
-      <div class="ksum"></div>
+      <div class="ksum"></div><div class="ksw">👉 Swipe an order sideways to clear it. Orders clear themselves after 10 minutes.</div>
       <div class="klist"></div>
     </div>
   </section>
@@ -2490,8 +2494,9 @@ function updSnd(){
 // ---- loud mode for the kitchen & bar: alarm + full-screen flash, repeats until someone taps ----
 const loudOn={};["kitchen","bar","floor"].forEach(st=>{try{loudOn[st]=localStorage.getItem("t57-loud-"+st)!=="0"}catch(e){loudOn[st]=true}});
 let nagT=null,nagStopT=null;
-// kitchen is hands-off: no buttons for the chefs — orders show, ring for 10 seconds, and drop off the screen by themselves
-const HANDS_OFF={kitchen:true,bar:true},HANDS_OFF_MINS={kitchen:45,bar:30};
+// kitchen is hands-off: no buttons for the chefs — orders show, ring for 10 seconds, and drop off the screen by themselves after 10 minutes
+// (or sooner if someone swipes them away). Dropping off only hides them on the screen: the order, the bill and the history are untouched.
+const HANDS_OFF={kitchen:true,bar:true},HANDS_OFF_MINS={kitchen:10,bar:10};
 function newOrderAlert(st){
   if(!loudOn[st]){chime("neworder");return}
   chime("alarm");
@@ -2635,7 +2640,7 @@ function ticketsChanged(){
   whenFree(refreshOrderIfChanged);
   if(view==="guest")renderGuest();
   const newOnes=tickets.filter(t=>t.status==="new"&&!t.closed);
-  [["kBadge","kitchen"],["bBadge","bar"]].forEach(([id,st])=>{const n=newOnes.filter(t=>stOf(t)===st).length,b=$(id);b.textContent=n;b.classList.toggle("show",n>0)});
+  updStationBadges();
   const ids=new Set(newOnes.map(t=>t.id));
   if(lastNewIds&&(view==="kitchen"||view==="bar")&&newOnes.some(t=>stOf(t)===view&&!lastNewIds.has(t.id)))toast(view==="bar"?"🍸 New drinks order":"🔔 New order in");
   lastNewIds=ids;
@@ -3022,11 +3027,19 @@ const oneTap={};["kitchen","bar"].forEach(st=>{try{oneTap[st]=localStorage.getIt
 const K_BTN={new:["Received","rcv"],received:["Start preparing","prp"],preparing:["Served","srv"]};
 const B_BTN={new:["Received","rcv"],received:["Making","prp"],preparing:["Served","srv"]};
 const stOf=t=>t.station==="bar"?"bar":"kitchen";
+// orders swiped off the kitchen/bar screen: only hidden on this tablet, for today; nothing is deleted
+const kDis=new Set();let kDisDay="";
+function kDisLoad(){if(kDisDay===dateKey)return;kDisDay=dateKey;kDis.clear();try{(JSON.parse(localStorage.getItem("t57-kdis-"+dateKey)||"[]")||[]).forEach(id=>kDis.add(id))}catch(_){}}
+function kDisSave(){try{localStorage.setItem("t57-kdis-"+dateKey,JSON.stringify([...kDis]))}catch(_){}}
+// exactly what the "to do" list on a station shows (the tab badge uses this too, so they always agree)
+function stationTodo(st){kDisLoad();const now=Date.now();
+  return tickets.filter(t=>stOf(t)===st&&!t.hold&&!t.rejected&&!t.wait&&t.status!=="served"&&!kDis.has(t.id)&&!(HANDS_OFF[st]&&(t.closed||now-t.createdAt>HANDS_OFF_MINS[st]*60000))).sort((a,b)=>a.createdAt-b.createdAt)}
+function updStationBadges(){[["kBadge","kitchen"],["bBadge","bar"]].forEach(([id,st])=>{const b=$(id);if(!b)return;const n=stationTodo(st).filter(t=>HANDS_OFF[st]||t.status==="new").length;b.textContent=n;b.classList.toggle("show",n>0)})}
 function renderStation(st){
   const root=$(st);if(!root)return;const q=c=>root.querySelector(c);root.classList.toggle("handsoff",!!HANDS_OFF[st]);if(HANDS_OFF[st])kFilter[st]="todo";
   const held=tickets.filter(t=>stOf(t)===st&&t.wait&&!t.closed&&!t.rejected&&t.items.some(x=>!x.v));
   const mine=tickets.filter(t=>stOf(t)===st&&!t.hold&&!t.rejected&&!t.wait);
-  const todo=mine.filter(t=>t.status!=="served"&&!(HANDS_OFF[st]&&(t.closed||Date.now()-t.createdAt>HANDS_OFF_MINS[st]*60000))).sort((a,b)=>a.createdAt-b.createdAt);
+  const todo=stationTodo(st);
   const served=mine.filter(t=>t.status==="served").sort((a,b)=>b.updatedAt-a.updatedAt).slice(0,30);
   q(".n-todo").textContent=todo.length;q(".n-served").textContent=served.length;
   {const no=[...outSet].filter(n=>ITEMS[n]&&ITEMS[n].station===st).length;q(".n-out").textContent=no?" · "+no:""}
@@ -3052,6 +3065,7 @@ function renderStation(st){
         :`<div class="ta">${si>0?`<button class="bk" data-k="back">Undo</button>`:""}${nb?`<button class="go ${nb[1]}" data-k="next">${nb[0]} →</button>`:""}</div>`}
     </article>`}).join("")
     :`<div class="kempty">${kFilter[st]==="todo"?(st==="bar"?"No drinks waiting.":"All caught up — no orders waiting."):"Nothing served yet today."}</div>`);
+  updStationBadges();
 }
 function renderKitchen(){renderStation("kitchen");renderStation("bar")}
 document.querySelectorAll(".station").forEach(root=>{
@@ -3070,7 +3084,26 @@ document.querySelectorAll(".station").forEach(root=>{
     if(ni<0||ni>=FLOW.length)return;const tf={received:"tRec",preparing:"tPrep",served:"tSrv"}[FLOW[ni]];const upd={status:FLOW[ni]};if(tf&&bt.dataset.k==="next")upd[tf]=Date.now();patchTicket(t,upd);
   });
 });
-setInterval(()=>{if(view==="kitchen"||view==="bar")renderKitchen()},30000);
+setInterval(()=>{if(view==="kitchen"||view==="bar")whenFree(renderKitchen);else updStationBadges()},30000);
+// ---- swipe an order left or right to clear it off the kitchen/bar screen ----
+const kSw={el:null,x:0,y:0,dx:0,on:false,id:0};
+let kUndo=null;
+function kClear(st,id){kDisLoad();kDis.add(id);kDisSave();renderStation(st);
+  const root=$(st),b=root&&root.querySelector(".kundo");if(!b)return;b.dataset.id=id;b.classList.add("show");clearTimeout(kUndo);kUndo=setTimeout(()=>b.classList.remove("show"),8000)}
+document.querySelectorAll(".station").forEach(root=>{
+  const st=root.dataset.st,list=root.querySelector(".klist");
+  list.addEventListener("pointerdown",e=>{const el=e.target.closest(".tk");if(!el||e.target.closest("button")||kFilter[st]!=="todo")return;
+    Object.assign(kSw,{el,x:e.clientX,y:e.clientY,dx:0,on:false,id:e.pointerId})});
+  list.addEventListener("pointermove",e=>{if(!kSw.el||e.pointerId!==kSw.id)return;const dx=e.clientX-kSw.x,dy=e.clientY-kSw.y;
+    if(!kSw.on){if(Math.abs(dy)>12&&Math.abs(dy)>Math.abs(dx)){kSw.el=null;return}if(Math.abs(dx)<12)return;kSw.on=true;kSw.el.classList.add("swiping");try{kSw.el.setPointerCapture(e.pointerId)}catch(_){}}
+    kSw.dx=dx;kSw.el.style.transform=`translateX(${dx}px)`;kSw.el.style.opacity=String(Math.max(.25,1-Math.abs(dx)/(kSw.el.offsetWidth||300)))});
+  const end=e=>{if(!kSw.el||e.pointerId!==kSw.id)return;const el=kSw.el,dx=kSw.dx,was=kSw.on;kSw.el=null;if(!was)return;el.classList.remove("swiping");
+    if(Math.abs(dx)>Math.min(140,(el.offsetWidth||300)*.35)&&e.type!=="pointercancel"){el.style.transform=`translateX(${dx>0?"":"-"}120%)`;el.style.opacity="0";const id=el.dataset.id;setTimeout(()=>kClear(st,id),180)}
+    else{el.style.transform="";el.style.opacity=""}};
+  list.addEventListener("pointerup",end);list.addEventListener("pointercancel",end);
+  const head=root.querySelector(".khead");if(head&&!head.querySelector(".kundo")){const b=document.createElement("button");b.className="sndbtn kundo";b.textContent="↩ Bring back";head.appendChild(b);
+    b.onclick=()=>{const id=b.dataset.id;if(id){kDis.delete(id);kDisSave()}b.classList.remove("show");clearTimeout(kUndo);renderStation(st)}}
+});
 
 // ---------- staff clocking ----------
 // generic collection store: shared db when available, else this browser
@@ -5214,7 +5247,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261126192500";const APP_VER=59;   // both stamped by the publish script
+const APP_BUILD="20261126200000";const APP_VER=60;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
