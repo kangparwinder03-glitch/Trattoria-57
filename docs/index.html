@@ -638,6 +638,15 @@ input.ln.alg{border-color:#b3261e!important;background:#fff4f2!important}
 .sprow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}.sprow b{font-size:17px}
 .sprow .step span{min-width:82px;text-align:center;font-weight:800}
 .spit{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid #f1e9da;font-size:14px}
+.ppchips{flex-wrap:wrap;padding-bottom:6px}.tabchips button.shtog{border-style:dashed;color:#3f5f86}.tabchips button.shtog.on{background:#c79a2b;border-color:#c79a2b;color:#fff;border-style:solid}.ppchips button.pdone{opacity:.55;background:#eef3e6}
+.ppadd input{flex:1;min-width:0;font-size:16px;padding:9px 12px;border:1px solid #d9cfb3;border-radius:10px}.ppadd .btn{flex:none;width:auto;max-width:none;padding:9px 14px}
+.pplist{display:flex;flex-direction:column;gap:6px;margin:4px 0 10px}
+.ppit{display:flex;align-items:center;gap:10px;text-align:left;width:100%;border:1.5px solid var(--parch2);background:#fffaf0;border-radius:12px;padding:10px 12px;font-size:15px;color:inherit}
+.ppit>span{flex:1;min-width:0;font-weight:700}.ppit small{display:block;font-weight:400;color:#6d6448;font-size:12px}
+.ppit em{font-style:normal;font-size:12px;font-weight:700;color:#8a8068;background:#f6f0e2;border-radius:10px;padding:3px 8px;white-space:nowrap}
+.ppit.own em{color:#3f5f86;background:#eef3f9}.ppit.mine{border-color:#3f5f86;background:#eef3f9}.ppit.mine em{background:#3f5f86;color:#fff}
+.ppit.lock{opacity:.5}.ppit b{min-width:62px;text-align:right}
+.pprm{border:0;background:none;color:#a33;text-decoration:underline;font-weight:700;padding:0 4px;font-size:12px}
 .spit>span{flex:1}.spit small{display:block;color:#6d6448;font-size:12px}.spit.paid{opacity:.5}
 .rc-pay{color:var(--olive-dk);font-weight:700}
 #xOv .payrow{flex:none}
@@ -2230,12 +2239,12 @@ let mgrUntil=0;const MGR_GRACE=5*60000;   // after the manager PIN, other manage
 const money=n=>"£"+n.toFixed(2);
 function cleanTicket(id,d){
   if(!d||typeof d!=="object")return null;
-  const items=Array.isArray(d.items)?d.items.slice(0,80).map(x=>{const n=str(x&&x.n,80);if(n&&!ITEMS[n])regCustom(n,+(x&&x.p)||0,d.station,"");return Object.assign({n,q:Math.max(1,Math.min(99,Math.floor(+(x&&x.q))||1)),p:Math.max(0,+(x&&x.p)||0),note:str(x&&x.note,120),v:!!(x&&x.v),vr:str(x&&x.vr,40),vb:str(x&&x.vb,40),g:str(x&&x.g,20),c:/^[smd]$/.test(x&&x.c)?x.c:""},x&&x.wm?{wm:true}:{},x&&x.ws?{ws:true}:{},x&&x.en?{en:str(x.en,80)}:{})}):[];
+  const items=Array.isArray(d.items)?d.items.slice(0,80).map(x=>{const n=str(x&&x.n,80);if(n&&!ITEMS[n])regCustom(n,+(x&&x.p)||0,d.station,"");return Object.assign({n,q:Math.max(1,Math.min(99,Math.floor(+(x&&x.q))||1)),p:Math.max(0,+(x&&x.p)||0),note:str(x&&x.note,120),v:!!(x&&x.v),vr:str(x&&x.vr,40),vb:str(x&&x.vb,40),g:str(x&&x.g,20),c:/^[smd]$/.test(x&&x.c)?x.c:""},x&&x.wm?{wm:true}:{},x&&x.ws?{ws:true}:{},x&&x.en?{en:str(x.en,80)}:{},x&&Array.isArray(x.sh)&&x.sh.length?{sh:[...new Set(x.sh.slice(0,20).map(y=>str(y,20)).filter(Boolean))]}:{})}):[];
   const tables=Array.isArray(d.tables)?d.tables.map(Number).filter(i=>i>=1&&i<=N):[];
   return {id,date:str(d.date,10),tables,label:str(d.label,30),items,note:str(d.note,200),
     status:FLOW.includes(d.status)?d.status:"new",createdAt:+d.createdAt||0,updatedAt:+d.updatedAt||0,closed:!!d.closed,no:+d.no||0,station:d.station==="bar"?"bar":"kitchen",hold:!!d.hold,qr:!!d.qr,rejected:!!d.rejected,disc:cleanDisc(d.disc),discAmt:Math.max(0,+d.discAmt||0),wait:!!d.wait,printed:+d.printed||0,pickup:!!d.pickup,walk:!!d.walk,pno:Math.max(0,Math.floor(+d.pno)||0),pname:str(d.pname,40),pphone:str(d.pphone,30),pat:/^\d\d:\d\d$/.test(d.pat||"")?d.pat:"",fireAt:+d.fireAt||0,covers:Math.max(0,Math.min(99,Math.floor(+d.covers)||0)),paid:['card','cash','split'].includes(d.paid)?d.paid:'',by:str(d.by,40),byName:str(d.byName,40),pays:cleanPays(d.pays),idisc:cleanIdisc(d.idisc),tko:Math.max(0,Math.min(50,+d.tko||0)),discBy:cleanNumMap(d.discBy),paidAt:+d.paidAt||0,tRec:+d.tRec||0,tPrep:+d.tPrep||0,tSrv:+d.tSrv||0};
 }
-function cleanPays(a){if(!Array.isArray(a))return [];return a.slice(0,40).filter(x=>x&&typeof x==="object").map(x=>{const it={};if(x.it&&typeof x.it==="object")Object.keys(x.it).slice(0,80).forEach(k=>{it[str(k,100)]=Math.max(0,Math.floor(+x.it[k])||0)});
+function cleanPays(a){if(!Array.isArray(a))return [];return a.slice(0,40).filter(x=>x&&typeof x==="object").map(x=>{const it={};if(x.it&&typeof x.it==="object")Object.keys(x.it).slice(0,80).forEach(k=>{it[str(k,100)]=Math.max(0,Math.round(+x.it[k]*1000)/1000||0)});
   return {a:Math.max(0,Math.round((+x.a||0)*100)/100),m:x.m==="cash"?"cash":"card",at:+x.at||0,it,who:str(x.who,40),tab:str(x.tab,20)}})}
 const lv=x=>x.v?0:x.q*x.p;   // line value (voided lines are free)
 const ALG=/allerg|gluten|coeliac|celiac|dairy|lactose|\bnuts?\b|peanut|shellfish|prawn|\begg|sesame|vegan|soya|\bfish\b|mustard|celery|anaphyl/i;
@@ -2764,11 +2773,11 @@ function renderOrder(){
       const sub=t.items.reduce((a,x)=>a+lv(x),0);if(!t.hold)total+=sub;
       return `<div class="st-card"${t.hold?' style="border-color:#3f5f86;background:#eef3f9"':""}><div class="h"><span>${t.qr?"📱 ":""}Order ${t.no||""} · ${timeOf(t.createdAt)}${t.byName?" · "+esc(t.byName):""}<span class="stpill ${stOf(t)==="bar"?"sp-bar":"sp-kit"}">${stOf(t)==="bar"?"Bar":"Kitchen"}</span>${t.wait?`<span class="stpill heldp">⏸ Held</span>`:""}${t.hold||t.items.every(x=>x.v)?"":`<button class="delt" data-delt="${t.id}" title="Delete this order">🗑</button>`}</span><span class="pill ${t.hold?"hold":t.status}">${t.hold?"QR · check":t.status}</span></div>
         ${t.items.map((x,xi)=>x.v?`<div class="ln void"><span><s>${x.q}× ${esc(x.n)}</s><i>VOID · ${esc(x.vr)}${x.vb?" · "+esc(x.vb):""}</i></span><span><s>${money(x.q*x.p)}</s></span></div>`
-          :`<div class="ln"><span>${x.q}× ${esc(x.n)}${x.wm?`<em class="wmtag">with main</em>`:""}${x.ws?`<em class="wmtag">as starter</em>`:""}${ord.pickup||t.hold||!(x.g||hasTabs)?"":`<button class="gtag rt${x.g?"":" g0"}" data-retab="${t.id}|${xi}">👤 ${esc(x.g||"Table")}</button>`}${x.note?`<i${isAlg(x.note)?' class="alg"':""}>${esc(x.note)}</i>`:""}</span><span>${money(x.q*x.p)}${t.hold?"":`<button class="vd" data-void="${t.id}|${xi}" title="Void">✕</button>`}</span></div>`).join("")}
+          :`<div class="ln"><span>${x.q}× ${esc(x.n)}${x.wm?`<em class="wmtag">with main</em>`:""}${x.ws?`<em class="wmtag">as starter</em>`:""}${ord.pickup||t.hold||!(x.g||hasTabs)?"":`<button class="gtag rt${ownerOf(x)?"":" g0"}" data-retab="${t.id}|${xi}">${shOf(x)?"🤝":"👤"} ${esc(ownerOf(x)||"Table")}</button>`}${x.note?`<i${isAlg(x.note)?' class="alg"':""}>${esc(x.note)}</i>`:""}</span><span>${money(x.q*x.p)}${t.hold?"":`<button class="vd" data-void="${t.id}|${xi}" title="Void">✕</button>`}</span></div>`).join("")}
         ${t.note?`<div class="ln"><i>Note: ${esc(t.note)}</i></div>`:""}
         ${t.hold?`<div class="qrbtns"><button class="btn no2" data-f="qrno" data-id="${t.id}">✕ Reject</button><button class="btn ok2" data-f="qrok" data-id="${t.id}">✓ Approve &amp; send</button></div>`:""}</div>`}).join("")+tabsHtml(all)+receiptHtml(billOf(all))
       :`<div class="empty">No orders sent for this table yet.</div>`}</div>`;
-    const BB=billOf(all),part=BB.paidSoFar>0||(!ord.pickup&&tabNames(all).some(n=>all.some(t=>t.items.some(x=>x.g===n))));
+    const BB=billOf(all),part=BB.paidSoFar>0||(!ord.pickup&&all.some(t=>t.items.some(x=>x.g||shOf(x))));
     foot.innerHTML=all.length?`<button class="btn sec" data-f="tomenu">+ Add</button><div class="payrow"><button class="btn card" data-f="close" data-pay="card">💳 ${part?"Rest card · "+money(BB.left):"Paid card"}</button><button class="btn cash" data-f="close" data-pay="cash">💵 ${part?"Rest cash · "+money(BB.left):"Paid cash"}</button></div>`
       :`<button class="btn pri" data-f="tomenu">Open menu</button>`;
   }
@@ -4479,7 +4488,15 @@ function barTake(){
 $("barTake").onclick=()=>{if(!waiter&&staffList().length){toast("Who's on the bar? Pick your name");pickWaiter(barTake);return}barTake()};
 
 // ---- name tabs: one table, separate bills (e.g. shared food, everyone pays their own drinks) ----
-function tabNames(all){const set=[];(all||[]).forEach(t=>t.items.forEach(x=>{if(x.g&&!set.includes(x.g))set.push(x.g)}));
+// an item can belong to one guest (x.g) or be shared between several (x.sh, e.g. a bottle of wine for two)
+const shOf=x=>Array.isArray(x.sh)&&x.sh.length?x.sh:null;
+function shareOf(x,name){const s=shOf(x);if(s)return s.includes(name)?1/s.length:0;return (x.g||"")===name?1:0}
+const ownerOf=x=>{const s=shOf(x);return s?s.join(" + "):(x.g||"")};
+// quantities on a guest's bill can be a share: ½, ⅓ … (onPaper = plain text for the printer)
+function qf(q,onPaper){if(Math.abs(q-Math.round(q))<1e-6)return String(Math.round(q));
+  const F=[[1/2,"½","1/2"],[1/3,"⅓","1/3"],[2/3,"⅔","2/3"],[1/4,"¼","1/4"],[3/4,"¾","3/4"]];const w=Math.floor(q+1e-6),r=q-w;
+  const f=F.find(([v])=>Math.abs(v-r)<1e-6);if(f)return (w?w+(onPaper?" ":""):"")+(onPaper?f[2]:f[1]);return (Math.round(q*100)/100).toFixed(2)}
+function tabNames(all){const set=[];if(ord&&ord.guests&&!ord.pickup)ord.guests.forEach(n=>{if(!set.includes(n))set.push(n)});(all||[]).forEach(t=>t.items.forEach(x=>{[x.g].concat(shOf(x)||[]).forEach(n=>{if(n&&!set.includes(n))set.push(n)})}));
   if(ord&&ord.guests)ord.guests.forEach(n=>{if(!set.includes(n))set.push(n)});cart().forEach(x=>{if(x.g&&!set.includes(x.g))set.push(x.g)});return set}
 function tabFor(n){const d=BAR_CATS.has(ITEMS[n].cat);return (d?ord.gDrink:ord.gFood)||""}
 function tabChips(drinks){
@@ -4492,28 +4509,31 @@ function tabChip(v){
     if(n.toLowerCase()==="table")n="Table guest";ord.guests=(ord.guests||[]);if(!ord.guests.includes(n)&&!names.includes(n))ord.guests.push(n);v=n}
   if(drinks)ord.gDrink=v;else ord.gFood=v;renderOrder()}
 // the bill for one tab ("" = shared table): same discounts as the whole bill, shared out fairly
-function tabBill(all,name){return tabBillBy(all,x=>(x.g||"")===name)}
+function tabBill(all,name){return tabBillBy(all,x=>shareOf(x,name))}
 function tabBillBy(all,keep){
   const B=billOf(all),live=B.live;if(!live.length)return Object.assign(billOf([]),{live:[]});
-  const copies=live.map((t,i)=>Object.assign({},t,{items:t.items.filter(keep),pays:[]}));
-  let disc=B.disc;if(disc&&disc.type==="amt"){const base=B.sub-B.itemDisc;disc=Object.assign({},disc,{type:"pct",value:base>0?B.orderDiscAmt/base*100:0})}
-  copies[0].disc=disc;copies[0].idisc=B.idisc;
+  const copies=live.map((t,i)=>Object.assign({},t,{items:t.items.map(x=>{const w=+keep(x)||0;return w<=0?null:w>=1?x:Object.assign({},x,{q:x.q*w})}).filter(Boolean),pays:[]}));
+  let disc=B.disc;if(disc&&disc.type==="amt"){const base=B.sub-B.itemDisc-B.autoDisc;disc=Object.assign({},disc,{type:"pct",value:base>0?B.orderDiscAmt/base*100:0})}
+  // a £ off on one dish is shared by how much of that dish is on this bill
+  const qIn={};copies.forEach(t=>t.items.forEach(x=>{if(!x.v)qIn[x.n+"|"+x.p]=(qIn[x.n+"|"+x.p]||0)+x.q}));const idisc={};
+  Object.entries(B.idisc||{}).forEach(([k,d])=>{if(!qIn[k])return;const l=B.lines.find(y=>y.k===k);idisc[k]=d.t==="pct"||!l?d:Object.assign({},d,{v:d.v*qIn[k]/l.q})});
+  copies[0].disc=disc;copies[0].idisc=idisc;
   const TB=billOf(copies);
   TB.live=copies.filter(t=>t.items.length);return TB}
 const tabPaid=(B,n)=>B.pays.find(p=>p.tab===n);
 function tabsHtml(all){
-  if(ord.pickup)return "";const names=tabNames(all).filter(n=>all.some(t=>!t.hold&&t.items.some(x=>!x.v&&x.g===n)));if(!names.length)return "";
+  if(ord.pickup)return "";const names=tabNames(all).filter(n=>all.some(t=>!t.hold&&t.items.some(x=>!x.v&&shareOf(x,n)>0)));if(!names.length)return "";
   const B=billOf(all),rows=names.map(n=>{const TB=tabBill(all,n),pd=tabPaid(B,n);
-    return `<div class="tabrow${pd?" paid":""}"><span><b>👤 ${esc(n)}</b><small>${TB.lines.map(l=>l.q+"× "+esc(l.n)).join(", ")}</small></span><b class="amt">${money(TB.total)}</b>
+    return `<div class="tabrow${pd?" paid":""}"><span><b>👤 ${esc(n)}</b><small>${TB.lines.map(l=>qf(l.q)+"× "+esc(l.n)).join(", ")}</small></span><b class="amt">${money(TB.total)}</b>
       ${pd?`<em>Paid ${pd.m} ✓</em>`:`<div class="tbtns">${canThermal()?`<button data-tprint="${esc(n)}">🧾</button>`:""}<button class="card" data-tpay="card" data-tname="${esc(n)}">💳</button><button class="cash" data-tpay="cash" data-tname="${esc(n)}">💵</button></div>`}</div>`}).join("");
   const TT=tabBill(all,""),tablePaid=Math.round(B.pays.filter(p=>!p.tab).reduce((a,p)=>a+p.a,0)*100)/100;
   return `<div class="tabsbox"><div class="gl-title"><span>Separate bills</span><em>${names.filter(n=>tabPaid(B,n)).length}/${names.length} paid</em></div>${canThermal()?`<button class="btn sec" data-tprintall style="width:100%;margin:4px 0 8px">🧾 One receipt with everyone's own total</button>`:""}${rows}
-    <div class="tabrow shared"><span><b>🍽 Table (shared)</b><small>${TT.lines.length?TT.lines.map(l=>l.q+"× "+esc(l.n)).join(", "):"Nothing shared"}</small></span><b class="amt">${money(TT.total)}</b>${canThermal()&&TT.lines.length?`<div class="tbtns"><button data-tprint="">🧾</button></div>`:""}</div>
+    <div class="tabrow shared"><span><b>🍽 Table (shared)</b><small>${TT.lines.length?TT.lines.map(l=>qf(l.q)+"× "+esc(l.n)).join(", "):"Nothing shared"}</small></span><b class="amt">${money(TT.total)}</b>${canThermal()&&TT.lines.length?`<div class="tbtns"><button data-tprint="">🧾</button></div>`:""}</div>
     <div class="tabnote">${TT.total?`Table bill: pay with the buttons below, or ➗ Split bill to share it evenly.${tablePaid?` ${money(tablePaid)} paid so far.`:""}`:"When every guest has paid, the table clears."}</div></div>`}
 function guestSplitLines(all){
-  const names=tabNames(all).filter(n=>all.some(t=>!t.hold&&t.items.some(x=>!x.v&&x.g===n))),B=billOf(all);
+  const names=tabNames(all).filter(n=>all.some(t=>!t.hold&&t.items.some(x=>!x.v&&shareOf(x,n)>0))),B=billOf(all);
   const L=[PL.lr(gnameLong(curGroup()),new Date().toLocaleString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})),PL.rule()];
-  const part=(title,TB)=>{if(!TB.lines.length)return;L.push(PL.t(title,"l",1));TB.lines.forEach(l=>L.push(PL.lr(`${l.q} x ${itName(l.n)}`,money(l.q*l.p))));
+  const part=(title,TB)=>{if(!TB.lines.length)return;L.push(PL.t(title,"l",1));TB.lines.forEach(l=>L.push(PL.lr(`${qf(l.q,1)} x ${itName(l.n)}`,money(l.q*l.p))));
     if(TB.itemDisc||TB.disc)L.push(PL.lr("  Discount","-"+money(Math.round((TB.sub-TB.total)*100)/100)));L.push(PL.lr("  Totale "+title,money(TB.total),1),PL.rule())};
   names.forEach(n=>part(n,tabBill(all,n)));part("Tavolo (shared)",tabBill(all,""));
   L.push(PL.rule("="),PL.lr("TOTAL",money(B.total),1,2),PL.rule("="),PL.gap(),PL.t("Grazie! Thank you for","c"),PL.t("dining with us.","c"));return L}
@@ -4521,8 +4541,10 @@ function printTab(n){const all=ordTickets(),TB=tabBill(all,n);if(!TB.lines.lengt
   printJob(rcpPrinter(),"bill","Bill "+gname(curGroup())+" · "+(n||"Table"),billLines(TB,n||"Table"),"full",...qrPair());toast("Printing "+(n||"table")+"'s bill")}
 function payTab(n,m){
   const all=ordTickets(),B=billOf(all),TB=tabBill(all,n);if(tabPaid(B,n)){toast(n+" has already paid");return}
-  const amt=Math.min(TB.total,B.left);if(amt<=0)return;
-  ask(`${n} paid ${money(amt)} by ${m}?`,TB.lines.map(l=>l.q+"× "+l.n).join(", "),async()=>{
+  let amt=Math.min(TB.total,B.left);if(amt<=0)return;
+  const others=tabNames(all).filter(x=>x!==n&&!tabPaid(B,x)&&tabBill(all,x).total>0);
+  if(!others.length&&!tabBill(all,"").total&&Math.abs(B.left-amt)<0.05)amt=B.left;
+  ask(`${n} paid ${money(amt)} by ${m}?`,TB.lines.map(l=>qf(l.q)+"× "+l.n).join(", "),async()=>{
     const it={};TB.lines.forEach(l=>{it[l.k]=l.q});
     if(settings.autoRc!==false&&canThermal()){const L=billLines(TB,n);L.splice(L.length-3,0,PL.lr("PAID ("+m+")",money(amt),1),PL.rule());
       printJob(rcpPrinter(),"receipt","Receipt "+gname(curGroup())+" · "+n,L,"full",...qrPair())}
@@ -4530,19 +4552,20 @@ function payTab(n,m){
 async function retab(key){
   if(readOnly){toast("View only");return}
   const [tid,xi]=key.split("|"),t=tickets.find(x=>x.id===tid);if(!t)return;const it=t.items[+xi];if(!it)return;
-  const B=billOf(ordTickets());if(it.g&&tabPaid(B,it.g)){toast(it.g+" has already paid");return}
+  const B=billOf(ordTickets());const pd=[it.g].concat(shOf(it)||[]).find(n=>n&&tabPaid(B,n));if(pd){toast(pd+" has already paid");return}
   const opts=[""].concat(tabNames(ordTickets()).filter(n=>!tabPaid(B,n)));const nx=opts[(opts.indexOf(it.g||"")+1)%opts.length];
   if(opts.length<2){toast("Add a guest first (+ Guest on the menu)");return}
-  const items=t.items.map(y=>Object.assign({},y));if(nx)items[+xi].g=nx;else delete items[+xi].g;
+  const items=t.items.map(y=>Object.assign({},y));delete items[+xi].sh;if(nx)items[+xi].g=nx;else delete items[+xi].g;
   await patchTicket(t,{items});toast(`${it.n} → ${nx||"Table"}`);ticketsChanged()}
 
 // ---- split bill & part payments ----
-let spl={n:2,sel:{}};
+let spl={n:2,sel:{},ppl:[],share:false};
 function openSplit(){
-  spl={n:2,sel:{}};
+  spl={n:2,sel:{},ppl:[],share:false};
   openX("split","Split the bill","",async e=>{
+    if(await personClick(e))return;
     const sp=e.target.closest("[data-sp]"),si=e.target.closest("[data-si]"),un=e.target.closest("[data-sundo]");
-    if(si){const B=billOf(ordTickets()),l=B.lines.find(x=>x.k===si.dataset.si);if(!l)return;const r=l.q-(B.itPaid[l.k]||0);
+    if(si){const B=billOf(ordTickets()),l=B.lines.find(x=>x.k===si.dataset.si);if(!l)return;let r=l.q-(B.itPaid[l.k]||0);if(r<0.01)r=0;
       spl.sel[l.k]=Math.max(0,Math.min(r,(spl.sel[l.k]||0)+(+si.dataset.d)));renderSplit();return}
     if(un){const B=billOf(ordTickets());const i=+un.dataset.sundo;const p=B.pays[i];if(!p)return;
       ask(`Remove ${money(p.a)} ${p.m} payment?`,"Only if it was taken by mistake.",async()=>{await patchTicket(B.anchor,{pays:B.pays.filter((_,j)=>j!==i)});ticketsChanged();renderSplit()});return}
@@ -4570,19 +4593,71 @@ function renderSplit(){
   $("xSub").textContent=`${ord.pickup?"Takeaway #"+ord.pno:gnameLong(curGroup())} · total ${money(B.total)}`;
   const paidShares=B.pays.filter(p=>!Object.keys(p.it||{}).length).length;
   $("xBody").innerHTML=`<div class="spsum"><div><span>Total</span><b>${money(B.total)}</b></div><div><span>Paid</span><b>${money(B.paidSoFar)}</b></div><div class="lft"><span>Left</span><b>${money(B.left)}</b></div></div>
-   <div class="gl-title"><span>Split evenly</span>${paidShares?`<em>${paidShares} paid</em>`:""}</div>
+   ${ord.pickup?"":personHtml(B)}
+   <div class="gl-title"${ord.pickup?"":` style="margin-top:18px"`}><span>Split evenly</span>${paidShares?`<em>${paidShares} paid</em>`:""}</div>
    <div class="sprow"><div class="step"><button data-sp="n-">−</button><span>${spl.n} people</span><button class="add" data-sp="n+">+</button></div><b>${money(each)} each</b></div>
    <div class="payrow"><button class="btn card" data-sp="ec"${B.left?"":" disabled"}>💳 Card ${money(each)}</button><button class="btn cash" data-sp="eh"${B.left?"":" disabled"}>💵 Cash ${money(each)}</button></div>
    <div class="gl-title" style="margin-top:18px"><span>Or pay an amount</span><em>e.g. some cash, rest on card</em></div>
    <div class="sprow"><span style="font-weight:700">£</span><input id="spAmt" type="text" inputmode="decimal" autocomplete="off" placeholder="${B.left?money(B.left).replace("£",""):"0.00"}" style="flex:1;min-width:0;font-size:20px;padding:10px 12px;border:1px solid #d9cfb3;border-radius:10px;margin-left:8px"${B.left?"":" disabled"}></div>
    <div class="payrow"><button class="btn card" data-sp="ac"${B.left?"":" disabled"}>💳 Card this amount</button><button class="btn cash" data-sp="ah"${B.left?"":" disabled"}>💵 Cash this amount</button></div>
    <div class="gl-title" style="margin-top:18px"><span>Or pay for items</span>${B.disc?`<em>discount shared out</em>`:""}</div>
-   ${B.lines.map(l=>{const r=Math.max(0,l.q-(B.itPaid[l.k]||0)),q=spl.sel[l.k]||0;
-     return `<div class="spit${r?"":" paid"}"><span>${esc(l.n)}<small>${money(l.p)} · ${r?r+" to pay":"paid ✓"}</small></span>${r?`<div class="step">${q?`<button data-si="${esc(l.k)}" data-d="-1">−</button><span>${q}</span>`:""}<button class="add" data-si="${esc(l.k)}" data-d="1">+</button></div>`:""}</div>`}).join("")}
+   ${B.lines.map(l=>{let r=Math.max(0,l.q-(B.itPaid[l.k]||0));if(r<0.01)r=0;const q=spl.sel[l.k]||0;
+     return `<div class="spit${r?"":" paid"}"><span>${esc(l.n)}<small>${money(l.p)} · ${r?qf(r)+" to pay":"paid ✓"}</small></span>${r?`<div class="step">${q?`<button data-si="${esc(l.k)}" data-d="-1">−</button><span>${q}</span>`:""}<button class="add" data-si="${esc(l.k)}" data-d="1">+</button></div>`:""}</div>`}).join("")}
    <div class="payrow" style="margin-top:10px"><button class="btn card" data-sp="ic"${selAmt?"":" disabled"}>💳 Card ${money(selAmt)}</button><button class="btn cash" data-sp="ih"${selAmt?"":" disabled"}>💵 Cash ${money(selAmt)}</button></div>
-   ${B.pays.length?`<div class="gl-title" style="margin-top:18px"><span>Paid so far</span></div>`+B.pays.map((p,i)=>`<div class="spit"><span>${p.m==="cash"?"💵 Cash":"💳 Card"} · ${timeOf(p.at)}${p.who?" · "+esc(p.who):""}<small>${Object.keys(p.it||{}).length?Object.entries(p.it).map(([k,q])=>q+"× "+esc(k.split("|")[0])).join(", "):"Even share"}</small></span><b>${money(p.a)}</b><button class="vd" data-sundo="${i}" title="Remove">✕</button></div>`).join(""):""}`;
+   ${B.pays.length?`<div class="gl-title" style="margin-top:18px"><span>Paid so far</span></div>`+B.pays.map((p,i)=>`<div class="spit"><span>${p.m==="cash"?"💵 Cash":"💳 Card"} · ${timeOf(p.at)}${p.who?" · "+esc(p.who):""}<small>${Object.keys(p.it||{}).length?Object.entries(p.it).map(([k,q])=>qf(q)+"× "+esc(k.split("|")[0])).join(", "):"Even share"}${p.tab?" · 👤 "+esc(p.tab):""}</small></span><b>${money(p.a)}</b><button class="vd" data-sundo="${i}" title="Remove">✕</button></div>`).join(""):""}`;
   $("xFoot").innerHTML=`<button class="btn pri" data-xdone style="max-width:none">Done</button>`;
 }
+// ---- split by person: add people (a name or Person 1, 2 …), tap a person, tap what they had, each pays their own ----
+// Uses the same guest bills as 👤 + Guest on the menu, so the Orders & bill screen, receipts and history all match.
+function personHtml(B){
+  const all=ordTickets(),names=tabNames(all),sel=spl.ppl.filter(n=>names.includes(n)&&!tabPaid(B,n));spl.ppl=sel;
+  const tPaid={};B.pays.filter(p=>!p.tab).forEach(p=>Object.entries(p.it||{}).forEach(([k,q])=>tPaid[k]=(tPaid[k]||0)+q));
+  const rows=[];B.live.forEach(t=>t.items.forEach((x,xi)=>{if(x.v)return;const who=[x.g].concat(shOf(x)||[]).filter(Boolean);
+    const paid=who.find(n=>tabPaid(B,n)),lock=paid?"paid":tPaid[x.n+"|"+x.p]?"part":"";
+    const mine=sel.length&&(sel.length===1?!shOf(x)&&x.g===sel[0]:shOf(x)&&shOf(x).length===sel.length&&sel.every(n=>shOf(x).includes(n)));
+    rows.push(`<button class="ppit${who.length?" own":""}${mine?" mine":""}${lock?" lock":""}" data-pa="${t.id}|${xi}"><span>${x.q}× ${esc(x.n)}${x.note?`<small>${esc(x.note)}</small>`:""}</span><em>${lock==="paid"?"✓ "+esc(paid)+" paid":who.length?(shOf(x)?"🤝 "+esc(who.join(" + "))+` · ${money(x.q*x.p/who.length)} each`:"👤 "+esc(who[0])):"Table"}</em><b>${money(x.q*x.p)}</b></button>`)}));
+  const ppl=names.map(n=>{const TB=tabBill(all,n),pd=tabPaid(B,n);
+    return `<div class="tabrow${pd?" paid":""}"><span><b>👤 ${esc(n)}</b><small>${TB.lines.length?TB.lines.map(l=>qf(l.q)+"× "+esc(l.n)).join(", "):"Nothing yet"}</small></span><b class="amt">${money(TB.total)}</b>
+      ${pd?`<em>Paid ${pd.m} ✓</em>`:TB.total?`<div class="tbtns">${canThermal()?`<button data-pprint="${esc(n)}">🧾</button>`:""}<button class="card" data-ppay="card" data-pn="${esc(n)}">💳</button><button class="cash" data-ppay="cash" data-pn="${esc(n)}">💵</button></div>`:""}</div>`}).join("");
+  const TT=tabBill(all,"");
+  return `<div class="gl-title"><span>Split by person</span>${names.length?`<em>${names.filter(n=>tabPaid(B,n)).length}/${names.length} paid</em>`:""}</div>
+   <div class="tabchips ppchips">${names.map(n=>{const pd=tabPaid(B,n);return `<button data-pp="${esc(n)}" class="${sel.includes(n)?"on":""}${pd?" pdone":""}">${pd?"✓":"👤"} ${esc(n)}</button>`}).join("")}${names.length>1?`<button data-pshare class="shtog${spl.share?" on":""}">🤝 Share an item</button>`:""}</div>
+   <div class="sprow ppadd"><input id="ppName" type="text" maxlength="20" autocomplete="off" placeholder="Name, or leave blank for Person ${names.length+1}"><button class="btn sec" data-padd>+ Person</button></div>
+   ${names.length?`<div class="tabnote" style="margin:2px 0 8px">${spl.share?(sel.length>1?`Tap items to share them between ${esc(sel.join(" & "))} (each pays an equal part). Tap 🤝 again when done.`:"Sharing: tap everyone who shared it (2 or more), then tap the item."):sel.length?`Tap what <b>${esc(sel[0])}</b> had to move it onto them, one at a time. Tap it again to put it back on the table.`:"Tap a person above, then tap the items they had. For a dish or bottle they shared, tap 🤝 Share an item."}${sel.length===1&&!all.some(t=>t.items.some(x=>!x.v&&shareOf(x,sel[0])>0))?` <button class="pprm" data-prm="${esc(sel[0])}">Remove ${esc(sel[0])}</button>`:""}</div>
+   <div class="pplist">${rows.join("")}</div>${ppl}
+   <div class="tabrow shared"><span><b>🍽 Still on the table</b><small>${TT.lines.length?TT.lines.map(l=>qf(l.q)+"× "+esc(l.n)).join(", "):"Nothing left on the table"}</small></span><b class="amt">${money(TT.total)}</b></div>`
+   :`<div class="tabnote" style="margin:2px 0 4px">For a group paying separately: add each person, then move the items they had onto them.</div>`}`}
+async function personClick(e){
+  const B=billOf(ordTickets()),all=ordTickets(),el=s=>e.target.closest(s);
+  let b=el("[data-padd]");if(b){if(readOnly){toast("View only");return true}
+    const f=$("ppName"),names=tabNames(all);let n=str((f&&f.value)||"",20).trim();if(!n){let i=names.length+1;while(names.includes("Person "+i))i++;n="Person "+i}
+    if(n.toLowerCase()==="table")n="Table guest";if(names.includes(n)){toast(n+" is already on this bill");return true}
+    ord.guests=(ord.guests||[]);ord.guests.push(n);spl.ppl=[n];spl.share=false;renderSplit();return true}
+  b=el("[data-pp]");if(b){const n=b.dataset.pp;if(tabPaid(B,n)){toast(n+" has already paid");return true}
+    spl.ppl=spl.share?(spl.ppl.includes(n)?spl.ppl.filter(x=>x!==n):spl.ppl.concat([n])):[n];renderSplit();return true}
+  b=el("[data-pshare]");if(b){spl.share=!spl.share;if(!spl.share)spl.ppl=spl.ppl.slice(0,1);renderSplit();return true}
+  b=el("[data-prm]");if(b){const n=b.dataset.prm;ord.guests=(ord.guests||[]).filter(x=>x!==n);spl.ppl=[];renderSplit();return true}
+  b=el("[data-ppay]");if(b){payTab(b.dataset.pn,b.dataset.ppay);return true}
+  b=el("[data-pprint]");if(b){printTab(b.dataset.pprint);return true}
+  b=el("[data-pa]");if(b){await assignOne(b.dataset.pa);return true}
+  return false}
+// moves ONE of an item onto the picked person (or shares it between the picked people); tapping it again puts it back on the table
+async function assignOne(key){
+  if(readOnly){toast("View only");return}
+  const [tid,xi]=key.split("|"),t=tickets.find(x=>x.id===tid);if(!t)return;const it=t.items[+xi];if(!it||it.v)return;
+  const B=billOf(ordTickets()),sel=spl.ppl.slice();
+  const pd=[it.g].concat(shOf(it)||[]).find(n=>n&&tabPaid(B,n));if(pd){toast(pd+" has already paid for this");return}
+  if(B.pays.some(p=>!p.tab&&(p.it||{})[it.n+"|"+it.p])){toast("Some "+it.n+" was already paid with “pay for items” below");return}
+  if(!sel.length||spl.share&&sel.length<2){toast(spl.share?"Tap the people who shared it first":tabNames(ordTickets()).length?"Tap a person first":"Add a person first");return}
+  const same=sel.length===1?!shOf(it)&&it.g===sel[0]:!!shOf(it)&&shOf(it).length===sel.length&&sel.every(n=>shOf(it).includes(n));
+  const items=t.items.map(y=>Object.assign({},y)),one=Object.assign({},items[+xi],{q:1});delete one.g;delete one.sh;
+  if(!same){if(sel.length===1)one.g=sel[0];else one.sh=sel}
+  if(items[+xi].q>1){items[+xi].q--;items.splice(+xi+1,0,one)}else items[+xi]=one;
+  // put identical lines back together (2× Peroni for Anna, not 1× + 1×)
+  const sig=y=>JSON.stringify(Object.assign({},y,{q:0,sh:shOf(y)?shOf(y).slice().sort():undefined})),out=[];
+  items.forEach(y=>{const m=!y.v&&out.find(z=>!z.v&&sig(z)===sig(y));if(m)m.q+=y.q;else out.push(y)});
+  await patchTicket(t,{items:out});ticketsChanged();renderSplit();
+  toast(`1× ${it.n} → ${same?"Table":sel.join(" & ")}`)}
 async function recordPay(amt,m,it,tab){
   if(readOnly){toast("View only");return}
   const B=billOf(ordTickets());if(!B.anchor)return;amt=Math.round(Math.min(amt,B.left)*100)/100;if(amt<=0)return;
@@ -4606,7 +4681,7 @@ async function finishBill(pay){
     // guests who paid on their own already got their receipt; this one covers everything else the table paid for
     const paidTabs=new Set(pays.filter(p=>p.tab).map(p=>p.tab)),tablePays=pays.filter(p=>!p.tab);
     const paidLines=tot=>tablePays.length?tablePays.map(p=>PL.lr("PAID "+p.m,money(p.a),1)):[PL.lr("PAID ("+pay+")",money(tot),1)];
-    if(named&&!isP){const TB=tabBillBy(all,x=>!x.g||!paidTabs.has(x.g));L=TB.live.some(t=>t.items.some(x=>!x.v))?billLines(TB,paidTabs.size?"":"Table"):null;if(L)L.splice(L.length-3,0,...paidLines(TB.total),PL.rule())}
+    if(named&&!isP){const TB=tabBillBy(all,x=>{const s=shOf(x);return s?s.filter(n=>!paidTabs.has(n)).length/s.length:!x.g||!paidTabs.has(x.g)});L=TB.live.some(t=>t.items.some(x=>!x.v))?billLines(TB,paidTabs.size?"":"Table"):null;if(L)L.splice(L.length-3,0,...paidLines(TB.total),PL.rule())}
     else{L=billLines(B);L.splice(L.length-3,0,...paidLines(B.total),PL.rule())}
     if(L)
     printJob(rcpPrinter(),"receipt","Receipt "+(isP?"Takeaway "+pno:gname(g)),L,"full",...qrPair());
@@ -4742,7 +4817,7 @@ function billLines(B,tab){
   // takeaways: the number prints big and centred so it can be matched to the bag at a glance
   const L=ord.pickup?[PL.t("TAKEAWAY","c",1),PL.t("#"+ord.pno,"c",1,4),PL.lr(tab||"",when),PL.rule()]
     :[PL.lr(gnameLong(curGroup())+(tab?" · "+tab:""),when),PL.rule()];
-  B.lines.forEach(l=>{L.push(PL.lr(`${l.q} x ${itName(l.n)}`,money(l.q*l.p)));if(l.d)L.push(PL.lr(`  > ${idiscLabel(l.d)}`,"-"+money(l.dAmt)))});
+  B.lines.forEach(l=>{L.push(PL.lr(`${qf(l.q,1)} x ${itName(l.n)}`,money(l.q*l.p)));if(l.d)L.push(PL.lr(`  > ${idiscLabel(l.d)}`,"-"+money(l.dAmt)))});
   L.push(PL.rule(),PL.lr("Subtotal",money(B.sub)));
   if(B.itemDisc)L.push(PL.lr("Item discounts","-"+money(B.itemDisc)));
   if(B.autoDisc)L.push(PL.lr(tkLabel(B),"-"+money(B.autoDisc)),PL.t("  (not on sauces, sides or deals)"));
@@ -5172,7 +5247,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261126200000";const APP_VER=60;   // both stamped by the publish script
+const APP_BUILD="20261126201400";const APP_VER=61;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
