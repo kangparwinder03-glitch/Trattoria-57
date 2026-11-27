@@ -341,6 +341,11 @@ body.s #staff{display:block}
 @keyframes shake{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
 .acts2{display:flex;flex-direction:column;gap:10px;max-width:320px;margin:6px auto}
 .acts2 .btn{padding:16px;font-size:16px}
+.earlyp{text-align:center}.earlyp small{display:block;color:#6d6448;margin-bottom:6px}
+.earlyp div{display:flex;gap:6px;justify-content:center}
+.earlyp button{flex:1;padding:10px 0;border-radius:12px;border:1.5px solid var(--parch2);background:#fffaf0;font-weight:700;font-size:14px;color:var(--ink)}
+.earlyp button.sel{background:var(--pine);border-color:var(--pine);color:#fff}
+.early{display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;background:#f4e2b8;color:#7a5a12;font-size:11px;font-weight:700}
 .btn.ok{background:var(--pine);color:#fff}.btn.warn{background:#d49a2a;color:#fff}.btn.out{background:var(--wine);color:#fff}
 .who{text-align:center;margin:4px 0 2px;font-size:14px;color:#6d6448}
 .hrow{border:1.5px solid var(--parch2);border-radius:14px;background:#fffaf0;margin-bottom:10px;overflow:hidden}
@@ -3139,8 +3144,13 @@ const stockStore=useColl("stock",()=>{const d=stockStore.docs.main;const was=[..
   if(typeof view==="undefined")return;if([...outSet].sort().join("|")===was&&xKind!=="stock")return;whenFree(renderKitchen);if(ord&&$("ordOv").classList.contains("show"))whenFree(renderOrder);if(view==="guest")renderGuest();if(xKind==="stock")renderStock()});
 function staffList(){return Object.entries(staffStore.docs).map(([id,d])=>({id,name:str(d.name,40),role:str(d.role,30),pin:str(d.pin,80),active:d.active!==false}))
   .filter(x=>x.active&&x.name).sort((a,b)=>a.name.localeCompare(b.name))}
+const EARLY_MAX=5; // staff may clock in at most 5 minutes earlier than now
 function shifts(){return Object.entries(shiftStore.docs).map(([id,d])=>({id,staff:str(d.staff,40),in:+d.in||0,out:+d.out||0,
-  breaks:Array.isArray(d.breaks)?d.breaks.slice(0,20).map(b=>({s:+(b&&b.s)||0,e:+(b&&b.e)||0})):[]})).filter(x=>x.in)}
+  breaks:Array.isArray(d.breaks)?d.breaks.slice(0,20).map(b=>({s:+(b&&b.s)||0,e:+(b&&b.e)||0})):[],
+  early:Math.max(0,Math.min(EARLY_MAX,Math.round(+d.early||0)))})).filter(x=>x.in)}
+// shift doc for saving, keeping the "clocked in earlier" mark
+const shDoc=(x,o)=>Object.assign({staff:x.staff,in:x.in,out:x.out,breaks:x.breaks},x.early?{early:x.early}:{},o||{});
+const earlyTag=x=>x.early?` <span class="early" title="Clocked in ${x.early} min earlier than the tap">⏪ ${x.early} min earlier</span>`:"";
 function openShift(sid){return shifts().filter(x=>x.staff===sid&&!x.out).sort((a,b)=>b.in-a.in)[0]}
 function onBreak(sh){return sh&&sh.breaks.some(b=>!b.e)}
 function worked(sh,now){const end=sh.out||now||Date.now();let ms=end-sh.in;sh.breaks.forEach(b=>ms-=Math.max(0,(b.e||end)-b.s));return Math.max(0,ms)}
@@ -3158,7 +3168,7 @@ function renderStaff(){
   $("sGrid").innerHTML=`<div class="sgrid">${list.map((p,i)=>{const sh=openShift(p.id),br=onBreak(sh);
     return `<button class="stile${sh?(br?" brk":" on"):""}" data-id="${p.id}"><div class="av" style="${sh?"":"background:"+COLORS[i%COLORS.length]}">${esc(p.name[0].toUpperCase())}</div>
       <b>${esc(p.name)}</b><small>${esc(p.role||"Staff")}</small><span class="ss">${sh?(br?"On break":"On shift"):"Off"}</span>
-      ${sh?`<div class="since">In ${hhmm(sh.in)} · ${hm(worked(sh))}</div>`:""}</button>`}).join("")}</div>`;
+      ${sh?`<div class="since">In ${hhmm(sh.in)}${sh.early?" ⏪":""} · ${hm(worked(sh))}</div>`:""}</button>`}).join("")}</div>`;
 }
 setInterval(()=>{if(typeof view!=="undefined"&&view==="staff")renderStaff()},20000);
 
@@ -3193,18 +3203,31 @@ function showClockActions(p){
   const sh=openShift(p.id),br=onBreak(sh);
   $("padTitle").textContent=p.name;
   $("padSub").textContent=sh?`On shift since ${hhmm(sh.in)} · ${hm(worked(sh))} worked`:"Not clocked in";
-  $("padBody").innerHTML=`<div class="acts2">${!sh?`<button class="btn ok" data-c="in">Clock in · ${hhmm(Date.now())}</button>`
+  let early=0;
+  $("padBody").innerHTML=`<div class="acts2">${!sh?`<button class="btn ok" data-c="in" id="ciBtn">Clock in · ${hhmm(Date.now())}</button>
+    <div class="earlyp"><small>Got here a few minutes ago? Clock in earlier:</small><div>${[1,2,3,4,5].map(n=>`<button data-e="${n}">−${n} min</button>`).join("")}</div></div>`
     :br?`<button class="btn ok" data-c="endbrk">End break</button><button class="btn out" data-c="out">Clock out</button>`
     :`<button class="btn warn" data-c="brk">Start break</button><button class="btn out" data-c="out">Clock out · ${hhmm(Date.now())}</button>`}
     <button class="btn sec" data-c="x">Cancel</button></div>`;
   padCb=null;
   $("padBody").onclick=async e=>{
+    const eb=e.target.closest("button[data-e]");
+    if(eb){const n=+eb.dataset.e;early=early===n?0:n;
+      $("padBody").querySelectorAll("button[data-e]").forEach(x=>x.classList.toggle("sel",+x.dataset.e===early));
+      $("ciBtn").textContent=`Clock in · ${hhmm(Date.now()-early*60000)}`+(early?` (${early} min earlier)`:"");return}
     const b=e.target.closest("button[data-c]");if(!b)return;const c=b.dataset.c;
     if(c==="x"){closePad();$("padBody").onclick=null;return}
     const now=Date.now();const cur=openShift(p.id);
     try{
-      if(c==="in"){await shiftStore.put(uid(),{staff:p.id,in:now,out:0,breaks:[]});toast(`${p.name} clocked in · ${hhmm(now)}`)}
-      else if(cur){const d={staff:cur.staff,in:cur.in,out:cur.out,breaks:cur.breaks.map(x=>({...x}))};
+      if(c==="in"){
+        // never more than 5 minutes back, never in the future, and never back into the end of their last shift
+        let mins=Math.max(0,Math.min(EARLY_MAX,Math.floor(early)||0));
+        const lastOut=Math.max(0,...shifts().filter(x=>x.staff===p.id&&x.out).map(x=>x.out));
+        while(mins>0&&now-mins*60000<lastOut)mins--;
+        const at=now-mins*60000;
+        await shiftStore.put(uid(),Object.assign({staff:p.id,in:at,out:0,breaks:[]},mins?{early:mins}:{}));
+        toast(`${p.name} clocked in · ${hhmm(at)}`+(mins?` (${mins} min earlier)`:""))}
+      else if(cur){const d=shDoc(cur,{breaks:cur.breaks.map(x=>({...x}))});
         if(c==="brk"){d.breaks.push({s:now,e:0});toast(`${p.name} on break`)}
         if(c==="endbrk"){d.breaks.forEach(x=>{if(!x.e)x.e=now});toast(`${p.name} back from break`)}
         if(c==="out"){d.breaks.forEach(x=>{if(!x.e)x.e=now});d.out=now;toast(`${p.name} clocked out · ${hm(worked({...d,out:now}))} today`)}
@@ -3287,7 +3310,7 @@ function renderHours(){
   $("hrsBody").innerHTML=`<div class="wknav"><button data-w="-1">‹</button><b>${dDay(s)} – ${dDay(e-864e5)}</b><button data-w="1">›</button></div>`+
    (ids.length?ids.map(id=>{const list=rows[id];const tot=list.reduce((a,x)=>a+worked(x),0);grand+=tot;
      return `<div class="hrow"><div class="hh">${esc(names[id]||"Unknown")}<span>${hm(tot)}</span></div>${list.map(x=>`<div class="shf" data-id="${x.id}">
-       <span>${dDay(x.in)}${x.breaks.length?` · break ${hm(x.breaks.reduce((a,b)=>a+Math.max(0,(b.e||x.out||Date.now())-b.s),0))}`:""}</span>
+       <span>${dDay(x.in)}${earlyTag(x)}${x.breaks.length?` · break ${hm(x.breaks.reduce((a,b)=>a+Math.max(0,(b.e||x.out||Date.now())-b.s),0))}`:""}</span>
        <input type="time" data-f="in" value="${toTimeInput(x.in)}">
        ${x.out?`<input type="time" data-f="out" value="${toTimeInput(x.out)}">`:`<button class="open" data-f="end" style="font-size:12px;font-weight:700;color:var(--wine)">End now</button>`}
        <button data-f="del" title="Delete shift">×</button></div>`).join("")}</div>`}).join("")+
@@ -3298,14 +3321,14 @@ $("hrsClose").onclick=()=>$("hrsOv").classList.remove("show");
 $("hrsBody").addEventListener("click",e=>{
   const w=e.target.closest("[data-w]");if(w){wkStart+=(+w.dataset.w)*7*864e5;renderHours();return}
   const en=e.target.closest('button[data-f="end"]');if(en){const x=shifts().find(z=>z.id===en.closest(".shf").dataset.id);if(!x)return;
-    const now=Date.now();shiftStore.put(x.id,{staff:x.staff,in:x.in,out:now,breaks:x.breaks.map(b=>({s:b.s,e:b.e||now}))}).then(()=>{toast("Shift ended");renderHours()}).catch(()=>{});return}
+    const now=Date.now();shiftStore.put(x.id,shDoc(x,{out:now,breaks:x.breaks.map(b=>({s:b.s,e:b.e||now}))})).then(()=>{toast("Shift ended");renderHours()}).catch(()=>{});return}
   const d=e.target.closest('button[data-f="del"]');if(d){const id=d.closest(".shf").dataset.id;ask("Delete this shift?","This can't be undone.",async()=>{await shiftStore.del(id);renderHours()})}
 });
 $("hrsBody").addEventListener("change",async e=>{
   const inp=e.target.closest("input[data-f]");if(!inp||!inp.value)return;
   const id=inp.closest(".shf").dataset.id,x=shifts().find(z=>z.id===id);if(!x)return;
   const [h,m]=inp.value.split(":").map(Number);const base=new Date(inp.dataset.f==="in"?x.in:x.out);base.setHours(h,m,0,0);
-  const d={staff:x.staff,in:x.in,out:x.out,breaks:x.breaks};d[inp.dataset.f]=base.getTime();
+  const d=shDoc(x);d[inp.dataset.f]=base.getTime();if(inp.dataset.f==="in")delete d.early; // manager set the start time
   if(d.out&&d.out<d.in)d.out+=864e5; // past midnight
   try{await shiftStore.put(id,d);toast("Shift updated")}catch(_){}renderHours();
 });
@@ -3315,8 +3338,8 @@ function hoursLines(){
   if(!ids.length)L.push(PL.t("No shifts this week.","c"));
   ids.forEach(id=>{const list=rows[id],tot=list.reduce((a,x)=>a+worked(x),0);grand+=tot;
     L.push(PL.lr(names[id]||"Unknown",hm(tot),1));
-    list.forEach(x=>L.push(PL.lr(`  ${dDay(x.in)} ${hhmm(x.in)}-${x.out?hhmm(x.out):"in"}`,hm(worked(x)))));L.push(PL.rule())});
-  L.push(PL.lr("TOTAL",`${hm(grand)} (${(grand/3600e3).toFixed(2)}h)`,1),PL.rule("="),PL.gap(),PL.t("Checked by: ____________"),PL.gap(),PL.t("Date: ____________"));
+    list.forEach(x=>L.push(PL.lr(`  ${dDay(x.in)} ${hhmm(x.in)}${x.early?"*":""}-${x.out?hhmm(x.out):"in"}`,hm(worked(x)))));L.push(PL.rule())});
+  L.push(PL.lr("TOTAL",`${hm(grand)} (${(grand/3600e3).toFixed(2)}h)`,1),PL.rule("="),...(Object.values(rows).some(l=>l.some(x=>x.early))?[PL.t("* clocked in up to 5 min earlier")]:[]),PL.gap(),PL.t("Checked by: ____________"),PL.gap(),PL.t("Date: ____________"));
   return L;
 }
 $("hrsThermal").onclick=()=>{if(!canThermal()){toast("Thermal printing works on the website version");return}
@@ -3327,7 +3350,7 @@ $("hrsCopy").onclick=()=>{
   let txt=`Trattoria 57 — hours ${dDay(s)} to ${dDay(e-864e5)}\n\n`;
   Object.keys(rows).sort((a,b)=>(names[a]||"").localeCompare(names[b]||"")).forEach(id=>{
     const list=rows[id],tot=list.reduce((a,x)=>a+worked(x),0);
-    txt+=`${names[id]}: ${hm(tot)} (${(tot/3600e3).toFixed(2)} hrs)\n`+list.map(x=>`  ${dDay(x.in)} ${hhmm(x.in)}–${x.out?hhmm(x.out):"still in"} = ${hm(worked(x))}`).join("\n")+"\n\n"});
+    txt+=`${names[id]}: ${hm(tot)} (${(tot/3600e3).toFixed(2)} hrs)\n`+list.map(x=>`  ${dDay(x.in)} ${hhmm(x.in)}–${x.out?hhmm(x.out):"still in"} = ${hm(worked(x))}${x.early?` (clocked in ${x.early} min earlier)`:""}`).join("\n")+"\n\n"});
   (navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>toast("Hours copied")).catch(()=>{
     const ta=document.createElement("textarea");ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand("copy");toast("Hours copied")}catch(_){toast("Couldn't copy")}ta.remove()});
 };
@@ -3431,7 +3454,7 @@ function hoursPdf(){
     P.rect(40,y-12,W-80,20,PDFC.parch);P.text(48,y+2,names[id]||"Unknown",{font:"HB",size:11});P.text(W-48,y+2,`${hm(tot)}  (${(tot/3600e3).toFixed(2)} hrs)`,{font:"HB",size:11,align:"right"});y+=24;
     list.forEach(x=>{if(y>800){P.page();y=50}const br=x.breaks.reduce((a,b)=>a+Math.max(0,(b.e||x.out||Date.now())-b.s),0);
       P.text(56,y,dDay(x.in),{size:9.5});P.text(190,y,`${hhmm(x.in)} – ${x.out?hhmm(x.out):"still in"}`,{size:9.5});
-      if(br)P.text(320,y,"break "+hm(br),{size:9,color:PDFC.muted});P.text(W-48,y,hm(worked(x)),{size:9.5,align:"right"});y+=15});y+=8});
+      if(br)P.text(320,y,"break "+hm(br),{size:9,color:PDFC.muted});if(x.early)P.text(400,y,`clocked in ${x.early} min earlier`,{size:9,color:PDFC.olive});P.text(W-48,y,hm(worked(x)),{size:9.5,align:"right"});y+=15});y+=8});
   P.line(40,y,W-40,y,1.2,PDFC.ink);y+=18;P.text(48,y,"Total",{font:"TB",size:13});P.text(W-48,y,`${hm(grand)}  (${(grand/3600e3).toFixed(2)} hrs)`,{font:"TB",size:13,align:"right"});
   y+=40;P.text(48,y,"Checked by ______________________      Date ____________",{size:10});
   return P;
@@ -5247,7 +5270,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261126201400";const APP_VER=61;   // both stamped by the publish script
+const APP_BUILD="20261127080746";const APP_VER=62;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
