@@ -1,4 +1,4 @@
-name: DB peek (read-only)
+name: Restore today's bookings from the 04:17 backup (one-off)
 on:
   push:
     paths: ["tools/dbpeek.txt"]
@@ -6,28 +6,22 @@ permissions:
   contents: read
   actions: read
 jobs:
-  peek:
+  restore:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
         with: { name: t57-backup-2026-11-27_0417, run-id: "45939085741", github-token: "${{ github.token }}" }
-      - name: Compare bookings in this morning's backup with the online database (times and sizes only, no names)
+      - name: Put back bookings for 2026-11-27 that are missing online (no names in this log)
         env:
           T57_EMAIL: ${{ secrets.T57_EMAIL }}
           T57_PASSWORD: ${{ secrets.T57_PASSWORD }}
         run: |
           openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in t57-backup.json.gz.enc -out b.json.gz -pass env:T57_PASSWORD
           python3 - <<'PY'
-          import json, gzip
+          import json, gzip, os, urllib.request, time
+          DAY = "2026-11-27"
           b = json.load(gzip.open("b.json.gz", "rt"))
-          print("backup made", b["made"], "rows", len(b["rows"]))
-          for r in b["rows"]:
-              if r["coll"] == "plan23" and r["id"] >= "2026-11-26":
-                  bk = {k[2:]: v for k, v in (r["data"] or {}).items() if k.startswith("b:") and v}
-                  print(r["id"], "updated", r["updated_at"], "| bookings:", len(bk), "|", sorted([(k, v.get("time"), len(v.get("guests") or []), v.get("status")) for k, v in bk.items()], key=lambda x: str(x[1])))
-          for r in b["rows"]:
-              if r["coll"] in ("plan23", "train_plan23"): print("B", r["coll"], r["id"], r["updated_at"], sorted([(k[2:], v.get("time"), len(v.get("guests") or []), v.get("size"), v.get("status")) for k, v in (r["data"] or {}).items() if k.startswith("b:") and v], key=lambda x: str(x[1])))
-          import urllib.request, os
+          old = next(r["data"] for r in b["rows"] if r["coll"] == "plan23" and r["id"] == DAY)
           BASE = "https://uzrkewizkqdnqpovwune.supabase.co"; KEY = "sb_publishable_Hix2EgA_xpjxMYFvmarVIQ_Hj0qx3YM"
           def call(url, data=None, method="GET", headers={}):
               req = urllib.request.Request(BASE + url, data=json.dumps(data).encode() if data is not None else None, method=method, headers={"apikey": KEY, "Content-Type": "application/json", **headers})
@@ -35,11 +29,13 @@ jobs:
                   x = r.read(); return json.loads(x) if x else None
           tok = call("/auth/v1/token?grant_type=password", {"email": os.environ["T57_EMAIL"], "password": os.environ["T57_PASSWORD"]}, "POST")["access_token"]
           A = {"Authorization": "Bearer " + tok}
-          for r in call("/rest/v1/t57_docs?coll=in.(plan23,train_plan23)&select=coll,id,updated_at,data&order=updated_at.desc", headers=A) or []:
-              bk = {k[2:]: v for k, v in (r["data"] or {}).items() if k.startswith("b:") and v}
-              print("NOW", r["coll"], r["id"], r["updated_at"], len(bk), sorted([(k, v.get("time"), v.get("size"), v.get("status")) for k, v in bk.items()], key=lambda x: str(x[1])))
-          print("recent changes online:", [(r["coll"], r["id"], r["updated_at"]) for r in call("/rest/v1/t57_docs?select=coll,id,updated_at&updated_at=gt.2026-11-27T04:00:00Z&coll=not.in.(printjobs,printers,hub,claims,train_claims)&order=updated_at.desc&limit=40", headers=A) or []])
-          from collections import Counter
-          print("colls:", dict(Counter(r["coll"] for r in b["rows"])))
+          now = (call(f"/rest/v1/t57_docs?coll=eq.plan23&id=eq.{DAY}&select=data", headers=A) or [{"data": {}}])[0]["data"] or {}
+          patch = {k: v for k, v in old.items() if k.startswith("b:") and v and not now.get(k)}
+          print("putting back tables:", sorted(patch), [(k, v.get("time"), v.get("size")) for k, v in patch.items()])
+          if patch:
+              patch["updatedAt"] = int(time.time() * 1000)
+              call("/rest/v1/rpc/t57_merge", {"c": "plan23", "i": DAY, "patch": patch}, "POST", A)
+          after = (call(f"/rest/v1/t57_docs?coll=eq.plan23&id=eq.{DAY}&select=data,updated_at", headers=A) or [{}])[0]
+          print("online now:", after.get("updated_at"), sorted([(k, v.get("time"), v.get("size")) for k, v in (after.get("data") or {}).items() if k.startswith("b:") and v]))
           PY
           rm -f b.json.gz
