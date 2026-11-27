@@ -2,32 +2,30 @@ name: DB peek (read-only)
 on:
   push:
     paths: ["tools/dbpeek.txt"]
+permissions:
+  contents: read
+  actions: read
 jobs:
   peek:
     runs-on: ubuntu-latest
     steps:
-      - name: Read (signed in as the restaurant, read only)
+      - uses: actions/download-artifact@v4
+        with: { name: t57-backup-2026-11-27_0417, run-id: "45939085741", github-token: "${{ github.token }}" }
+      - name: Compare bookings in this morning's backup with the online database (times and sizes only, no names)
         env:
           T57_EMAIL: ${{ secrets.T57_EMAIL }}
           T57_PASSWORD: ${{ secrets.T57_PASSWORD }}
-        shell: python
         run: |
-          import json, os, time, urllib.request
-          BASE = "https://uzrkewizkqdnqpovwune.supabase.co"; KEY = "sb_publishable_Hix2EgA_xpjxMYFvmarVIQ_Hj0qx3YM"
-          def call(url, data=None, method="GET", headers={}):
-              req = urllib.request.Request(BASE + url, data=json.dumps(data).encode() if data is not None else None, method=method,
-                                           headers={"apikey": KEY, "Content-Type": "application/json", **headers})
-              with urllib.request.urlopen(req, timeout=60) as r:
-                  b = r.read(); return json.loads(b) if b else None
-          tok = call("/auth/v1/token?grant_type=password", {"email": os.environ["T57_EMAIL"], "password": os.environ["T57_PASSWORD"]}, "POST")["access_token"]
-          A = {"Authorization": "Bearer " + tok}; now = time.time() * 1000
-          print("== bookings (plan23 days from yesterday on; times and party sizes only, no names: this log is public)")
-          from datetime import datetime, timedelta
-          from zoneinfo import ZoneInfo
-          y = (datetime.now(ZoneInfo("Europe/London")) - timedelta(days=1)).strftime("%Y-%m-%d")
-          for r in call("/rest/v1/t57_docs?coll=eq.plan23&id=gte." + y + "&select=id,updated_at,data&order=id.asc", headers=A) or []:
-              d = r["data"] or {}; b = d.get("bookings") or {}
-              print(r["id"], "updated", r["updated_at"], "| bookings:", len(b), "|", sorted([(v.get("time"), len(v.get("guests") or []), v.get("status"), "walkin" if v.get("walkin") else "") for v in b.values()], key=lambda x: str(x[0])))
-          print("== hub")
-          for r in call("/rest/v1/t57_docs?coll=eq.hub&select=id,updated_at,data", headers=A) or []:
-              d = r["data"] or {}; print(r["id"], r["updated_at"], "at", d.get("at"), "name", d.get("name"))
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in t57-backup.json.gz.enc -out b.json.gz -pass env:T57_PASSWORD
+          python3 - <<'PY'
+          import json, gzip
+          b = json.load(gzip.open("b.json.gz", "rt"))
+          print("backup made", b["made"], "rows", len(b["rows"]))
+          for r in b["rows"]:
+              if r["coll"] == "plan23" and r["id"] >= "2026-11-26":
+                  bk = (r["data"] or {}).get("bookings") or {}
+                  print(r["id"], "updated", r["updated_at"], "| bookings:", len(bk), "|", sorted([(k, v.get("time"), len(v.get("guests") or []), v.get("status")) for k, v in bk.items()], key=lambda x: str(x[1])))
+          from collections import Counter
+          print("colls:", dict(Counter(r["coll"] for r in b["rows"])))
+          PY
+          rm -f b.json.gz
