@@ -5,8 +5,10 @@
 /* never show the "turn your tablet round" message on a computer screen */
 html.t57win #rotateMsg { display: none !important; }
 
-/* top bar: bigger buttons for fingers */
-html.t57win header { padding: 10px 16px; }
+/* top bar: one row, bigger buttons for fingers */
+html.t57win header { padding: 8px 16px; flex-wrap: nowrap !important; }
+html.t57win .brand span { display: none; }
+html.t57win #status { white-space: nowrap; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
 html.t57win .vsw { padding: 4px; gap: 4px; border-radius: 14px; }
 html.t57win .vsw a { font-size: 15px; padding: 11px 13px; border-radius: 11px; }
 html.t57win .vsw .bdg { min-width: 22px; height: 22px; border-radius: 11px; font-size: 13px; }
@@ -27,28 +29,35 @@ html.t57win .stat span { font-size: 11px; }
 html.t57win .kwrap { max-width: none; padding-left: 16px; padding-right: 16px; }
 html.t57win .klist { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
 
-/* pop-up windows: wider and taller */
+/* other pop-up windows: wider and taller */
 html.t57win .sheet { max-width: 760px; max-height: 92vh; }
 html.t57win .confirm .sheet { max-width: 480px; }
 
-/* the order / bill / takeaway screen: a big panel in the middle of the screen (the floor stays visible round it),
-   with the menu in several columns so lots of dishes show at once instead of two */
-html.t57win #ordOv { align-items: center !important; justify-content: center; padding: 2.5vh 2vw; }
-html.t57win #ordOv .sheet { width: min(1240px, 96vw) !important; max-width: none !important; height: 92vh; max-height: 92vh !important;
-  border-radius: 18px !important; box-shadow: 0 24px 70px rgba(0,0,0,.45); }
+/* the order / bill / takeaway screen: docked on the right, under the top bar, with no dark cover.
+   The floor (or tiles, kitchen, bar) moves over to the left and stays live and tappable:
+   tap another table and its order opens in the same panel. */
+html.t57win { --dock: clamp(520px, 46vw, 860px); --hdr: 64px; }
+html.t57win #ordOv, html.t57win #xOv, html.t57win #sheetOv, html.t57win #bkOv, html.t57win #nbOv, html.t57win #listOv { left: auto; top: var(--hdr); width: var(--dock); padding: 0 !important; background: transparent !important;
+  align-items: stretch !important; justify-content: stretch; z-index: 40; animation: none; }
+html.t57win #ordOv .sheet, html.t57win #xOv .sheet, html.t57win #sheetOv .sheet, html.t57win #bkOv .sheet, html.t57win #nbOv .sheet, html.t57win #listOv .sheet { width: 100% !important; max-width: none !important; height: 100%; max-height: none !important;
+  border-radius: 0 !important; border-left: 2px solid var(--wine); box-shadow: -12px 0 34px rgba(60,45,20,.22); animation: dockIn .16s ease-out; }
+@keyframes dockIn { from { transform: translateX(40px); opacity: .4; } }
+html.t57win body:has(#ordOv.show, #xOv.show, #sheetOv.show, #bkOv.show, #nbOv.show, #listOv.show) #app > :not(header) { margin-right: var(--dock); }
+/* a table's booking, the bookings list, new booking, open tables and "drinks order for…" dock in the same place */
+html.t57win #tilesView { padding-bottom: 80px; }
 html.t57win #ordOv .sh-head { padding-top: 10px; padding-bottom: 8px; }
-html.t57win #ordOv #oTitle { font-size: 24px; }
+html.t57win #ordOv #oTitle { font-size: 26px; }
 html.t57win #ordOv .otabs button, html.t57win #ordOv [data-otab] { font-size: 16px; padding: 9px !important; }
 /* search and Food / Drinks side by side, the categories underneath */
 html.t57win #ordOv #oCats { display: flex; flex-direction: row; flex-wrap: wrap; flex: none; gap: 8px; align-items: stretch; padding-top: 8px; padding-bottom: 8px; }
 html.t57win #ordOv #oCats > * { flex: 1 1 100%; margin: 0 !important; }
-html.t57win #ordOv #oCats > .msearch { flex: 1 1 360px; }
+html.t57win #ordOv #oCats > .msearch { flex: 1 1 260px; }
 html.t57win #ordOv #oCats > .sidetog { flex: 0 1 420px; }
 html.t57win #ordOv .msearch input { font-size: 16px; padding: 10px 14px; }
 html.t57win #ordOv #oCats .sidetog button { font-size: 17px; padding: 9px 10px; }
 html.t57win #ordOv #oCats .catrow button { font-size: 15px; padding: 8px 14px; border-radius: 20px; }
 /* the menu: tiles in columns */
-html.t57win #ordOv #oBody { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 8px; align-content: start; padding: 10px 12px; }
+html.t57win #ordOv #oBody { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px; align-content: start; padding: 10px 12px; }
 html.t57win #ordOv #oBody > :not(.mi) { grid-column: 1 / -1; }
 html.t57win #ordOv .mi { padding: 10px 12px; gap: 10px; border: 1px solid #e6dbc2; border-radius: 12px; background: #fffdf7; min-height: 72px; align-items: center; }
 html.t57win #ordOv .mi .nm b { font-size: 16px; }
