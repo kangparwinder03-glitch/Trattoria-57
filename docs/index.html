@@ -1216,7 +1216,7 @@ a[href^="#"]:active{filter:brightness(.9)}
         <div class="hhchips" id="hhDays"></div><div class="hhchips" id="hhCats"></div></div>
       <div class="fld" style="margin-bottom:12px"><label for="sTa">TripAdvisor link (QR printed on receipts)</label><input id="sTa" maxlength="300" placeholder="https://www.tripadvisor.co.uk/…" autocomplete="off"></div>
       <div class="fld" style="margin-bottom:12px"><label for="sRcp">Receipts &amp; bills from THIS device print on</label><select id="sRcp"><option value="till">🧾 Till printer</option><option value="bar">🍸 Bar printer</option><option value="kitchen">🍝 Kitchen printer</option></select></div>
-      <div class="fld" style="margin-bottom:12px"><label for="sTk">Automatic takeaway discount % (not sauces, sides or deals · 0 = off)</label><input id="sTk" type="number" min="0" max="50" step="1" inputmode="numeric"></div>
+      <div class="fld" style="margin-bottom:12px"><label for="sTk">Automatic takeaway discount % (food only, not sides, sauces or deals · 0 = off)</label><input id="sTk" type="number" min="0" max="50" step="1" inputmode="numeric"></div>
       <label style="display:flex;gap:10px;align-items:center;font-size:14px;margin-bottom:12px"><input type="checkbox" id="sAutoRc" style="width:20px;height:20px"> Print a receipt automatically when a bill is paid</label>
       <div class="fld" style="margin-bottom:12px"><label for="sIg">Instagram link or @username (printed on bills)</label><input id="sIg" maxlength="200" placeholder="@trattoria57" autocomplete="off"></div>
       <div class="fld" style="margin-bottom:12px"><label for="sFb">Facebook link (printed on bills)</label><input id="sFb" maxlength="200" placeholder="https://www.facebook.com/…" autocomplete="off"></div>
@@ -1838,11 +1838,12 @@ let settings={ownerEmail:"",auto:true,pickupPct:10,tkPct:15,review:"https://maps
 const cleanLink=u=>{u=str(u,300).trim();if(!u)return "";return /^https?:\/\//.test(u)?u:"https://"+u};
 const cleanUrl=u=>{u=str(u,200).trim();if(!u)return "";if(/^@?[A-Za-z0-9._]{2,30}$/.test(u))return "https://www.instagram.com/"+u.replace(/^@/,"")+"/";return /^https?:\/\//.test(u)?u:"https://"+u};
 const pickPct=v=>v===undefined||v===null||v===""?10:Math.max(0,Math.min(50,+v||0));
-// automatic takeaway discount (owner, 26 Nov): 15% off everything except sauces, sides and deals. 0 = off.
+// automatic takeaway discount (owner, 26-27 Nov): 15% off food only, not drinks, sauces, sides or deals. 0 = off.
 const cleanTk=v=>v===undefined||v===null||v===""?15:Math.max(0,Math.min(50,Math.round(+v)||0));
 const tkPct=()=>settings.tkPct||0;
 const TK_NO_CATS=new Set(["Sides","Sauces & Extras","Deals"]);   // never discounted (deals keep their own price, owner's choice 26 Nov)
-const tkOk=n=>{const it=ITEMS[n];return !(it&&TK_NO_CATS.has(it.cat))&&!isDeal(n)};
+// food only: no drinks of any kind (owner, 27 Nov), and no sides, sauces or deals
+const tkOk=n=>{const it=ITEMS[n];return !(it&&(TK_NO_CATS.has(it.cat)||BAR_CATS.has(it.cat)||it.station==="bar"))&&!isDeal(n)};
 const tkLabel=B=>`Takeaway discount ${B.tko}%`;
 try{const v=JSON.parse(localStorage.getItem("t57-3d-settings")||"null");if(v)settings={ownerEmail:str(v.ownerEmail,80),auto:v.auto!==false,pickupPct:pickPct(v.pickupPct),tkPct:cleanTk(v.tkPct),review:cleanLink(v.review)||"https://maps.app.goo.gl/sYsLiAabsE6TCct89",autoRc:v.autoRc!==false,ig:cleanUrl(v.ig)||settings.ig,fb:v.fb===undefined?settings.fb:cleanUrl(v.fb),ta:v.ta===undefined?settings.ta:cleanLink(v.ta),hh:cleanHH(v.hh)}}catch(e){}
 function longDate(k){return new Date(k+"T12:00:00").toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}
@@ -2354,7 +2355,7 @@ function billOf(list){
     if(d){l.d=d;l.dAmt=Math.round((d.t==="pct"?g*d.v/100:Math.min(g,d.v))*100)/100;itemDisc+=l.dAmt;const r=d.r||"Item discount";discBy[r]=(discBy[r]||0)+l.dAmt}
     l.net=g-l.dAmt});
   itemDisc=Math.round(itemDisc*100)/100;
-  // automatic takeaway discount: off every line except sauces, sides and deals (and lines that already have their own discount)
+  // automatic takeaway discount: off food lines only (not drinks, sauces, sides or deals) (and lines that already have their own discount)
   const tko=live.reduce((m,t)=>t.pickup&&!t.walk?Math.max(m,t.tko||0):m,0);let autoDisc=0;
   Object.values(lines).forEach(l=>{l.aAmt=0;if(tko&&!l.d&&tkOk(l.n)){l.aAmt=Math.round(l.q*l.p*tko+1e-6)/100;l.net-=l.aAmt;autoDisc+=l.aAmt}});
   autoDisc=Math.round(autoDisc*100)/100;if(autoDisc){const r="Takeaway "+tko+"%";discBy[r]=(discBy[r]||0)+autoDisc}
@@ -2798,7 +2799,7 @@ function receiptHtml(B){
     ${B.lines.map(l=>`<div class="rc-l rc-it${l.d?" has":""}" data-ld="${esc(l.k)}"><span>${l.q} × ${esc(l.n)} <em>${ITEMS[xlName(l.n)]?"⬆ ":""}🏷</em></span><span>${money(l.q*l.p)}</span></div>${l.d?`<div class="rc-l rc-idisc" data-ld="${esc(l.k)}"><span>↳ ${esc(idiscLabel(l.d))}</span><span>−${money(l.dAmt)}</span></div>`:""}`).join("")}
     <div class="rc-l rc-sub"><span>Subtotal</span><span>${money(B.sub)}</span></div>
     ${B.itemDisc?`<div class="rc-l rc-disc"><span>Item discounts</span><span>−${money(B.itemDisc)}</span></div>`:""}
-    ${B.autoDisc?`<div class="rc-l rc-disc"><span>${tkLabel(B)}<i>Not on sauces, sides or deals</i></span><span>−${money(B.autoDisc)}</span></div>`:""}
+    ${B.autoDisc?`<div class="rc-l rc-disc"><span>${tkLabel(B)}<i>Food only · not sides, sauces or deals</i></span><span>−${money(B.autoDisc)}</span></div>`:""}
     ${B.disc?`<div class="rc-l rc-disc"><span>Discount (${esc(discLabel(B.disc))})${B.disc.note?`<i>${esc(B.disc.note)}</i>`:""}</span><span>−${money(B.orderDiscAmt)}</span></div>`:""}
     <div class="rc-l rc-tot"><span>TOTAL</span><span>${money(B.total)}</span></div>
     ${B.pays.length?B.pays.map(x=>`<div class="rc-l rc-pay"><span>Paid ${x.m==="cash"?"cash":"card"}${x.who?" · "+esc(x.who):""}</span><span>−${money(x.a)}</span></div>`).join("")+`<div class="rc-l rc-tot"><span>LEFT TO PAY</span><span>${money(B.left)}</span></div>`:""}
@@ -3469,7 +3470,7 @@ function receiptPdf(B){
   y+=4;P.line(40,y,W-40,y,0.6,PDFC.line,true);y+=18;
   P.text(48,y,"Subtotal",{size:11});P.text(W-48,y,money(B.sub),{size:11,align:"right"});y+=18;
   if(B.itemDisc){P.text(48,y,"Item discounts",{size:11,color:PDFC.olive,font:"HB"});P.text(W-48,y,"-"+money(B.itemDisc),{size:11,align:"right",color:PDFC.olive,font:"HB"});y+=18}
-  if(B.autoDisc){P.text(48,y,tkLabel(B),{size:11,color:PDFC.olive,font:"HB"});P.text(W-48,y,"-"+money(B.autoDisc),{size:11,align:"right",color:PDFC.olive,font:"HB"});y+=14;P.text(48,y,"(not on sauces, sides or deals)",{size:9,color:PDFC.muted});y+=16}
+  if(B.autoDisc){P.text(48,y,tkLabel(B),{size:11,color:PDFC.olive,font:"HB"});P.text(W-48,y,"-"+money(B.autoDisc),{size:11,align:"right",color:PDFC.olive,font:"HB"});y+=14;P.text(48,y,"(food only · not sides, sauces or deals)",{size:9,color:PDFC.muted});y+=16}
   if(B.disc){P.text(48,y,`Discount (${discLabel(B.disc)})`,{size:11,color:PDFC.olive,font:"HB"});P.text(W-48,y,"-"+money(B.orderDiscAmt),{size:11,align:"right",color:PDFC.olive,font:"HB"});y+=18}
   P.line(40,y,W-40,y,1.4,PDFC.ink);y+=26;P.text(48,y,"TOTAL",{font:"TB",size:20});P.text(W-48,y,money(B.total),{font:"TB",size:20,align:"right"});
   y+=40;P.text(W/2,y,"Grazie! Thank you for dining with us.",{size:10,align:"center",color:PDFC.muted});
@@ -4844,7 +4845,7 @@ function billLines(B,tab){
   B.lines.forEach(l=>{L.push(PL.lr(`${qf(l.q,1)} x ${itName(l.n)}`,money(l.q*l.p)));if(l.d)L.push(PL.lr(`  > ${idiscLabel(l.d)}`,"-"+money(l.dAmt)))});
   L.push(PL.rule(),PL.lr("Subtotal",money(B.sub)));
   if(B.itemDisc)L.push(PL.lr("Item discounts","-"+money(B.itemDisc)));
-  if(B.autoDisc)L.push(PL.lr(tkLabel(B),"-"+money(B.autoDisc)),PL.t("  (not on sauces, sides or deals)"));
+  if(B.autoDisc)L.push(PL.lr(tkLabel(B),"-"+money(B.autoDisc)),PL.t("Food only: no sides/sauces/deals"));
   if(B.disc)L.push(PL.lr(`Discount ${B.disc.type==="pct"?B.disc.value+"%":""}${B.disc.reason?" ("+B.disc.reason+")":""}`,"-"+money(B.orderDiscAmt)));
   L.push(PL.rule("="),PL.lr("TOTAL",money(B.total),1,2),PL.rule("="));
   B.pays.forEach(p=>L.push(PL.lr(`Paid ${p.m}`,"-"+money(p.a))));
@@ -5347,7 +5348,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261127101500";const APP_VER=63;   // both stamped by the publish script
+const APP_BUILD="20261127174500";const APP_VER=64;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
