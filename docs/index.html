@@ -662,6 +662,8 @@ input.ln.alg{border-color:#b3261e!important;background:#fff4f2!important}
 
 .trainbar{position:fixed;left:0;right:0;top:0;z-index:9999;background:repeating-linear-gradient(135deg,#e8912d 0 16px,#d9801c 16px 32px);color:#fff;font-weight:900;font-size:13px;letter-spacing:.5px;text-align:center;padding:5px 8px;box-shadow:0 2px 6px rgba(0,0,0,.2)}
 .trainbar button{margin-left:8px;border:0;border-radius:8px;background:#fff;color:#a85a00;font-weight:800;padding:3px 9px}
+.trainbar #trainPrn.off{background:#5c2a00;color:#fff}
+@media(max-width:700px){.trainbar .trwhy{display:none}}
 body.training{padding-top:30px}
 .livebox{margin-top:16px;border:2px solid var(--olive-dk);background:#eef3e6;border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
 .livebox.tr{border-color:#e8912d;background:#fff4e6}.livebox h3{margin:0;font-size:16px}.livebox p{margin:0;font-size:13px;color:#5c574a}
@@ -951,7 +953,7 @@ a[href^="#"]:active{filter:brightness(.9)}
 <body>
 <div id="rotateMsg"><span>📱</span>Please turn the tablet upright<small>Trattoria 57 works in portrait only. Tip: switch on rotation lock in the tablet&#39;s quick settings.</small></div>
 <div id="bigFlash" class="bigflash" role="alert"><div class="bfl"><b>🍝 NEW ORDER</b><span>Tap anywhere to stop</span></div></div>
-<div id="trainBar" class="trainbar" hidden>🎓 TRAINING MODE — practice only, nothing here is real · <button id="trainOff">Back to live</button></div>
+<div id="trainBar" class="trainbar" hidden>🎓 TRAINING MODE<span class="trwhy"> — practice only, nothing here is real</span> · <button id="trainPrn"></button><button id="trainOff">Back to live</button></div>
 <div id="app">
   <header>
     <div class="brand"><h1>Trattoria <em>57</em></h1><span>Floor · Kitchen · Staff</span></div>
@@ -1452,6 +1454,9 @@ function kEff(){return kFit*zoom}
 const AREAS={all:{x:0,y:0,w:2000,h:1460},bar:{x:140,y:0,w:1850,h:615},din:{x:0,y:585,w:2000,h:875}};
 const TRAIN=(()=>{try{return localStorage.getItem("t57-train")==="1"&&!/^#table-/.test(location.hash)}catch(e){return false}})();
 const LK=TRAIN?"t57-tr-":"t57-";
+// training only: this device can switch printing off (no kitchen/bar tickets, bills, receipts or Alexa while practising)
+let TRAIN_PRINT=(()=>{try{return localStorage.getItem("t57-train-noprint")!=="1"}catch(e){return true}})();
+const trainNoPrint=()=>TRAIN&&!TRAIN_PRINT;
 let area="auto";try{area=localStorage.getItem("t57-area")||"auto";if(area!=="auto"&&!AREAS[area])area="auto"}catch(e){}
 // "Auto": show only the restaurant until someone is sat at (or ordering for) a bar table, then show everything
 function barBusy(){try{return unitsOf(state.groups).some(g=>T[g[0]].zone==="bar"&&(state.bookings[leadOf(g)]||activeFor(g).length))}catch(e){return false}}
@@ -2445,6 +2450,7 @@ function updOutbox(){const el=$("status");if(!el)return;let w=$("obx");
   w.textContent=`⏳ No connection — ${n?n+" order"+(n===1?"":"s"):""}${n&&m?" + ":""}${m?m+" change"+(m===1?"":"s"):""} waiting, will send automatically`}
 setTimeout(updOutbox,0);
 async function putTicket(t){
+  if(trainNoPrint()&&!t.printed){t.printed=Date.now();t.printedBy="training: printing off"}   // printers skip it
   if(t.station!=="bar")t.items=withEn(t.station,t.items);
   if(!db){const i=tickets.findIndex(x=>x.id===t.id);if(i>=0)tickets[i]=t;else tickets.push(t);storeLocal();ticketsChanged();return}
   if(outbox.length){queueWrite("set",t.id,t);flushOutbox();return}   // keep the order of things
@@ -4062,6 +4068,7 @@ async function printLabels(ids,to){
     const n=q.getModuleCount(),rows=[];for(let r=0;r<n;r++){let row="";for(let c=0;c<n;c++)row+=q.isDark(r,c)?"1":"0";rows.push(row)}
     return {brand:"TRATTORIA 57",name:tlabel(id),line3:"Scan to order",line4:"or call a waiter",qr:rows}});
   tmp.remove();
+  if(trainNoPrint()){toast("🎓 Training: printing is off, nothing printed");return}
   const id=uid(),target=TRAIN&&db.base?db.base:db;
   try{await target.collection("printjobs").doc(id).set({to,kind:"labels",title:(ids.length===1?"Test label ":"Table labels ×"+ids.length),labels,w,h,gap,date:dateKey,createdAt:Date.now(),by:waiter?waiter.name:""});
     toast(`🏷 ${ids.length} label${ids.length===1?"":"s"} sent to the ${prName(to)} printer`)}catch(e){toast("Couldn't send to printer — try again")}}
@@ -4822,8 +4829,9 @@ function qrPair(){
 }
 function reviewLinks(){const a=[];if(settings.review)a.push({n:"Google",u:settings.review});if(settings.ta)a.push({n:"TripAdvisor",u:settings.ta});return a}
 async function printJob(to,kind,title,lines,logo,social,review,quiet){
+  if(trainNoPrint()){if(!quiet)toast("🎓 Training: printing is off, nothing printed");return}
   if(!canThermal()){toast("Thermal printing works on the website version (GitHub link)");return}
-  const id=uid(),target=TRAIN&&db.base?db.base:db;   // training still prints, clearly marked
+  const id=uid(),target=TRAIN&&db.base?db.base:db;   // training still prints (unless switched off), clearly marked
   if(TRAIN){lines=[PL.t("** TRAINING - NOT REAL **","c",1),PL.rule()].concat(lines);title="TRAINING "+title}
   try{await target.collection("printjobs").doc(id).set({to,kind,title,lines,logo:logo||"full",social:social||[],review:review||"",reviews:review?reviewLinks().filter(x=>x.u===review):[],date:dateKey,createdAt:Date.now(),by:waiter?waiter.name:""});
     const bad=prnDown(to);if(!bad){if(!quiet)toast(`🧾 Sent to the ${prName(to)} printer`);return}
@@ -4966,7 +4974,7 @@ function openHub(){
   openX("hub","⭐ Manager","Everything for managers in one place",hubClick);
   $("xBody").innerHTML=`<button class="vercard" id="verCard" data-hub="ver"><span class="ic">📲</span><span><b>App version ${APP_VER||"(test copy)"}</b><small>${APP_BUILD==="dev"?"not a published copy":"Installed "+buildWhen(APP_BUILD)}</small><em id="verState"></em></span></button><button class="hubtab" data-hub="mode"><span>📱 This tablet is for</span><b>${m.icon} ${esc(m.name)}</b><em>Change</em></button>`+
     HUB.map(([g,items])=>`<div class="gl-title"><span>${g}</span></div><div class="hubg">${items.map(([k,ic,t])=>`<button data-hub="${k}"><span class="ic">${ic}</span><b>${t}</b></button>`).join("")}</div>`).join("")+
-    `<div class="gl-title"><span>🎓 Training</span></div><div class="hubg"><button data-hub="train"><span class="ic">${TRAIN?"✅":"🎓"}</span><b>${TRAIN?"Switch this tablet back to LIVE":"Switch this tablet to TRAINING"}</b></button>${TRAIN?"":`<button data-hub="golive" class="dng"><span class="ic">🚀</span><b>Go live — delete test data</b></button>`}</div>`;
+    `<div class="gl-title"><span>🎓 Training</span></div><div class="hubg"><button data-hub="train"><span class="ic">${TRAIN?"✅":"🎓"}</span><b>${TRAIN?"Switch this tablet back to LIVE":"Switch this tablet to TRAINING"}</b></button>${TRAIN?`<button data-hub="trprn"><span class="ic">${TRAIN_PRINT?"🖨":"🚫"}</span><b>${TRAIN_PRINT?"Training printing ON: tap to stop printing":"Training printing OFF: tap to print"}</b></button>`:""}${TRAIN?"":`<button data-hub="golive" class="dng"><span class="ic">🚀</span><b>Go live — delete test data</b></button>`}</div>`;
   $("xFoot").innerHTML=`<button class="btn sec" data-xdone style="max-width:none">Close</button>`;
   fillVerCard();
 }
@@ -4983,13 +4991,14 @@ function hubClick(e){
     guests:openGuests,settings:()=>settingsAt("sOwner"),links:()=>settingsAt("sReview"),rcp:()=>settingsAt("sRcp"),qr:()=>{openSettings();$("setQr").click()},
     reset:()=>$("resetBtn").click(),
     train:()=>ask(TRAIN?"Back to live on this device?":"Switch this device to training?",TRAIN?"Real orders and bookings will show again.":"Practice freely: nothing you do will touch real orders, bookings or reports. Printouts are marked TRAINING. Other devices stay live.",()=>setTraining(!TRAIN)),
+    trprn:()=>setTrainPrint(!TRAIN_PRINT),
     golive:goLive,signin:openSignIn,alexa:openAlexa})[k]();
 }
 // ---- Kitchen Alexa (Voice Monkey): the tablet/phone that sends the order makes the kitchen Echo say "New order, Table 4" ----
 let alexaCfg=null;
 function subscribeAlexa(){const base=db&&db.base?db.base:db;if(!base||db.guest)return;try{base.doc("alexa/main").onSnapshot(sn=>{alexaCfg=sn.exists?sn.data():null},()=>{})}catch(_){}}
 function alexaSay(list){
-  const c=alexaCfg;if(!c||!c.on||!c.token||!c.device)return;
+  const c=alexaCfg;if(!c||!c.on||!c.token||!c.device||trainNoPrint())return;
   const sayFor=list.filter(t=>t&&!t.hold&&!t.wait&&!t.rejected&&(stOf(t)==="kitchen"?c.kitchen!==false:!!c.bar));if(!sayFor.length)return;
   const names=[...new Set(sayFor.map(t=>t.pickup?(t.walk?"bar walk-up ":"pickup ")+t.pno:t.label))];
   const speech=(TRAIN?"Training. ":"")+(c.speech||"New order, {table}").replace("{table}",names.join(" and "));
@@ -5320,7 +5329,10 @@ function makeFlexDb(first){
     get now(){return cur},switchTo(d){if(d===cur)return;const was=cur;cur=d;L.forEach(l=>l.go());if(was&&was.closeStream)was.closeStream()}};
 }
 
-if(TRAIN){document.body.classList.add("training");$("trainBar").hidden=false;$("trainOff").onclick=()=>ask("Back to live on this device?","Real orders and bookings will show again.",()=>setTraining(false))}
+function showTrainPrint(){const b=$("trainPrn");if(!b)return;b.textContent=TRAIN_PRINT?"🖨 Print: ON":"🚫 Print: OFF";b.classList.toggle("off",!TRAIN_PRINT)}
+function setTrainPrint(on){TRAIN_PRINT=!!on;try{on?localStorage.removeItem("t57-train-noprint"):localStorage.setItem("t57-train-noprint","1")}catch(e){}showTrainPrint();
+  toast(on?"🖨 Training printouts ON: tickets and bills print, marked TRAINING":"🚫 Printing OFF: nothing prints while you practise",4000)}
+if(TRAIN){document.body.classList.add("training");$("trainBar").hidden=false;showTrainPrint();$("trainPrn").onclick=()=>setTrainPrint(!TRAIN_PRINT);$("trainOff").onclick=()=>ask("Back to live on this device?","Real orders and bookings will show again.",()=>setTraining(false))}
 
 // ---------- training mode & going live ----------
 const NS_COLLS=["tickets","plan23","printjobs","calls","shifts","stock","guests","claims"];   // kept separate in training
@@ -5351,7 +5363,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261127235500";const APP_VER=65;   // both stamped by the publish script
+const APP_BUILD="20261128001000";const APP_VER=66;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
