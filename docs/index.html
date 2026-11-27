@@ -5253,6 +5253,7 @@ function makeHubDb(tok){
     catch(e){const x=new Error("till computer unreachable");x.code="unavailable";throw x}finally{clearTimeout(tm)}
     let j=null;try{j=await r.json()}catch(_){}
     if(r.status===401){const e=new Error("tablet not linked");e.code="unlinked";throw e}
+    if(r.status===503){const e=new Error((j&&j.error)||"till not ready");e.code="unavailable";throw e}
     if(!r.ok){const e=new Error((j&&j.error)||"till error");e.code="unknown";throw e}return j}
   function refreshAll(){subs.forEach(s=>s.kick())}
   let es=null;
@@ -5504,8 +5505,10 @@ async function bootHub(){
   const online=async()=>{if(onlineDb)return onlineDb;if(!await libP||!sbc)return null;
     try{const ss=(await sbc.auth.getSession()).data.session;if(!ss)return null;sbUser=(ss.user&&ss.user.email)||"";try{sbc.realtime.setAuth(ss.access_token)}catch(_){}}catch(_){return null}
     onlineDb=makeSupaDb(sbc);return onlineDb};
-  if(H.token){startDb(makeFlexDb(hubDb));hubBadge("till");return}   // the till computer's own screen
+  // the till computer's own screen: straight onto this computer once its first copy from online is done
+  // (until then it works online, or waits: saving into the empty copy could wipe a day's bookings)
   p=await hubDb.ping();
+  if(H.token&&p&&p.ready){startDb(makeFlexDb(hubDb));hubBadge("till");return}
   let first=hubDb;if(!(p&&p.ready)){const o=await online();if(o)first=o}
   const flex=makeFlexDb(first);startDb(flex);hubBadge(first===hubDb?"till":"online");
   hubDb.watch(async up=>{

@@ -141,8 +141,8 @@ ipcMain.handle("hub-auth", (_e, c) => { if (hub) hub.online.setCreds(c); return 
 ipcMain.handle("hub", (_e, op, ...a) => {
   if (!hub) throw new Error("hub not running");
   if (op === "printList") return hub.printList(a[0], a[1] || [], a[2] || {});
-  if (op === "merge") { hub.store.merge(a[0], a[1], a[2]); return true; }
-  if (op === "all") return hub.store.all();
+  if (op === "merge") { if (!hub.store.meta.imported) throw new Error("till not ready yet"); hub.store.merge(a[0], a[1], a[2]); return true; }
+  if (op === "all") { if (!hub.store.meta.imported) throw new Error("the till is still copying the data from online: sign in on this screen first"); return hub.store.all(); }
   return hub.op(a[0]);
 });
 ipcMain.handle("version", () => ({ build: BUILD, version: app.getVersion(), packaged: app.isPackaged, site: SITE, autostart: app.getLoginItemSettings().openAtLogin, printersFirst: process.argv.includes("--printers") }));

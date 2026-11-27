@@ -35,10 +35,17 @@ const mockCall = (method, p, body) => new Promise((ok, bad) => {
   check("hub starts", await hub.start());
   let r = await call("GET", "/hub/ping");
   check("not ready before the first copy", r.j && r.j.ready === false);
+  // nothing can be saved before the first copy (it used to overwrite that day's bookings online)
+  let early = null; try { hub.op({ op: "set", coll: "plan23", id: "2031-01-02", data: { bookings: {} } }); } catch (e) { early = e; }
+  check("saving before the first copy is refused", early && early.status === 503);
+  // an older version could still have saved one before the first copy: online data is kept, local changes laid over it
+  hub.store.put("tickets", "t3", { note: "here" });
   hub.online.setCreds({ email: "test@t57.local", pass: "pw" });
   for (let i = 0; i < 40 && !hub.store.meta.imported; i++) await wait(250);
   check("first copy from online", hub.store.meta.imported && hub.store.size >= 9, hub.store.size + " records");
   r = await call("GET", "/hub/ping"); check("ready after the first copy", r.j && r.j.ready === true);
+  const pre = hub.store.get("tickets", "t3");
+  check("a change saved before the first copy keeps the online data", pre && pre.data && pre.data.note === "here" && pre.data.station === "bar" && pre.data.label === "Table 4", JSON.stringify(pre && pre.data));
 
   // the app page, with the hub marker
   r = await call("GET", "/");

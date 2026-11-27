@@ -31,6 +31,11 @@ const okWhere = (data, w) => (w || []).every(([f, op, v]) => {
 });
 // the online database writes times in a few shapes ("2026-11-23 21:05:01.123456+00", "…T…+00:00", "…Z"): compare them as numbers
 const tms = t => { if (!t) return 0; let x = String(t).trim().replace(" ", "T").replace(/(\.\d{3})\d+/, "$1"); if (/[+-]\d\d$/.test(x)) x += ":00"; else if (!/(Z|[+-]\d\d:?\d\d)$/.test(x)) x += "Z"; return Date.parse(x) || 0; };
+const WRITES = new Set(["set", "merge", "del", "claim"]);
+const notReady = () => { const e = new Error("The till computer is still copying the restaurant's data from online. Try again in a moment"); e.status = 503; return e; };
+// local changes laid over the online copy (objects merged all the way down, so e.g. one day's bookings aren't lost)
+const isObj = v => v && typeof v === "object" && !Array.isArray(v);
+const overlay = (base, top) => { if (!isObj(base) || !isObj(top)) return top; const o = { ...base }; for (const k of Object.keys(top)) o[k] = overlay(base[k], top[k]); return o; };
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const clone = o => o == null ? o : JSON.parse(JSON.stringify(o));
 
@@ -190,7 +195,13 @@ class Online {
     }
     let cursor = "";
     for (const r of rows) {
-      if (!this.store.dirty.has(r.coll + "/" + r.id)) this.store.put(r.coll, r.id, r.data || {}, { local: false, t: r.updated_at });
+      const k = r.coll + "/" + r.id, w = this.store.dirty.get(k);
+      if (w === undefined) this.store.put(r.coll, r.id, r.data || {}, { local: false, t: r.updated_at });
+      else if (w !== "") {
+        // saved here before the first copy (older versions allowed that): keep the online data and lay this computer's changes over it
+        const mine = this.store.colls.get(r.coll)?.get(r.id);
+        if (mine) this.store.put(r.coll, r.id, overlay(r.data || {}, mine.data || {}));
+      }
       if (tms(r.updated_at) > tms(cursor)) cursor = r.updated_at;
     }
     this.store.setMeta({ imported: true, importedAt: Date.now(), importedRows: rows.length, cursor });
@@ -315,6 +326,9 @@ class Hub {
   /** what the tablets (and the printers on this computer) ask for */
   op(q) {
     const S = this.store;
+    // nothing may be saved here until the first copy from online has finished: a save into the empty store
+    // would otherwise go up later and overwrite that day's (or that item's) online copy
+    if (WRITES.has(q.op) && !S.meta.imported) throw notReady();
     switch (q.op) {
       case "list": return S.list(q.coll, q.where);
       case "get": return S.get(q.coll, q.id);
@@ -371,7 +385,7 @@ class Hub {
     if (p === "/hub/api" && req.method === "POST") {
       if (!this.authed(tok)) return json(401, { error: "not linked" });
       const q = await body();
-      try { return json(200, await this.op(q)); } catch (e) { return json(400, { error: e.message }); }
+      try { return json(200, await this.op(q)); } catch (e) { return json(e.status || 400, { error: e.message }); }
     }
 
     if (p === "/hub/events") {
