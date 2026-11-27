@@ -166,7 +166,7 @@ async function backupNow(auto) {
 }
 $("bkNow").onclick = () => backupNow(false);
 $("bkOpen").onclick = () => ipcRenderer.invoke("open-path", B.folder());
-setInterval(() => { if ((Cloud.signedInAs || Cloud.local) && B.due()) backupNow(true); }, 10 * 60000);
+setInterval(() => { if ((Cloud.signedInAs || Cloud.local) && B.due()) backupNow(true); }, 60000);   // a copy every 5 minutes
 
 // ---------- this computer ----------
 $("auto").onchange = async () => { $("auto").checked = await ipcRenderer.invoke("autostart", $("auto").checked); };

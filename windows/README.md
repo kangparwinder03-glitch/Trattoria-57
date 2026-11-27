@@ -7,7 +7,7 @@ One app with a desktop icon that runs everything on a Windows PC or mini PC:
   - a **network printer** on an Ethernet cable or Wi-Fi (type its address, e.g. `192.168.0.250`)
   - a **USB printer** installed in Windows (pick it from the list)
   - a **Bluetooth printer** paired in Windows Settings (it shows up as a COM port)
-- **Backups**: a full copy of the database is saved every night after 4am in `Documents\Trattoria 57 Backups`, and kept for 90 days. A **Back up now** button is there too.
+- **Backups**: a full copy of the database is saved every 5 minutes in `Documents\Trattoria 57 Backups`. Every copy is kept for 2 days, then one a day for 90 days. A **Back up now** button is there too.
 - It starts by itself when Windows starts, keeps the PC from going to sleep, and keeps running next to the clock when you close its windows.
 - It updates itself between 3am and 3pm only, so an update never interrupts service.
 
