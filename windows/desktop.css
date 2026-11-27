@@ -33,16 +33,15 @@ html.t57win .klist { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)
 html.t57win .sheet { max-width: 760px; max-height: 92vh; }
 html.t57win .confirm .sheet { max-width: 480px; }
 
-/* the order / bill / takeaway screen: docked on the right, under the top bar, with no dark cover.
-   The floor (or tiles, kitchen, bar) moves over to the left and stays live and tappable:
-   tap another table and its order opens in the same panel. */
+/* bookings, a table's booking, new booking, open tables and "drinks order for…": docked on the right, under the top bar,
+   with no dark cover. The floor (or tiles, kitchen, bar) moves over to the left and stays live and tappable. */
 html.t57win { --dock: clamp(520px, 46vw, 860px); --hdr: 64px; }
-html.t57win #ordOv, html.t57win #xOv, html.t57win #sheetOv, html.t57win #bkOv, html.t57win #nbOv, html.t57win #listOv { left: auto; top: var(--hdr); width: var(--dock); padding: 0 !important; background: transparent !important;
+html.t57win #xOv, html.t57win #sheetOv, html.t57win #bkOv, html.t57win #nbOv, html.t57win #listOv { left: auto; top: var(--hdr); width: var(--dock); padding: 0 !important; background: transparent !important;
   align-items: stretch !important; justify-content: stretch; z-index: 40; animation: none; }
-html.t57win #ordOv .sheet, html.t57win #xOv .sheet, html.t57win #sheetOv .sheet, html.t57win #bkOv .sheet, html.t57win #nbOv .sheet, html.t57win #listOv .sheet { width: 100% !important; max-width: none !important; height: 100%; max-height: none !important;
+html.t57win #xOv .sheet, html.t57win #sheetOv .sheet, html.t57win #bkOv .sheet, html.t57win #nbOv .sheet, html.t57win #listOv .sheet { width: 100% !important; max-width: none !important; height: 100%; max-height: none !important;
   border-radius: 0 !important; border-left: 2px solid var(--wine); box-shadow: -12px 0 34px rgba(60,45,20,.22); animation: dockIn .16s ease-out; }
 @keyframes dockIn { from { transform: translateX(40px); opacity: .4; } }
-html.t57win body:has(#ordOv.show, #xOv.show, #sheetOv.show, #bkOv.show, #nbOv.show, #listOv.show) #app > :not(header) { margin-right: var(--dock); }
+html.t57win body:has(#xOv.show, #sheetOv.show, #bkOv.show, #nbOv.show, #listOv.show) #app > :not(header) { margin-right: var(--dock); }
 /* a table's booking, the bookings list, new booking, open tables and "drinks order for…" dock in the same place */
 html.t57win #tilesView { padding-bottom: 80px; }
 html.t57win #ordOv .sh-head { padding-top: 10px; padding-bottom: 8px; }
@@ -75,3 +74,66 @@ html.t57win #oFoot .btn { padding: 14px 14px; font-size: 17px; }
 html.t57win ::-webkit-scrollbar { width: 14px; height: 14px; }
 html.t57win ::-webkit-scrollbar-thumb { background: #c9bb98; border-radius: 7px; border: 3px solid transparent; background-clip: padding-box; }
 html.t57win ::-webkit-scrollbar-track { background: transparent; }
+
+/* ===== orders and takeaway: a big "mini tablet" in the middle of the screen =====
+   Tap anywhere on a dish to add it (desktop.js). Two layouts, switched with the button in its header:
+   categories down the left (normal) or across the top (html.t57-cattop). */
+html.t57win #ordOv { align-items: center !important; justify-content: center !important; padding: 2.5vh 2.5vw !important; }
+html.t57win #ordOv .sheet { width: min(1240px, 95vw) !important; max-width: none !important; max-height: none !important; height: 93vh !important; border-radius: 20px !important; border-left: 0 !important;
+  box-shadow: 0 30px 80px rgba(0,0,0,.5) !important; animation: popIn .14s ease-out !important; overflow: hidden; }
+@keyframes popIn { from { transform: scale(.97); opacity: .5; } }
+/* slim header: title and the customer line on one row, small tabs */
+html.t57win #ordOv .sh-head { padding: 8px 14px 6px !important; align-items: center; }
+html.t57win #ordOv .sh-head > div:first-child { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+html.t57win #ordOv #oTitle { font-size: 22px !important; margin: 0; }
+html.t57win #ordOv #oSub { font-size: 13px; margin: 0; }
+html.t57win #ordOv .otabs button, html.t57win #ordOv [data-otab] { font-size: 14px !important; padding: 6px !important; }
+html.t57win #ordOv .msearch input { font-size: 14px !important; padding: 7px 12px !important; }
+html.t57win #ordOv #oCats .sidetog button { font-size: 15px !important; padding: 6px 10px !important; }
+html.t57win #ordOv #oCats .catrow button { font-size: 14px !important; padding: 6px 12px !important; }
+html.t57win #ordOv #oFoot { padding-top: 6px; padding-bottom: 8px; }
+html.t57win #ordOv #oFoot .btn { padding: 11px 14px !important; font-size: 16px !important; }
+/* a thick scroll bar you can drag with a finger */
+html.t57win #ordOv #oBody::-webkit-scrollbar { width: 22px; }
+html.t57win #ordOv #oBody::-webkit-scrollbar-thumb { background: #b9a77c; border-radius: 11px; border: 4px solid transparent; background-clip: padding-box; min-height: 60px; }
+/* dishes as tap tiles: tap anywhere on the tile to add it */
+html.t57win #ordOv #oBody { gap: 6px !important; padding: 8px 10px !important; }
+html.t57win #ordOv .mi { cursor: pointer; user-select: none; }
+html.t57win #ordOv .mi:active { transform: scale(.98); background: #f3ead2 !important; }
+
+/* categories down the left, dishes as tiles */
+html.t57win:not(.t57-cattop) #ordOv .sheet { display: grid !important; grid-template-columns: 200px 1fr; grid-template-rows: auto auto auto minmax(0,1fr) auto; }
+html.t57win:not(.t57-cattop) #ordOv .sheet > * { grid-column: 1 / -1; min-width: 0; }
+html.t57win:not(.t57-cattop) #ordOv #oCats { grid-column: 1; grid-row: 4; flex-direction: column !important; flex-wrap: nowrap !important; overflow-y: auto; gap: 6px !important;
+  padding: 8px !important; border-right: 1px solid #e6dbc2; border-bottom: 0 !important; }
+html.t57win:not(.t57-cattop) #ordOv #oCats > * { flex: none !important; }
+html.t57win:not(.t57-cattop) #ordOv #oCats .sidetog { display: flex; flex-direction: column; gap: 4px; }
+html.t57win:not(.t57-cattop) #ordOv #oCats .catrow { flex-direction: column; flex-wrap: nowrap; gap: 4px; }
+html.t57win:not(.t57-cattop) #ordOv #oCats .catrow button { text-align: left; border-radius: 10px !important; padding: 9px 12px !important; font-size: 15px !important; width: 100%; }
+/* (on "Orders & bill" the app hides the categories: the list then uses the whole width) */
+html.t57win:not(.t57-cattop) #ordOv .sheet:has(#oCats[style*="none"]) #oBody { grid-column: 1 / -1 !important; }
+html.t57win:not(.t57-cattop) #ordOv #oBody { grid-column: 2; grid-row: 4; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)) !important; }
+html.t57win:not(.t57-cattop) #ordOv .mi { display: grid !important; grid-template-columns: 1fr auto; grid-template-rows: 1fr auto; min-height: 78px !important; padding: 8px 10px !important; gap: 2px 6px !important; }
+html.t57win:not(.t57-cattop) #ordOv .mi .nm { grid-column: 1 / -1; }
+html.t57win:not(.t57-cattop) #ordOv .mi .nm b { font-size: 15px !important; line-height: 1.2; }
+html.t57win:not(.t57-cattop) #ordOv .mi .nm small { display: none !important; }
+html.t57win:not(.t57-cattop) #ordOv .mi .pr { grid-column: 1; align-self: end; font-size: 15px !important; }
+html.t57win:not(.t57-cattop) #ordOv .mi .step { grid-column: 2; align-self: end; }
+html.t57win:not(.t57-cattop) #ordOv .mi .step button { width: 34px !important; height: 34px !important; font-size: 20px !important; }
+
+/* categories across the top, smaller dish tiles */
+html.t57win.t57-cattop #ordOv #oCats { flex-direction: row !important; flex-wrap: wrap !important; gap: 6px !important; padding: 6px 10px !important; }
+html.t57win.t57-cattop #ordOv #oCats > .msearch { flex: 1 1 260px !important; }
+html.t57win.t57-cattop #ordOv #oCats > .sidetog { flex: 0 1 320px !important; }
+html.t57win.t57-cattop #ordOv #oCats > .catrow { flex: 1 1 100% !important; gap: 5px; }
+html.t57win.t57-cattop #ordOv #oBody { grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)) !important; }
+html.t57win.t57-cattop #ordOv .mi { display: grid !important; grid-template-columns: 1fr auto; grid-template-rows: 1fr auto; min-height: 72px !important; padding: 7px 9px !important; gap: 2px 6px !important; text-align: left; }
+html.t57win.t57-cattop #ordOv .mi .nm { grid-column: 1 / -1; }
+html.t57win.t57-cattop #ordOv .mi .nm b { font-size: 14px !important; line-height: 1.2; }
+html.t57win.t57-cattop #ordOv .mi .nm small { display: none !important; }
+html.t57win.t57-cattop #ordOv .mi .pr { grid-column: 1; align-self: end; font-size: 14px !important; }
+html.t57win.t57-cattop #ordOv .mi .step { grid-column: 2; align-self: end; }
+html.t57win.t57-cattop #ordOv .mi .step button { width: 32px !important; height: 32px !important; font-size: 19px !important; }
+
+/* the switch between the two layouts (added by desktop.js) */
+html.t57win #ordOv .t57lay { border: 1px solid #d8c9a3; background: #fffaf0; color: #4d4733; border-radius: 10px; padding: 6px 10px; font-size: 13px; font-weight: 700; margin-left: auto; margin-right: 8px; white-space: nowrap; }
