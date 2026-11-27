@@ -312,6 +312,7 @@ body.r #report{display:block}
 .guests b{font-size:14px}
 .payrow{display:flex;gap:8px;flex:1}
 .payrow .btn{flex:1;max-width:none}
+.payrow .btn.mixpay{flex:0 1 auto;white-space:nowrap;padding-left:12px;padding-right:12px}
 .btn.card{background:#3f5f86;color:#fff}.btn.cash{background:var(--pine);color:#fff}
 #staff{display:none;flex:1;overflow:auto;background:linear-gradient(180deg,#F4ECDB,#E9DFC6);padding:14px}
 body.s #staff{display:block}
@@ -2791,7 +2792,7 @@ function renderOrder(){
         ${t.hold?`<div class="qrbtns"><button class="btn no2" data-f="qrno" data-id="${t.id}">✕ Reject</button><button class="btn ok2" data-f="qrok" data-id="${t.id}">✓ Approve &amp; send</button></div>`:""}</div>`}).join("")+tabsHtml(all)+receiptHtml(billOf(all))
       :`<div class="empty">No orders sent for this table yet.</div>`}</div>`;
     const BB=billOf(all),part=BB.paidSoFar>0||(!ord.pickup&&all.some(t=>t.items.some(x=>x.g||shOf(x))));
-    foot.innerHTML=all.length?`<button class="btn sec" data-f="tomenu">+ Add</button><div class="payrow"><button class="btn card" data-f="close" data-pay="card">💳 ${part?"Rest card · "+money(BB.left):"Paid card"}</button><button class="btn cash" data-f="close" data-pay="cash">💵 ${part?"Rest cash · "+money(BB.left):"Paid cash"}</button></div>`
+    foot.innerHTML=all.length?`<button class="btn sec" data-f="tomenu">+ Add</button><div class="payrow"><button class="btn card" data-f="close" data-pay="card">💳 ${part?"Rest card · "+money(BB.left):"Paid card"}</button><button class="btn cash" data-f="close" data-pay="cash">💵 ${part?"Rest cash · "+money(BB.left):"Paid cash"}</button>${BB.left>0?`<button class="btn sec mixpay" data-f="mix" title="Some in cash, the rest on card">💵+💳 Cash &amp; card</button>`:""}</div>`
       :`<button class="btn pri" data-f="tomenu">Open menu</button>`;
   }
 }
@@ -3024,6 +3025,7 @@ $("oFoot").addEventListener("click",async e=>{if(Date.now()<footLockUntil){e.sto
     catch(err){bt.disabled=false;toast(err&&err.code==="invalid_argument"?"View only — can't send orders":"Couldn't send — try again")}
     finally{clearTimeout(unstick)}
   }
+  else if(f==="mix"){openSplit(true)}
   else if(f==="close"){
     const pay=bt.dataset.pay||"card",B=billOf(ordTickets()),isP=ord.pickup,pno=ord.pno;
     const part=B.paidSoFar>0;
@@ -4592,7 +4594,7 @@ async function retab(key){
 
 // ---- split bill & part payments ----
 let spl={n:2,sel:{},ppl:[],share:false};
-function openSplit(){
+function openSplit(mix){
   spl={n:2,sel:{},ppl:[],share:false};
   openX("split","Split the bill","",async e=>{
     if(await personClick(e))return;
@@ -4612,6 +4614,7 @@ function openSplit(){
       await recordPay(v,k==="ac"?"card":"cash",{})}
   });
   renderSplit();
+  if(mix){const f=$("spAmt");if(f){f.closest(".sprow").scrollIntoView({block:"center"});f.focus()}}
 }
 function splitNums(){
   const B=billOf(ordTickets()),ratio=B.sub>0?B.total/B.sub:1;
@@ -4629,7 +4632,7 @@ function renderSplit(){
    <div class="gl-title"${ord.pickup?"":` style="margin-top:18px"`}><span>Split evenly</span>${paidShares?`<em>${paidShares} paid</em>`:""}</div>
    <div class="sprow"><div class="step"><button data-sp="n-">−</button><span>${spl.n} people</span><button class="add" data-sp="n+">+</button></div><b>${money(each)} each</b></div>
    <div class="payrow"><button class="btn card" data-sp="ec"${B.left?"":" disabled"}>💳 Card ${money(each)}</button><button class="btn cash" data-sp="eh"${B.left?"":" disabled"}>💵 Cash ${money(each)}</button></div>
-   <div class="gl-title" style="margin-top:18px"><span>Or pay an amount</span><em>e.g. some cash, rest on card</em></div>
+   <div class="gl-title" style="margin-top:18px"><span>Part cash, part card</span><em>type the amount, then Cash or Card</em></div>
    <div class="sprow"><span style="font-weight:700">£</span><input id="spAmt" type="text" inputmode="decimal" autocomplete="off" placeholder="${B.left?money(B.left).replace("£",""):"0.00"}" style="flex:1;min-width:0;font-size:20px;padding:10px 12px;border:1px solid #d9cfb3;border-radius:10px;margin-left:8px"${B.left?"":" disabled"}></div>
    <div class="payrow"><button class="btn card" data-sp="ac"${B.left?"":" disabled"}>💳 Card this amount</button><button class="btn cash" data-sp="ah"${B.left?"":" disabled"}>💵 Cash this amount</button></div>
    <div class="gl-title" style="margin-top:18px"><span>Or pay for items</span>${B.disc?`<em>discount shared out</em>`:""}</div>
@@ -5360,7 +5363,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261128000000";const APP_VER=65;   // both stamped by the publish script
+const APP_BUILD="20261128001000";const APP_VER=66;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
