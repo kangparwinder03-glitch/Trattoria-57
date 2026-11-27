@@ -39,7 +39,7 @@ const log = [];
 function filt(q) {
   const out = [];
   for (const [k, v] of q) {
-    if (["select", "order", "offset", "limit"].includes(k)) continue;
+    if (["select", "order", "offset", "limit", "updated_at", "on_conflict"].includes(k)) continue;
     const m = /^eq\.(.*)$/.exec(v); if (!m) continue;
     out.push([k, m[1]]);
   }
@@ -51,12 +51,16 @@ const server = http.createServer((req, res) => {
   req.on("end", () => {
     const send = (code, obj) => { res.writeHead(code, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }); res.end(obj === undefined ? "" : JSON.stringify(obj)); };
     log.push(req.method + " " + u.pathname);
+    if (req.method === "OPTIONS") { res.writeHead(204, { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "*", "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,OPTIONS", "Access-Control-Allow-Private-Network": "true" }); return res.end(); }
     if (u.pathname === "/auth/v1/token") {
       const b = JSON.parse(body || "{}");
       if (u.searchParams.get("grant_type") === "password" && !(b.email === "test@t57.local" && b.password === "pw")) return send(400, { error: "invalid_grant" });
       return send(200, { access_token: "tok-" + Date.now(), expires_in: 3600, refresh_token: "ref" });
     }
-    if ((req.headers.authorization || "").indexOf("tok-") < 0) return send(401, { message: "not signed in" });
+    if (u.pathname === "/ipify") return send(200, { ip: "203.0.113.7" });
+    if (u.pathname === "/auth/v1/user") return (req.headers.authorization || "").indexOf("tok-") >= 0 ? send(200, { email: "test@t57.local" }) : send(401, {});
+    if (u.pathname.startsWith("/__")) { /* test helpers below */ }
+    else if ((req.headers.authorization || "").indexOf("tok-") < 0) return send(401, { message: "not signed in" });
     if (u.pathname === "/rest/v1/t57_docs" && req.method === "GET") {
       let rows = Object.values(docs);
       for (const [k, v] of filt(u.searchParams)) rows = rows.filter(r => k.startsWith("data->>") ? String(r.data[k.slice(7)] ?? "") === v && r.data[k.slice(7)] !== undefined : String(r[k]) === v);
@@ -66,7 +70,10 @@ const server = http.createServer((req, res) => {
         rows = rows.filter(r => f.some(([, k, op, v]) => op === "is" ? r.data[k] == null : r.data[k] != null && String(r.data[k]) === v)); }
       for (const [k, v] of u.searchParams) { const m = /^data->(\w+)$/.exec(k), g = /^gte\.(.*)$/.exec(v);
         if (m && g) rows = rows.filter(r => typeof r.data[m[1]] === "number" && r.data[m[1]] >= +g[1]); }
-      rows.sort((a, b) => (a.coll + a.id).localeCompare(b.coll + b.id));
+      const gt = /^gt\.(.*)$/.exec(u.searchParams.get("updated_at") || "");
+      if (gt) rows = rows.filter(r => r.updated_at > gt[1]);
+      if ((u.searchParams.get("order") || "").startsWith("updated_at")) rows.sort((a, b) => a.updated_at.localeCompare(b.updated_at));
+      else rows.sort((a, b) => (a.coll + a.id).localeCompare(b.coll + b.id));
       const off = +(u.searchParams.get("offset") || 0), lim = +(u.searchParams.get("limit") || 1e9);
       rows = rows.slice(off, off + lim);
       const sel = (u.searchParams.get("select") || "").split(",");
@@ -75,14 +82,30 @@ const server = http.createServer((req, res) => {
     if (u.pathname === "/rest/v1/rpc/t57_merge") {
       const { c, i, patch } = JSON.parse(body);
       const d = docs[c + "/" + i] || { coll: c, id: i, data: {} };
-      d.data = Object.assign(d.data, patch); docs[c + "/" + i] = d;
+      d.data = Object.assign(d.data, patch); d.updated_at = new Date().toISOString(); docs[c + "/" + i] = d;
       fs.writeFileSync(path.join(outDir, "db.json"), JSON.stringify(docs, null, 1));
       return send(200);
     }
+    // the till computer copying its changes up (upsert) and deletes
+    if (u.pathname === "/rest/v1/t57_docs" && req.method === "POST") {
+      const rowsIn = [].concat(JSON.parse(body));
+      if (!/merge-duplicates/.test(req.headers.prefer || "") && rowsIn.some(r => docs[r.coll + "/" + r.id])) return send(409, { code: "23505", message: "duplicate key value violates unique constraint" });
+      for (const r of rowsIn) docs[r.coll + "/" + r.id] = { coll: r.coll, id: r.id, data: r.data, updated_at: r.updated_at || new Date().toISOString() };
+      log.push("UPSERT " + rowsIn.map(r => r.coll + "/" + r.id).join(" "));
+      fs.writeFileSync(path.join(outDir, "db.json"), JSON.stringify(docs, null, 1));
+      return send(201);
+    }
+    if (u.pathname === "/rest/v1/t57_docs" && req.method === "DELETE") {
+      for (const r of Object.values(docs).filter(r => filt(u.searchParams).every(([k, v]) => String(r[k]) === v))) delete docs[r.coll + "/" + r.id]; fs.writeFileSync(path.join(outDir, "db.json"), JSON.stringify(docs, null, 1));
+      return send(204);
+    }
+    // test helper: what's in the online database right now / add something as if a customer's phone saved it
+    if (u.pathname === "/__all") return send(200, docs);
+    if (u.pathname === "/__put" && req.method === "POST") { const r = JSON.parse(body); put(r.coll, r.id, r.data); return send(200, docs[r.coll + "/" + r.id]); }
     send(404, { message: "no such call" });
   });
 });
-server.listen(dbPort, "127.0.0.1", () => console.log("mock database on", dbPort));
+server.listen(dbPort, process.env.MOCK_HOST || "127.0.0.1", () => console.log("mock database on", dbPort));
 
 for (const p of prnPorts) {
   let n = 0;

@@ -3,6 +3,8 @@
 //   • the restaurant app (the same website the tablets use) in its own window
 //   • the print station (kitchen / bar / till printers: network, Bluetooth or USB), like the T57 Printer app
 //   • backups of the database on this computer, every night
+//   • the restaurant hub: the data is kept on this computer and the tablets (iPads) work from it over the
+//     Wi-Fi; every change is copied online straight away (src/hub.js)
 //   • starts by itself when Windows starts, keeps the computer awake, and updates itself outside service hours
 "use strict";
 const { app, BrowserWindow, Tray, Menu, ipcMain, shell, dialog, powerSaveBlocker, nativeImage, screen } = require("electron");
@@ -11,6 +13,7 @@ const fs = require("fs");
 const os = require("os");
 const { spawn } = require("child_process");
 const { request } = require("./src/cloud");
+const { Hub } = require("./src/hub");
 
 const SITE = process.env.T57_SITE || "https://kangparwinder03-glitch.github.io/Trattoria-57/";
 const REL = "https://github.com/kangparwinder03-glitch/Trattoria-57/releases/download/windows-latest/";
@@ -21,7 +24,7 @@ if (process.env.T57_USER_DATA) app.setPath("userData", process.env.T57_USER_DATA
 if (!app.requestSingleInstanceLock()) { app.quit(); }
 app.setAppUserModelId("uk.trattoria57.windows");
 
-let till = null, printer = null, tray = null, quitting = false;
+let till = null, printer = null, tray = null, quitting = false, hub = null, TILL_URL = SITE;
 const icon = path.join(__dirname, "assets", "icon-256.png");
 
 // ---- size of everything: bigger / smaller, remembered for each window ----
@@ -71,7 +74,7 @@ function makeTill() {
     width: 1280, height: 860, show: false, title: "Trattoria 57", icon, backgroundColor: "#f4ecdc",
     webPreferences: { backgroundThrottling: false, spellcheck: false },
   });
-  till.loadURL(SITE);
+  till.loadURL(TILL_URL);
   keepZoom(till, "till");
   // computer-screen layout (only in the Windows app; the tablets don't get it)
   till.webContents.on("dom-ready", () => {
@@ -80,14 +83,14 @@ function makeTill() {
   });
   till.once("ready-to-show", () => { if (!TEST) { till.maximize(); till.show(); } });
   till.on("close", e => { if (!quitting) { e.preventDefault(); till.hide(); } });
-  const site = new URL(SITE);
+  const site = new URL(SITE), mine = new URL(TILL_URL);
   till.webContents.setWindowOpenHandler(({ url }) => {
-    try { if (new URL(url).origin === site.origin) return { action: "allow" }; } catch (e) {}
+    try { const o = new URL(url).origin; if (o === site.origin || o === mine.origin) return { action: "allow" }; } catch (e) {}
     shell.openExternal(url); return { action: "deny" };
   });
   // if the page ever crashes or the internet drops while loading, try again
-  till.webContents.on("render-process-gone", () => setTimeout(() => till && till.loadURL(SITE), 2000));
-  till.webContents.on("did-fail-load", (_e, code, _d, url, main) => { if (main && code !== -3) setTimeout(() => till && till.loadURL(SITE), 10000); });
+  till.webContents.on("render-process-gone", () => setTimeout(() => till && till.loadURL(TILL_URL), 2000));
+  till.webContents.on("did-fail-load", (_e, code, _d, url, main) => { if (main && code !== -3) setTimeout(() => till && till.loadURL(TILL_URL), 10000); });
 }
 
 function makeTray() {
@@ -131,6 +134,16 @@ async function checkUpdate(manual) {
   finally { updBusy = false; }
 }
 
+// ---- the restaurant hub ----
+ipcMain.handle("hub-info", () => hub ? hub.info() : { running: false });
+ipcMain.handle("hub-auth", (_e, c) => { if (hub) hub.online.setCreds(c); return true; });
+ipcMain.handle("hub", (_e, op, ...a) => {
+  if (!hub) throw new Error("hub not running");
+  if (op === "printList") return hub.printList(a[0], a[1] || [], a[2] || {});
+  if (op === "merge") { hub.store.merge(a[0], a[1], a[2]); return true; }
+  if (op === "all") return hub.store.all();
+  return hub.op(a[0]);
+});
 ipcMain.handle("version", () => ({ build: BUILD, version: app.getVersion(), packaged: app.isPackaged, site: SITE, autostart: app.getLoginItemSettings().openAtLogin, printersFirst: process.argv.includes("--printers") }));
 ipcMain.handle("zoom", (_e, which, step) => { const w = which === "till" ? till : printer; if (step !== null) zoomWin(w, step); return Math.round(zoomOf(which === "till" ? "till" : "printer") * 100); });
 ipcMain.handle("check-update", () => checkUpdate(true));
@@ -147,10 +160,17 @@ ipcMain.handle("screenshot", async (_e, which, file) => {
 
 // opening the app again (desktop icons): "T57 Printers & Backups" brings that window to the front
 app.on("second-instance", (_e, argv) => { showWin(argv.includes("--printers") ? printer : till); });
-app.on("before-quit", () => { quitting = true; });
+let hubStopped = false;
+app.on("before-quit", e => {
+  quitting = true;
+  if (hub && !hubStopped) {   // save everything and tell the tablets to carry on online
+    e.preventDefault(); hubStopped = true;
+    Promise.race([hub.stop(), new Promise(r => setTimeout(r, 4000))]).finally(() => app.quit());
+  }
+});
 app.on("window-all-closed", () => { if (quitting) app.quit(); });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // keep the computer from going to sleep while the app runs (the screen may still switch off)
   powerSaveBlocker.start("prevent-app-suspension");
   if (app.isPackaged && !TEST && !app.getLoginItemSettings().openAtLogin && !fs.existsSync(path.join(app.getPath("userData"), "autostart-set"))) {
@@ -173,6 +193,12 @@ app.whenReady().then(() => {
       { type: "separator" }, { label: "Quit Trattoria 57", click: askQuit } ] },
     { label: "Edit", visible: false, submenu: [{ role: "undo" }, { role: "redo" }, { role: "cut" }, { role: "copy" }, { role: "paste" }, { role: "selectAll" }] },
   ]));
+  if (!process.env.T57_NOHUB) {
+    hub = new Hub({ dir: path.join(app.getPath("userData"), "hub"), site: SITE,
+      onLog: t => { if (printer && !printer.isDestroyed()) printer.webContents.send("hub-log", t); } });
+    hub.onStatus = info => { if (printer && !printer.isDestroyed()) printer.webContents.send("hub-status", info); };
+    if (await hub.start()) TILL_URL = `http://127.0.0.1:${hub.port}/`;
+  }
   makeTill();
   makePrinter(TEST || !process.argv.includes("--hidden"));
   makeTray();

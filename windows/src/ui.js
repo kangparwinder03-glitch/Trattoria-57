@@ -40,16 +40,34 @@ function showAuth() {
 async function signIn(email, pass) {
   $("signBtn").disabled = true; $("authInfo").textContent = "Signing in…";
   const ok = await Cloud.signIn(email, pass);
+  if (ok) sendCreds();
   $("signBtn").disabled = false; $("pass").value = ""; showAuth();
   if (!ok) { $("authInfo").textContent = "❌ Wrong email or password (or no internet)"; $("authInfo").className = "bad"; }
   return ok;
 }
 $("signBtn").onclick = () => {
-  if (Cloud.signedInAs) { Cloud.signOut(); showAuth(); return; }
+  if (Cloud.signedInAs) { Cloud.signOut(); ipcRenderer.invoke("hub-auth", null); showAuth(); return; }
   const e = $("email").value.trim(), p = $("pass").value;
   if (!e || !p) { $("authInfo").textContent = "Type the email and password first"; return; }
   signIn(e, p);
 };
+
+// ---------- the tablets connect to this computer (the restaurant hub) ----------
+const { store } = require("./src/cloud");
+function sendCreds() { const email = store.get("auth_email"), pass = store.get("auth_pass"); if (email && pass) ipcRenderer.invoke("hub-auth", { email, pass }); }
+const ago = ms => { if (!ms) return "not yet"; const s = Math.round((Date.now() - ms) / 1000); return s < 60 ? s + "s ago" : Math.round(s / 60) + " min ago"; };
+let hubNow = null;
+function showHub(h) {
+  if (h) hubNow = h; h = hubNow; if (!h) return;
+  if (!h.running) { $("hubInfo").innerHTML = "<span class='bad'>⚠ Tablets can't connect to this computer right now. They carry on online.</span>"; $("hubOnline").textContent = h.onlineMsg || ""; return; }
+  $("hubInfo").innerHTML = `<span class="ok">🟢 Running</span> · <b>${h.tablets}</b> screen${h.tablets === 1 ? "" : "s"} connected now · ${h.linked} tablet${h.linked === 1 ? "" : "s"} linked · ${h.records} records kept here` +
+    `<br><span class="mute">Address on the restaurant Wi-Fi: <b>${esc((h.urls || [])[0] || "no network")}</b></span>`;
+  $("hubOnline").innerHTML = (h.onlineOk ? "☁ " : "<span class='bad'>☁ </span>") + esc(h.onlineMsg || "") +
+    ` · last sent ${ago(h.lastPush)} · last checked ${ago(h.lastPull)}` + (h.waiting ? ` · <b>${h.waiting}</b> change${h.waiting === 1 ? "" : "s"} waiting to go online` : "");
+}
+ipcRenderer.on("hub-status", (_e, h) => showHub(h));
+ipcRenderer.on("hub-log", (_e, t) => Hub.log(t));
+setInterval(() => showHub(), 5000);
 
 // ---------- printers on this computer ----------
 async function loadDevices() {
@@ -148,7 +166,7 @@ async function backupNow(auto) {
 }
 $("bkNow").onclick = () => backupNow(false);
 $("bkOpen").onclick = () => ipcRenderer.invoke("open-path", B.folder());
-setInterval(() => { if (Cloud.signedInAs && B.due()) backupNow(true); }, 10 * 60000);
+setInterval(() => { if ((Cloud.signedInAs || Cloud.local) && B.due()) backupNow(true); }, 10 * 60000);
 
 // ---------- this computer ----------
 $("auto").onchange = async () => { $("auto").checked = await ipcRenderer.invoke("autostart", $("auto").checked); };
@@ -162,6 +180,15 @@ ipcRenderer.on("updating", (_e, v) => { Hub.say(`⬇ Installing update ${v} — 
 // ---------- start up ----------
 (async function init() {
   const v = await ipcRenderer.invoke("version");
+  const h = await ipcRenderer.invoke("hub-info");
+  if (h && h.running) {   // printing and backups use the data kept on this computer
+    Cloud.local = {
+      list: (c, f, o) => ipcRenderer.invoke("hub", "printList", c, f, o),
+      merge: (c, i, p) => ipcRenderer.invoke("hub", "merge", c, i, p),
+      everything: () => ipcRenderer.invoke("hub", "all"),
+    };
+  }
+  showHub(h); sendCreds();
   $("ver").textContent = `Windows · version ${v.build || "dev"} · updates install by themselves between 3am and 3pm`;
   $("auto").checked = v.autostart;
   showAuth(); showStation(); showBackup(); refresh(); showZoom();
@@ -171,7 +198,7 @@ ipcRenderer.on("updating", (_e, v) => { Hub.say(`⬇ Installing update ${v} — 
   if (!S.cfg.running || v.printersFirst) setTimeout(() => ipcRenderer.invoke("show-printer"), 2500);
   if (S.cfg.running) S.start();                      // printing switches back on after a restart or an update
   else Hub.say("Pick the printer, tick the station, then tap Start.", true);
-  if (Cloud.signedInAs && B.due()) setTimeout(() => backupNow(true), 30000);
+  if ((Cloud.signedInAs || Cloud.local) && B.due()) setTimeout(() => backupNow(true), 30000);
 })();
 
 // ---------- automatic test (used by the GitHub test run only) ----------

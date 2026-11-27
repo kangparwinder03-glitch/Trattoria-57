@@ -865,6 +865,7 @@ body.training{padding-top:30px}
 .bigtext .pg{font-size:13px}.bigtext .pg i{height:8px}
 [data-big].on{background:var(--olive-dk)!important;color:#fff!important;border-color:var(--olive-dk)!important}
 .obx{order:6;width:100%;background:#fff3d6;border:1px solid #e0b850;color:#6a4a00;border-radius:10px;padding:6px 10px;font-size:13px;font-weight:700;text-align:center}
+body[data-hub=online] .status::after{content:" · Till off";color:#a6452b;font-weight:700}
 .prnl{display:flex;gap:8px;align-items:center;border:1px solid var(--parch2);background:#fffaf0;border-radius:12px;padding:5px 10px;font-size:12px;font-weight:700;color:#5d5640}
 .prnl .pd{text-transform:capitalize;display:inline-flex;align-items:center;gap:4px}.prnl .pd i{width:9px;height:9px;border-radius:50%;background:#9a9a9a;display:inline-block}
 .prnl .green i{background:#3c9a4a;box-shadow:0 0 0 3px rgba(60,154,74,.18)}.prnl .amber i{background:#e0a020;box-shadow:0 0 0 3px rgba(224,160,32,.2)}
@@ -5172,8 +5173,8 @@ fit();applyCam();startStaffStores();route();applyArea();
 const SUPA_URL="https://uzrkewizkqdnqpovwune.supabase.co";
 const SUPA_KEY="sb_publishable_Hix2EgA_xpjxMYFvmarVIQ_Hj0qx3YM";
 const SUPA_LIB="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js";
-function loadSupaLib(){return new Promise((res,rej)=>{if(window.supabase&&window.supabase.createClient){res(window.supabase);return}
-  const s=document.createElement("script");s.src=SUPA_LIB;s.async=true;s.onload=()=>window.supabase?res(window.supabase):rej(new Error("no lib"));s.onerror=()=>rej(new Error("lib failed"));document.head.appendChild(s)})}
+function loadSupaLib(src){return new Promise((res,rej)=>{if(window.supabase&&window.supabase.createClient){res(window.supabase);return}
+  const s=document.createElement("script");s.src=src||SUPA_LIB;s.async=true;s.onload=()=>window.supabase?res(window.supabase):rej(new Error("no lib"));s.onerror=()=>rej(new Error("lib failed"));document.head.appendChild(s)})}
 function makeSupaDb(sb){
   const TB="t57_docs",subs=new Set(),inflight={},lastSent={};
   const err=e=>{const x=new Error((e&&e.message)||"db error");x.code=(e&&/fetch|network|Failed/i.test(e.message||""))?"unavailable":"unknown";return x};
@@ -5219,7 +5220,7 @@ function makeSupaDb(sb){
         if(row&&okWhere(row.data,w))rows.set(i,row.data);else if(rows.has(i))rows.delete(i);else return;
         emitColl()}};
     subs.add(s);run();
-    return ()=>{alive=false;subs.delete(s)};
+    return ()=>{alive=false;subs.delete(s);if(!subs.size)setTimeout(()=>{if(!subs.size&&chan){try{sb.removeChannel(chan)}catch(_){}chan=null;live=false}},8000)};
   }
   function docRef(coll,id){const k=coll+"/"+id;return {id,
     get:async()=>snapDoc(coll,id,await fetchDoc(coll,id),false),
@@ -5237,6 +5238,81 @@ function makeSupaDb(sb){
     get:async()=>{const rows=await fetchColl(coll,w);return {docs:rows.map(r=>snapDoc(coll,r.id,r,false)),size:rows.length,empty:!rows.length}},
     onSnapshot:(cb,ecb)=>listen(coll,null,w,cb,ecb)}}
   return {collection:name=>query(name,[]),doc:path=>{const [c,i]=path.split("/");return docRef(c,i)},claim,supa:true};
+}
+
+// ---------- the till computer (Windows app) as the restaurant hub ----------
+// Opened from the till computer (http://<till>:5757/), the tablets save and load everything there over the Wi-Fi:
+// fast, and no internet data used. The till copies every change online within seconds. If the till goes off,
+// the tablet switches to the online database by itself, and moves back when the till is on again.
+function makeHubDb(tok){
+  const subs=new Set(),inflight={},lastSent={};
+  const snapDoc=(id,row,pending)=>({id,exists:!!row,data:()=>row?clone(row.data):undefined,metadata:{fromCache:false,hasPendingWrites:!!pending}});
+  const okWhere=(data,w)=>w.every(([f,op,v])=>{const a=data?data[f]:undefined;return op==="=="?a===v:op===">="?a>=v:op==="<="?a<=v:op===">"?a>v:op==="<"?a<v:true});
+  async function api(q,ms){const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),ms||8000);let r;
+    try{r=await fetch("/hub/api",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+tok},body:JSON.stringify(q),signal:ac.signal,cache:"no-store"})}
+    catch(e){const x=new Error("till computer unreachable");x.code="unavailable";throw x}finally{clearTimeout(tm)}
+    let j=null;try{j=await r.json()}catch(_){}
+    if(r.status===401){const e=new Error("tablet not linked");e.code="unlinked";throw e}
+    if(!r.ok){const e=new Error((j&&j.error)||"till error");e.code="unknown";throw e}return j}
+  function refreshAll(){subs.forEach(s=>s.kick())}
+  let es=null;
+  function openStream(){if(es)return;try{es=new EventSource("/hub/events?t="+encodeURIComponent(tok));
+    es.addEventListener("hello",()=>refreshAll());   // (re)connected: catch up on anything missed
+    es.onmessage=m=>{let ev;try{ev=JSON.parse(m.data)}catch(_){return}subs.forEach(s=>{if(s.coll===ev.coll)s.apply(ev.data==null?null:{id:ev.id,data:ev.data},ev.id)})};
+    es.onerror=()=>{}}catch(_){}}
+  function closeStream(){if(es){try{es.close()}catch(_){}es=null}}
+  function listen(coll,id,w,cb,ecb){
+    openStream();let alive=true,t=null,running=false,again=false,loaded=false,rows=null;const k=coll+"/"+id;
+    const emitDoc=row=>{const same=row&&lastSent[k]&&JSON.stringify(row.data)===lastSent[k];cb(snapDoc(id,row,same))};
+    const emitColl=()=>{const arr=[...rows].map(([i,d])=>({id:i,data:d}));cb({docs:arr.map(r=>snapDoc(r.id,r,false)),size:arr.length,empty:!arr.length})};
+    const run=async()=>{if(!alive)return;if(running){again=true;return}running=true;
+      try{if(id){if(inflight[k]){running=false;setTimeout(run,300);return}
+          const row=await api({op:"get",coll,id});if(!alive)return;loaded=true;emitDoc(row)}
+        else{const r=await api({op:"list",coll,where:w});if(!alive)return;rows=new Map(r.map(x=>[x.id,x.data]));loaded=true;emitColl()}}
+      catch(e){if(alive&&ecb)ecb(e)}
+      running=false;if(again){again=false;run()}};
+    const s={coll,kick:()=>{clearTimeout(t);t=setTimeout(run,120)},
+      apply:(row,oldId)=>{if(!alive)return;if(!loaded||running){s.kick();return}const i=row?row.id:oldId;
+        if(id){if(i!==id)return;if(inflight[k]){s.kick();return}emitDoc(row);return}
+        if(row&&okWhere(row.data,w))rows.set(i,row.data);else if(rows.has(i))rows.delete(i);else return;emitColl()}};
+    subs.add(s);run();
+    return ()=>{alive=false;subs.delete(s)};
+  }
+  function docRef(coll,id){const k=coll+"/"+id;return {id,
+    get:async()=>snapDoc(id,await api({op:"get",coll,id}),false),
+    set:async data=>{inflight[k]=(inflight[k]||0)+1;lastSent[k]=JSON.stringify(data);try{await api({op:"set",coll,id,data})}finally{inflight[k]--}},
+    update:async patch=>{inflight[k]=(inflight[k]||0)+1;try{await api({op:"merge",coll,id,patch})}finally{inflight[k]--}},
+    delete:async()=>{await api({op:"del",coll,id})},
+    onSnapshot:(cb,ecb)=>listen(coll,id,null,cb,ecb)}}
+  function query(coll,w){return {where:(f,op,v)=>query(coll,w.concat([[f,op,v]])),doc:id=>docRef(coll,id),
+    changedSince:since=>api({op:"since",coll,since}),
+    get:async()=>{const r=await api({op:"list",coll,where:w});return {docs:r.map(x=>snapDoc(x.id,x,false)),size:r.length,empty:!r.length}},
+    onSnapshot:(cb,ecb)=>listen(coll,null,w,cb,ecb)}}
+  // is the till still there? (checked every few seconds; 2 misses in a row = gone, 2 answers in a row = back)
+  async function ping(){const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),3500);
+    try{const r=await fetch("/hub/ping?t="+encodeURIComponent(tok),{cache:"no-store",signal:ac.signal});return r.ok?await r.json():null}catch(_){return null}finally{clearTimeout(tm)}}
+  function watch(fn){let up=null,ok=0,bad=0;
+    const go=async()=>{const p=await ping();if(p&&p.ready){ok++;bad=0}else{bad++;ok=0}
+      if(up!==true&&ok>=2){up=true;fn(true)}else if(up!==false&&bad>=2){up=false;fn(false)}};
+    setInterval(go,4000);go()}
+  return {collection:name=>query(name,[]),doc:path=>{const i=path.indexOf("/");return docRef(path.slice(0,i),path.slice(i+1))},
+    claim:async(c,i,x)=>(await api({op:"claim",coll:c,id:i,data:x||{}})).ok,supa:true,hub:true,api,ping,watch,openStream,closeStream,refreshAll};
+}
+// One database for the rest of the app, which can move between the till computer and the online one without the
+// screens noticing: everything that's listening is moved across and gets fresh data.
+function makeFlexDb(first){
+  let cur=first;const L=new Set();
+  function reg(make,cb,ecb){const l={un:null,go(){try{l.un&&l.un()}catch(_){}l.un=make(cur).onSnapshot(cb,ecb)}};L.add(l);l.go();
+    return ()=>{try{l.un&&l.un()}catch(_){}L.delete(l)}}
+  function dref(c,id){const r=()=>cur.collection(c).doc(id);return {id,get:()=>r().get(),set:d=>r().set(d),update:f=>r().update(f),delete:()=>r().delete(),
+    onSnapshot:(cb,ecb)=>reg(d=>d.collection(c).doc(id),cb,ecb)}}
+  function q(c,w){const r=d=>w.reduce((x,[f,o,v])=>x.where(f,o,v),d.collection(c));
+    return {where:(f,o,v)=>q(c,w.concat([[f,o,v]])),doc:id=>dref(c,id),get:()=>r(cur).get(),
+      changedSince:async s=>{const x=r(cur);if(typeof x.changedSince==="function")return x.changedSince(s);const sn=await x.get();return sn.docs.map(d=>({id:d.id,data:d.data(),updated_at:""}))},
+      onSnapshot:(cb,ecb)=>reg(r,cb,ecb)}}
+  return {collection:n=>q(n,[]),doc:p=>{const i=p.indexOf("/");return dref(p.slice(0,i),p.slice(i+1))},
+    claim:(c,i,x)=>cur.claim?cur.claim(c,i,x):Promise.resolve(true),supa:true,
+    get now(){return cur},switchTo(d){if(d===cur)return;const was=cur;cur=d;L.forEach(l=>l.go());if(was&&was.closeStream)was.closeStream()}};
 }
 
 if(TRAIN){document.body.classList.add("training");$("trainBar").hidden=false;$("trainOff").onclick=()=>ask("Back to live on this device?","Real orders and bookings will show again.",()=>setTraining(false))}
@@ -5270,7 +5346,7 @@ async function goLive(){
 }
 
 // ---------- auto-update (website only): checks for a newer published version and refreshes ----------
-const APP_BUILD="20261127080746";const APP_VER=62;   // both stamped by the publish script
+const APP_BUILD="20261127101500";const APP_VER=63;   // both stamped by the publish script
 function buildWhen(b){const m=/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)/.exec(b||"");if(!m)return "";
   const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return d.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}
 async function latestVer(){try{const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(_){return null}}
@@ -5363,25 +5439,85 @@ function openSignIn(){
   if(!sbUser){showLogin(()=>{if(!db||db.guest)startDb(makeSupaDb(sbc));else location.reload()},true);return}
   ask("This tablet is signed in",`Signed in as ${sbUser}. Sign out only if you're giving this tablet away — it will stop working until someone signs in again.`,async()=>{try{await sbc.auth.signOut()}catch(_){}sbUser="";location.reload()},"Sign out");
 }
-async function bootSupa(lib){
+function makeSbc(lib){
   const tFetch=(url,opts)=>{opts=opts||{};const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),12000);
     if(opts.signal){if(opts.signal.aborted)ac.abort();else opts.signal.addEventListener("abort",()=>ac.abort())}
     return fetch(url,Object.assign({},opts,{signal:ac.signal})).finally(()=>clearTimeout(tm))};
   sbc=lib.createClient(SUPA_URL,SUPA_KEY,{auth:{persistSession:true,autoRefreshToken:true,storageKey:"t57-auth",lock:async(n,t,fn)=>await fn()},global:{fetch:tFetch}});
+}
+async function bootSupa(lib){
+  makeSbc(lib);
   let session=null;try{session=(await sbc.auth.getSession()).data.session}catch(_){}
   if(session){sbUser=(session.user&&session.user.email)||"";try{sbc.realtime.setAuth(session.access_token)}catch(_){}}
   let locked=isLocked();
   try{const r=await sbc.rpc("t57_locked");if(!r.error&&r.data===true){locked=true;try{localStorage.setItem("t57-locked","1")}catch(_){}}}catch(_){}
   // if this tablet ever loses its sign-in, ask straight away rather than showing an empty floor
   try{sbc.auth.onAuthStateChange(ev=>{if(ev==="SIGNED_OUT"&&isLocked()&&view!=="guest"&&!(db&&db.guest)){sbUser="";setStatus("local","Not signed in");showLogin(()=>location.reload(),false)}})}catch(_){}
-  if(session){startDb(makeSupaDb(sbc));return}
+  if(session){if(await findTill())return;startDb(makeSupaDb(sbc));setInterval(()=>{if(!document.hidden&&!appBusy())findTill()},150000);return}
   if(!locked){startDb(makeSupaDb(sbc));return}
   if(view==="guest"){startDb(makeGuestDb(sbc));return}
   setStatus("local","Not signed in");showLogin(()=>startDb(makeSupaDb(sbc)),false);
 }
+// ---- staff tablets on the website move over to the till computer when it's running on the same Wi-Fi ----
+let myIp=null,myIpAt=0;
+async function publicIp(){if(myIp&&Date.now()-myIpAt<1800000)return myIp;
+  try{const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),4000);const r=await fetch("https://api.ipify.org?format=json",{signal:ac.signal,cache:"no-store"});clearTimeout(tm);myIp=(await r.json()).ip||null;myIpAt=Date.now()}catch(_){myIp=null}
+  return myIp}
+async function findTill(){
+  try{if(window.T57_HUB||window.claude||view==="guest"||/Android|Electron/i.test(navigator.userAgent)||/[?&]online\b/.test(location.search))return false;
+    let g=0;try{g=+sessionStorage.getItem("t57-hubtry")||0}catch(_){}if(Date.now()-g<600000)return false;
+    const {data,error}=await sbc.from("t57_docs").select("data").eq("coll","hub").eq("id","main").maybeSingle();
+    const h=!error&&data&&data.data;if(!h||!h.url||!h.pub||Date.now()-(+h.at||0)>330000)return false;
+    if(await publicIp()!==h.pub)return false;   // not in the restaurant (e.g. checking from home): stay online
+    try{sessionStorage.setItem("t57-hubtry",String(Date.now()))}catch(_){}
+    try{keepCarts()}catch(_){}
+    location.replace(h.url+location.hash);return true}catch(_){return false}}
+// ---- opened from the till computer ----
+let hubMode="";
+function hubBadge(m){hubMode=m;document.body.dataset.hub=m}
+function showHubLogin(after){
+  let ov=$("loginOv");if(!ov){ov=document.createElement("div");ov.id="loginOv";ov.className="loginov";document.body.appendChild(ov)}
+  ov.innerHTML=`<form class="loginbox" autocomplete="on"><img src="icon-192.png" alt="" width="72" height="72"><h2>Link this tablet to the till</h2>
+    <p>Sign in once with the restaurant login. This tablet then works from the till computer.</p>
+    <input id="lgEmail" type="email" placeholder="Restaurant email" autocomplete="username" required>
+    <input id="lgPass" type="password" placeholder="Password" autocomplete="current-password" required>
+    <div id="lgErr" class="lgerr"></div><button class="btn pri" type="submit">Sign in</button></form>`;
+  ov.classList.add("show");setTimeout(()=>$("lgEmail").focus(),100);
+  ov.querySelector("form").onsubmit=async e=>{e.preventDefault();const btn=ov.querySelector("button[type=submit]");btn.disabled=true;$("lgErr").textContent="";
+    const email=$("lgEmail").value.trim(),password=$("lgPass").value;
+    try{const r=await fetch("/hub/pair",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password,name:navigator.platform||""})});
+      const j=await r.json().catch(()=>({}));if(!r.ok||!j.token)throw new Error(j.error||"Couldn't link");
+      try{localStorage.setItem("t57-hub-token",j.token)}catch(_){}
+      // also sign in online, so this tablet can carry on if the till computer is ever off
+      if(sbc){try{const {data}=await sbc.auth.signInWithPassword({email,password});sbUser=(data&&data.user&&data.user.email)||""}catch(_){}}
+      ov.classList.remove("show");toast("🔐 Linked to the till computer");after(j.token)}
+    catch(err){btn.disabled=false;$("lgErr").textContent=/fetch|network|Failed/i.test(err.message)?"Can't reach the till computer: is it on?":err.message}};
+}
+async function bootHub(){
+  const H=window.T57_HUB||{};let tok=H.token||"";if(!tok)try{tok=localStorage.getItem("t57-hub-token")||""}catch(_){}
+  setStatus("saving","Connecting to the till…");
+  const libP=loadSupaLib("/hub/lib/supabase.js").then(l=>{if(!sbc)makeSbc(l);return l}).catch(()=>null);
+  let p=tok?await makeHubDb(tok).ping():null;
+  if(!tok||(p&&!p.linked)){await libP;tok=await new Promise(done=>showHubLogin(done))}
+  const hubDb=makeHubDb(tok);
+  let onlineDb=null;
+  const online=async()=>{if(onlineDb)return onlineDb;if(!await libP||!sbc)return null;
+    try{const ss=(await sbc.auth.getSession()).data.session;if(!ss)return null;sbUser=(ss.user&&ss.user.email)||"";try{sbc.realtime.setAuth(ss.access_token)}catch(_){}}catch(_){return null}
+    onlineDb=makeSupaDb(sbc);return onlineDb};
+  if(H.token){startDb(makeFlexDb(hubDb));hubBadge("till");return}   // the till computer's own screen
+  p=await hubDb.ping();
+  let first=hubDb;if(!(p&&p.ready)){const o=await online();if(o)first=o}
+  const flex=makeFlexDb(first);startDb(flex);hubBadge(first===hubDb?"till":"online");
+  hubDb.watch(async up=>{
+    if(!up&&flex.now===hubDb){const o=await online();if(o&&flex.now===hubDb){flex.switchTo(o);hubBadge("online");toast("☁ The till computer isn't answering: carrying on online",4500)}}
+    else if(up&&flex.now!==hubDb){try{await hubDb.api({op:"pullnow"},20000)}catch(_){}
+      flex.switchTo(hubDb);hubBadge("till");toast("🖥 Back on the till computer",3000)}});
+}
 function startDb(d){db=TRAIN?nsDb(d):d;subscribeLive();subscribePrinters();subscribeAlexa();subscribe();subscribeSettings();subscribeTickets();startStaffStores();gIdx=null}
 if(window.claude&&typeof window.claude.use==="function"){
   window.claude.use("db").then(d=>{if(!d){setStatus("local","This device");return}startDb(d)}).catch(()=>setStatus("local","This device"));
+}else if(window.T57_HUB&&view!=="guest"){
+  bootHub().catch(()=>setStatus("local","Can't reach the till computer"));
 }else if(SUPA_URL&&location.protocol.startsWith("http")){
   setStatus("saving","Connecting…");
   loadSupaLib().then(bootSupa).catch(()=>setStatus("local","Offline — this device only"));

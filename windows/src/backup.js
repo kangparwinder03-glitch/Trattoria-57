@@ -23,7 +23,7 @@ async function run() {
   if (busy) throw new Error("a backup is already running");
   busy = true;
   try {
-    if (!Cloud.signedInAs) throw new Error("sign in first");
+    if (!Cloud.local && !Cloud.signedInAs) throw new Error("sign in first");
     const rows = await Cloud.everything();
     if (!rows.length) throw new Error("the backup came back empty — check the sign-in");
     const counts = {};
