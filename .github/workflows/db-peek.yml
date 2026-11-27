@@ -1,4 +1,4 @@
-name: Restore today's bookings from the 04:17 backup (one-off)
+name: DB peek (read-only)
 on:
   push:
     paths: ["tools/dbpeek.txt"]
@@ -30,7 +30,7 @@ jobs:
           tok = call("/auth/v1/token?grant_type=password", {"email": os.environ["T57_EMAIL"], "password": os.environ["T57_PASSWORD"]}, "POST")["access_token"]
           A = {"Authorization": "Bearer " + tok}
           now = (call(f"/rest/v1/t57_docs?coll=eq.plan23&id=eq.{DAY}&select=data", headers=A) or [{"data": {}}])[0]["data"] or {}
-          patch = {k: v for k, v in old.items() if k.startswith("b:") and v and not now.get(k)}
+          patch = {}
           print("putting back tables:", sorted(patch), [(k, v.get("time"), v.get("size")) for k, v in patch.items()])
           if patch:
               patch["updatedAt"] = int(time.time() * 1000)
