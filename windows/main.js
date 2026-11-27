@@ -29,6 +29,7 @@ const icon = path.join(__dirname, "assets", "icon-256.png");
 
 // ---- size of everything: bigger / smaller, remembered for each window ----
 const DESKTOP_CSS = fs.readFileSync(path.join(__dirname, "desktop.css"), "utf8");
+const DESKTOP_JS = fs.readFileSync(path.join(__dirname, "desktop.js"), "utf8");
 const viewFile = () => path.join(app.getPath("userData"), "view.json");
 let view = {};
 function loadView() { try { view = JSON.parse(fs.readFileSync(viewFile(), "utf8")) || {}; } catch (e) { view = {}; } }
@@ -79,7 +80,7 @@ function makeTill() {
   // computer-screen layout (only in the Windows app; the tablets don't get it)
   till.webContents.on("dom-ready", () => {
     till.webContents.insertCSS(DESKTOP_CSS).catch(() => {});
-    till.webContents.executeJavaScript("document.documentElement.classList.add('t57win')").catch(() => {});
+    till.webContents.executeJavaScript("document.documentElement.classList.add('t57win')").then(() => till.webContents.executeJavaScript(DESKTOP_JS)).catch(() => {});
   });
   till.once("ready-to-show", () => { if (!TEST) { till.maximize(); till.show(); } });
   till.on("close", e => { if (!quitting) { e.preventDefault(); till.hide(); } });

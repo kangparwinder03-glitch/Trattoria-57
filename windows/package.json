@@ -25,6 +25,7 @@
       "main.js",
       "printer.html",
       "desktop.css",
+      "desktop.js",
       "src/**",
       "assets/**",
       "package.json"
