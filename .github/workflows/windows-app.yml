@@ -35,9 +35,20 @@ jobs:
       - name: Install it like a customer would (silent install)
         shell: pwsh
         run: |
-          Start-Process -Wait -FilePath "dist\T57-Windows-Setup.exe" -ArgumentList "/S"
-          $exe = Get-ChildItem "$env:LOCALAPPDATA\Programs" -Recurse -Filter "Trattoria 57.exe" | Select-Object -First 1
-          if (-not $exe) { throw "the app didn't install" }
+          $p = Start-Process -Wait -PassThru -FilePath "dist\T57-Windows-Setup.exe" -ArgumentList "/S"
+          "Installer finished with code $($p.ExitCode)"
+          # the installer can hand over to a second copy of itself and return early: give it up to 2 minutes
+          $exe = $null
+          for ($i = 0; $i -lt 60 -and -not $exe; $i++) {
+            $exe = Get-ChildItem "$env:LOCALAPPDATA\Programs" -Recurse -Filter "Trattoria 57.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+            if (-not $exe) { Start-Sleep -Seconds 2 }
+          }
+          if (-not $exe) {
+            Get-ChildItem "$env:LOCALAPPDATA\Programs" -ErrorAction SilentlyContinue | Format-Table Name
+            Get-Process | Where-Object { $_.Name -like "*T57*" -or $_.Name -like "*Trattoria*" } | Format-Table Name, Id
+            throw "the app didn't install"
+          }
+          Start-Sleep -Seconds 5
           "Installed at $($exe.FullName)"
           "T57_EXE=$($exe.FullName)" >> $env:GITHUB_ENV
           if (-not (Test-Path "$env:USERPROFILE\Desktop\Trattoria 57.lnk") -and -not (Test-Path "$env:PUBLIC\Desktop\Trattoria 57.lnk")) { throw "no desktop icon" }
