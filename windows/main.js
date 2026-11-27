@@ -141,7 +141,7 @@ ipcMain.handle("hub-auth", (_e, c) => { if (hub) hub.online.setCreds(c); return 
 ipcMain.handle("hub", (_e, op, ...a) => {
   if (!hub) throw new Error("hub not running");
   if (op === "printList") return hub.printList(a[0], a[1] || [], a[2] || {});
-  if (op === "merge") { hub.store.merge(a[0], a[1], a[2]); return true; }
+  if (op === "merge") { if (!hub.store.meta.imported) throw new Error("till not ready yet"); hub.store.merge(a[0], a[1], a[2]); return true; }
   if (op === "all") return hub.store.all();
   return hub.op(a[0]);
 });
