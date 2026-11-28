@@ -75,22 +75,39 @@ const mockCall = (method, p, body) => new Promise((ok, bad) => {
   await wait(300);
   check("other tablets hear about it at once", evs.join("").includes('"id":"new1"') && evs.join("").includes('"paid":true'));
 
-  // copied up
-  await wait(4500);
+  // copied up straight away
+  for (let i = 0; i < 20 && !(await mockCall("GET", "/__subs")).n; i++) await wait(100);
+  check("live line to the online database is up", (await mockCall("GET", "/__subs")).n === 1 && hub.info().live === true);
+  r = await call("POST", "/hub/api", { op: "merge", coll: "tickets", id: "new1", patch: { tip: 2 } }, tok);
+  await wait(600);
   let online = await mockCall("GET", "/__all");
-  check("the change went online within seconds", online["tickets/new1"] && online["tickets/new1"].data.paid === true);
+  check("the change went online instantly (under a second)", online["tickets/new1"] && online["tickets/new1"].data.paid === true && online["tickets/new1"].data.tip === 2);
+  await wait(4000);
+  online = await mockCall("GET", "/__all");
   check("the tablets can find this computer (heartbeat online)", online["hub/main"] && online["hub/main"].data.pub === "203.0.113.7" && online["hub/main"].data.at > 0);
 
   // a customer's QR order saved online gets picked up
   await mockCall("POST", "/__put", { coll: "tickets", id: "qr1", data: { qr: true, hold: true, station: "kitchen", date: "2031-01-01", label: "Table 3" } });
-  for (let i = 0; i < 80 && !hub.store.get("tickets", "qr1"); i++) await wait(250);
-  check("customer's QR order picked up from online", !!hub.store.get("tickets", "qr1"));
+  const qrAt = Date.now();
+  for (let i = 0; i < 80 && !hub.store.get("tickets", "qr1"); i++) await wait(50);
+  check("customer's QR order picked up from online instantly", !!hub.store.get("tickets", "qr1") && Date.now() - qrAt < 1500, (Date.now() - qrAt) + " ms");
   await wait(300);
   check("and tablets hear about it", evs.join("").includes('"id":"qr1"'));
 
+  // a tablet working online whose clock is 5 minutes behind: the regular check would miss it, the live line doesn't
+  await mockCall("POST", "/__put", { coll: "tickets", id: "slow1", t: new Date(Date.now() - 300000).toISOString(), data: { station: "bar", date: "2031-01-01", label: "Table 5" } });
+  for (let i = 0; i < 40 && !hub.store.get("tickets", "slow1"); i++) await wait(50);
+  check("a save from a device with a slow clock is picked up", !!hub.store.get("tickets", "slow1"));
+  // deleted online (a tablet working online): gone here too, and the tablets hear about it
+  await mockCall("POST", "/__del", { coll: "tickets", id: "slow1" });
+  for (let i = 0; i < 40 && hub.store.get("tickets", "slow1"); i++) await wait(50);
+  check("an item deleted online is deleted here too", !hub.store.get("tickets", "slow1"));
+  await wait(200);
+  check("and tablets hear about the delete", evs.join("").includes('"id":"slow1","data":null'));
+
   // deleting
   await call("POST", "/hub/api", { op: "del", coll: "tickets", id: "new1" }, tok);
-  await wait(4500);
+  await wait(600);
   online = await mockCall("GET", "/__all");
   check("deletes go online too", !online["tickets/new1"]);
 

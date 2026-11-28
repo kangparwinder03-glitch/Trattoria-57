@@ -53,6 +53,9 @@ object Cloud {
         return KEY
     }
 
+    /** the sign-in for the live line (Live.kt) */
+    fun liveToken(): String = bearer()
+
     private fun conn(path: String, method: String) = (URL(BASE + path).openConnection() as HttpURLConnection).apply {
         requestMethod = method; connectTimeout = 8000; readTimeout = 12000
         setRequestProperty("apikey", KEY); setRequestProperty("Authorization", "Bearer ${bearer()}")

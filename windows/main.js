@@ -198,6 +198,8 @@ app.whenReady().then(async () => {
     hub = new Hub({ dir: path.join(app.getPath("userData"), "hub"), site: SITE,
       onLog: t => { if (printer && !printer.isDestroyed()) printer.webContents.send("hub-log", t); } });
     hub.onStatus = info => { if (printer && !printer.isDestroyed()) printer.webContents.send("hub-status", info); };
+    // a new order / bill / report for the printers: tell the printer screen at once, so it prints straight away
+    hub.store.listeners.add(ev => { if (ev.data && /^(tickets|train_tickets|printjobs)$/.test(ev.coll) && !(ev.data.printed > 0) && printer && !printer.isDestroyed()) printer.webContents.send("hub-print", ev.coll); });
     if (await hub.start()) TILL_URL = `http://127.0.0.1:${hub.port}/`;
   }
   makeTill();

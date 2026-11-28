@@ -4,10 +4,11 @@
 //   • keeps every order, booking, setting… on this computer (in the app's data folder), saved as it changes
 //   • serves the restaurant app to the tablets:  http://<this computer>:5757/
 //   • tells the tablets about changes at once (a live "event stream")
-//   • copies every change up to the online database (Supabase) within a few seconds. Uploads are tiny and
+//   • copies every change up to the online database (Supabase) straight away. Uploads are tiny and
 //     don't count much towards the free data allowance. The online copy is the backup, it's what the
 //     customers' QR menu pages read, and the tablets switch to it by themselves if this computer goes off
-//   • picks up anything saved online (customers' QR orders, devices still working online) every 15 seconds
+//   • picks up anything saved online (customers' QR orders, devices still working online) the moment it's saved,
+//     over a live line to the online database (with a check every 15 seconds anyway, in case the line is down)
 //
 // Runs in the app's main process.
 "use strict";
@@ -18,12 +19,14 @@ const os = require("os");
 const zlib = require("zlib");
 const crypto = require("crypto");
 const { request } = require("./cloud");
+const { Realtime } = require("./realtime");
 
 const PORT = +(process.env.T57_HUB_PORT || 5757);
 const BASE = process.env.T57_SUPA_BASE || "https://uzrkewizkqdnqpovwune.supabase.co";
 const KEY = "sb_publishable_Hix2EgA_xpjxMYFvmarVIQ_Hj0qx3YM";
 const LIB_URL = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js";
-const PULL_MS = 15000, PUSH_WAIT = 2500, BEAT_MS = 120000;
+// PUSH_WAIT only groups changes made in the same instant (a tablet often saves two or three things at once)
+const PULL_MS = 15000, LIVE_PULL_MS = 60000, PUSH_WAIT = 100, BEAT_MS = 120000;
 
 const okWhere = (data, w) => (w || []).every(([f, op, v]) => {
   const a = data ? data[f] : undefined;
@@ -136,8 +139,43 @@ class Store {
 // =====================================================================================
 class Online {
   constructor(store, hub) { this.store = store; this.hub = hub; this.creds = null; this.token = null; this.tokenExp = 0;
-    this.ok = false; this.msg = "Not signed in yet"; this.lastPull = 0; this.lastPush = 0; this.timer = null; this.pushT = null; this.busy = null; this.skew = 0; }
-  setCreds(c) { this.creds = c && c.email && c.pass ? { email: c.email, pass: c.pass } : null; this.token = null; if (this.creds) this.kick(500); else { this.ok = false; this.msg = "Not signed in"; } }
+    this.ok = false; this.msg = "Not signed in yet"; this.lastPull = 0; this.lastPush = 0; this.timer = null; this.pushT = null; this.busy = null; this.skew = 0;
+    this.liveT = null; this.sent = new Map();   // "coll/id@time" of what this computer sent up lately (so its echo is ignored)
+    this.live = new Realtime({ base: BASE, key: KEY, token: () => this.bearer(), onChange: row => this.heard(row),
+      onState: up => { if (up) this.hub.log("⚡ Live line to the online database: changes made online arrive instantly"); this.hub.status(); } }); }
+  setCreds(c) {
+    this.creds = c && c.email && c.pass ? { email: c.email, pass: c.pass } : null; this.token = null; this.live.stop();
+    if (this.creds) this.kick(500); else { this.ok = false; this.msg = "Not signed in"; }
+  }
+  /** the live line says something was saved online. It comes with the item itself, so it's taken straight away
+   *  (this also catches saves from a device whose clock is behind, which the regular check can miss, and items
+   *  deleted online, which the regular check can't see at all). Otherwise: go and look now. */
+  heard(ch) {
+    if (ch && this.store.meta.imported) {
+      if (ch.coll === "hub") return;
+      if (ch.del) this.takeDelete(ch.coll, ch.id); else if (this.take(ch)) this.hub.log(`⬇ 1 change picked up from online`);
+      return;
+    }
+    if (!this.liveT) this.liveT = setTimeout(() => { this.liveT = null; this.kick(0); }, 50);
+  }
+  /** one item saved online: keep it here unless this computer has a newer change of its own still to send */
+  take(r) {
+    if (r.coll === "hub") return false;
+    const k = r.coll + "/" + r.id, mine = this.store.colls.get(r.coll)?.get(r.id);
+    if (mine && same(mine.data, r.data)) return false;
+    if (this.sent.has(k + "@" + tms(r.updated_at))) return false;   // this computer's own (older) change coming back
+    const waiting = this.store.dirty.get(k);
+    // changed here too and not sent yet: the newer change wins
+    if (waiting !== undefined && waiting !== "" && tms(waiting) >= tms(r.updated_at)) return false;
+    if (waiting === "") return false;   // deleted here, the delete is on its way
+    this.store.put(r.coll, r.id, r.data || {}, { local: false, t: r.updated_at || this.store.stamp() });
+    return true;
+  }
+  /** an item deleted online (a tablet working online, a manager's reset): delete it here too */
+  takeDelete(c, id) {
+    if (c === "hub" || this.store.dirty.has(c + "/" + id) || !this.store.colls.get(c)?.has(id)) return;   // changed here since: that change goes up
+    this.store.remove(c, id, { local: false });
+  }
   async bearer() {
     if (this.token && Date.now() < this.tokenExp - 120000) return this.token;
     if (!this.creds) throw new Error("not signed in");
@@ -164,24 +202,32 @@ class Online {
   }
 
   kick(ms = PUSH_WAIT) { clearTimeout(this.timer); this.timer = setTimeout(() => this.cycle(), ms); }
-  /** a change was made here: send it up soon (several changes close together go in one go) */
-  changed() { if (!this.pushT) this.pushT = setTimeout(() => { this.pushT = null; this.kick(0); }, PUSH_WAIT); }
+  /** a change was made here: send it up straight away (changes made in the same instant go in one go) */
+  changed() { if (!this.pushT) this.pushT = setTimeout(() => { this.pushT = null; this.sendNow(); }, PUSH_WAIT); }
+  /** just the sending part, when the live line is up (it already brings in what's changed online, so no need to look first) */
+  async sendNow() {
+    if (!this.live.up || this.busy || !this.creds || !this.store.meta.imported) return this.kick(0);
+    this.busy = true;
+    try { await this.push(); } catch (e) { this.again = true; }
+    finally { this.busy = false; this.hub.status(); if (this.again) { this.again = false; this.kick(0); } }
+  }
   async cycle() {
     if (this.busy) { this.again = true; return; }
     this.busy = true;
     try {
       if (!this.creds) { this.ok = false; this.msg = "Not signed in: sign in on the Printers & backups screen so the online copy stays up to date"; return; }
       if (!this.store.meta.imported) await this.firstCopy();
+      this.live.start();
       await this.pull();
       await this.push();
       if (Date.now() - (this.lastBeat || 0) > BEAT_MS) await this.beat();
-      this.ok = true; this.msg = "Online copy up to date";
+      this.ok = true; this.msg = this.live.up ? "Online copy up to date (live)" : "Online copy up to date";
       if (Math.abs(this.skew) > 90000) this.msg = `⚠ This computer's clock is ${Math.round(Math.abs(this.skew) / 60000)} min ${this.skew > 0 ? "fast" : "slow"}. Fix the time in Windows settings`;
     } catch (e) {
       this.ok = false; this.msg = /no internet|ENOTFOUND|EAI_AGAIN|timed out|ECONN/i.test(e.message) ? "No internet: everything still works here, the online copy catches up when it's back" : "Online copy: " + e.message;
     } finally {
       this.busy = false; this.hub.status();
-      if (this.again) { this.again = false; this.kick(200); } else this.kick(PULL_MS);
+      if (this.again) { this.again = false; this.kick(0); } else this.kick(this.live.up ? LIVE_PULL_MS : PULL_MS);
     }
   }
 
@@ -218,14 +264,7 @@ class Online {
       const part = await this.call(`/rest/v1/t57_docs?select=coll,id,data,updated_at${from ? "&updated_at=gt." + encodeURIComponent(from) : ""}&order=updated_at.asc&offset=${off}&limit=1000`);
       for (const r of part || []) {
         if (tms(r.updated_at) > tms(cursor)) cursor = r.updated_at;
-        if (r.coll === "hub") continue;
-        const k = r.coll + "/" + r.id, mine = this.store.colls.get(r.coll)?.get(r.id);
-        if (mine && same(mine.data, r.data)) continue;
-        const waiting = this.store.dirty.get(k);
-        // changed here too and not sent yet: the newer change wins
-        if (waiting !== undefined && waiting !== "" && tms(waiting) >= tms(r.updated_at)) continue;
-        if (waiting === "") continue;   // deleted here, the delete is on its way
-        this.store.put(r.coll, r.id, r.data || {}, { local: false, t: r.updated_at }); got++;
+        if (this.take(r)) got++;
       }
       if (!part || part.length < 1000) break;
     }
@@ -244,7 +283,12 @@ class Online {
         if (t === "") dels.push([k, t, c, id]);
         else { const r = this.store.colls.get(c)?.get(id); if (r) ups.push({ coll: c, id, data: r.data, updated_at: r.t }); else dels.push([k, t, c, id]); }
       }
-      if (ups.length) await this.call("/rest/v1/t57_docs?on_conflict=coll,id", "POST", ups, "resolution=merge-duplicates,return=minimal");
+      if (ups.length) {
+        const now = Date.now();
+        for (const [key, at] of this.sent) if (now - at > 120000) this.sent.delete(key);
+        for (const u of ups) this.sent.set(u.coll + "/" + u.id + "@" + tms(u.updated_at), now);
+        await this.call("/rest/v1/t57_docs?on_conflict=coll,id", "POST", ups, "resolution=merge-duplicates,return=minimal");
+      }
       for (const [, , c, id] of dels) await this.call(`/rest/v1/t57_docs?coll=eq.${encodeURIComponent(c)}&id=eq.${encodeURIComponent(id)}`, "DELETE", null, "return=minimal");
       this.store.cleaned(batch);
       this.lastPush = Date.now();
@@ -285,7 +329,7 @@ class Hub {
   info() {
     return { running: this.ready, port: this.port, urls: this.urls(), tablets: this.clients.size, records: this.store.size,
       waiting: this.store.dirty.size, onlineOk: this.online.ok, onlineMsg: this.online.msg, lastPull: this.online.lastPull, lastPush: this.online.lastPush,
-      linked: Object.keys(this.devs).length };
+      linked: Object.keys(this.devs).length, live: this.online.live.up };
   }
   /** this computer's addresses on the restaurant network, best first */
   urls() {
@@ -311,6 +355,7 @@ class Hub {
     });
   }
   async stop() {
+    this.online.live.stop();
     this.store.compact();
     try { if (this.online.creds) await this.online.push(); } catch (e) {}
     await this.online.goodbye();

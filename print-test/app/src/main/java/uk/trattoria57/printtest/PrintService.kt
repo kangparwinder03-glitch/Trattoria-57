@@ -40,6 +40,10 @@ class PrintService : Service() {
     @Volatile private var lastPrint = System.currentTimeMillis()   // when something last printed (quiet = check less often)
     private var lastUpd = System.currentTimeMillis() - 3540_000L   // first check ~1 min after start
     private val prefs by lazy { getSharedPreferences("t57", Context.MODE_PRIVATE) }
+    // the live line pokes this when a new order / bill is saved, so it prints straight away instead of at the next check
+    private val nudge = Object()
+    @Volatile private var poked = false
+    private fun poke() { synchronized(nudge) { poked = true; nudge.notifyAll() } }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -50,12 +54,17 @@ class PrintService : Service() {
             running = true
             wake = (getSystemService(Context.POWER_SERVICE) as PowerManager).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "t57:printer").apply { setReferenceCounted(false); acquire() }
             worker = Thread { loop() }.apply { isDaemon = true; start() }
+            Live.onChange = { coll, data ->
+                // new or changed orders / bills still to print (not the "printed" marks this tablet saves itself)
+                if (coll == "*" || (coll in setOf("tickets", "train_tickets", "printjobs") && data != null && data.optLong("printed", 0L) == 0L)) poke()
+            }
+            Live.start()
         }
         return START_STICKY
     }
 
     override fun onDestroy() {
-        running = false; worker?.interrupt()
+        running = false; Live.stop(); Live.onChange = null; worker?.interrupt()
         val sts = Stations.on(prefs)
         Thread { for (stn in sts) try { Cloud.merge("printers", stn, org.json.JSONObject().put("at", System.currentTimeMillis()).put("ok", false).put("msg", "Printing switched off").put("off", true)) } catch (_: Exception) {} }.start()
         try { wake?.release() } catch (_: Exception) {}
@@ -77,7 +86,7 @@ class PrintService : Service() {
 
     private fun loop() {
         while (running) {
-            try { poll(); Hub.net("Connected · checked ${SimpleDateFormat("HH:mm:ss", Locale.UK).format(Date())}", true) }
+            try { poll(); Hub.net((if (Live.up) "⚡ Live · checked " else "Connected · checked ") + SimpleDateFormat("HH:mm:ss", Locale.UK).format(Date()), true) }
             catch (e: Exception) { Hub.net("⚠ Can't reach orders (${e.message ?: "no internet"}) — retrying", false) }
             val sts = Stations.on(prefs)
             // every minute without a print, check each printer is really on (so the light goes red if it's switched off)
@@ -102,9 +111,15 @@ class PrintService : Service() {
             }
             // self-update: check once an hour (only between 3am and 3pm, never during service)
             if (System.currentTimeMillis() - lastUpd > 3600_000L) { lastUpd = System.currentTimeMillis(); Updater.check(this, false) }
-            // every 3s while orders are coming in; after 10 quiet minutes every 10s (each check uses a little of the free data allowance)
-            val wait = if (System.currentTimeMillis() - lastPrint < 600_000L) 3000L else 10_000L
-            try { Thread.sleep(wait) } catch (_: InterruptedException) { break }
+            // with the live line up, new orders arrive the moment they're saved, so the regular check is only a safety net (every 15s).
+            // Without it: every 3s while orders are coming in, every 10s after 10 quiet minutes (each check uses a little of the free data allowance)
+            val wait = if (Live.up) 15_000L else if (System.currentTimeMillis() - lastPrint < 600_000L) 3000L else 10_000L
+            var stop = false
+            synchronized(nudge) {
+                if (!poked) try { nudge.wait(wait) } catch (_: InterruptedException) { stop = true }
+                poked = false
+            }
+            if (stop) break
         }
     }
 
