@@ -1,5 +1,6 @@
-// The print station: checks the database every 3 seconds and prints kitchen / bar tickets and
-// bills / receipts / reports, exactly like PrintService in the Android printer app.
+// The print station: prints kitchen / bar tickets and bills / receipts / reports, exactly like PrintService
+// in the Android printer app. It prints the moment something new is saved on this computer (the hub tells it),
+// and checks every 3 seconds anyway.
 "use strict";
 const os = require("os");
 const { Cloud, store } = require("./cloud");
@@ -171,8 +172,20 @@ async function pollStation(s, ready) {
   }
 }
 
+let ticking = false, tickAgain = false;
 async function tick() {
   if (!running) return;
+  if (ticking) { tickAgain = true; return; }
+  ticking = true; clearTimeout(timer);
+  try { await tickOnce(); } finally { ticking = false; }
+  if (!running) return;
+  if (tickAgain) { tickAgain = false; timer = setTimeout(tick, 0); }
+  // every 3s while orders are coming in; after 10 quiet minutes every 10s (each check uses a little of the free data allowance)
+  else timer = setTimeout(tick, Date.now() - lastPrint < 600000 ? 3000 : 10000);
+}
+/** something new to print was just saved: check now instead of waiting for the next check */
+function printNow() { if (running) tick(); }
+async function tickOnce() {
   const sts = on();
   const ready = `🟢 Printing ${stationNames(sts)} automatically`;
   try {
@@ -196,8 +209,6 @@ async function tick() {
     }
     lastBeat = Date.now();
   }
-  // every 3s while orders are coming in; after 10 quiet minutes every 10s (each check uses a little of the free data allowance)
-  if (running) timer = setTimeout(tick, Date.now() - lastPrint < 600000 ? 3000 : 10000);
 }
 
 function start() {
@@ -221,7 +232,7 @@ async function stop(why = "Printing switched off") {
 async function switchedOff(s) { try { await Cloud.merge("printers", s, { at: Date.now(), ok: false, msg: "Printing switched off", off: true }); } catch (e) {} }
 
 module.exports = {
-  ALL, NAME, stationNames, Hub, state, st, on, setOn, probe, print, start, stop, switchedOff, alexa, speak, speakWords,
+  ALL, NAME, stationNames, Hub, state, st, on, setOn, probe, print, start, stop, switchedOff, alexa, speak, speakWords, printNow,
   get cfg() { return cfg; }, save, get running() { return running; },
   skipWaiting() { cfg.since = Date.now(); save(); },
 };

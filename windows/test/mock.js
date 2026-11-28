@@ -111,7 +111,10 @@ const server = http.createServer((req, res) => {
     }
     // test helper: what's in the online database right now / add something as if a customer's phone saved it
     if (u.pathname === "/__all") return send(200, docs);
-    if (u.pathname === "/__put" && req.method === "POST") { const r = JSON.parse(body); put(r.coll, r.id, r.data); return send(200, docs[r.coll + "/" + r.id]); }
+    if (u.pathname === "/__put" && req.method === "POST") { const r = JSON.parse(body);
+      if (r.t) { docs[r.coll + "/" + r.id] = { coll: r.coll, id: r.id, data: r.data, updated_at: r.t }; live(docs[r.coll + "/" + r.id]); } else put(r.coll, r.id, r.data);   // t: a device whose clock is wrong
+      return send(200, docs[r.coll + "/" + r.id]); }
+    if (u.pathname === "/__del" && req.method === "POST") { const r = JSON.parse(body), d = docs[r.coll + "/" + r.id]; delete docs[r.coll + "/" + r.id]; if (d) live(d, "DELETE"); return send(200, {}); }
     if (u.pathname === "/__subs") return send(200, { n: subs.size });
     send(404, { message: "no such call" });
   });

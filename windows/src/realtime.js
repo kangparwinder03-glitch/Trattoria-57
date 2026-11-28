@@ -18,7 +18,7 @@ class Realtime {
    * @param {string} o.base     the database address (https://….supabase.co)
    * @param {string} o.key      the public key
    * @param {() => Promise<string>} o.token  gives a signed-in access token
-   * @param {(row: object|null) => void} o.onChange  called for every change saved online (row may be null)
+   * @param {(ch: {del, coll, id, data, updated_at}|null) => void} o.onChange  called for every change saved online (null: go and look)
    * @param {(up: boolean) => void} [o.onState]
    */
   constructor({ base, key, token, onChange, onState }) {
@@ -119,7 +119,10 @@ class Realtime {
     }
     if (m.event === "postgres_changes") {
       const d = (m.payload && m.payload.data) || {};
-      this.onChange(d.record || d.old_record || null);
+      // a full change (the saved item itself, or which item was deleted); null = "something changed, go and look"
+      const del = d.type === "DELETE", rec = del ? d.old_record : d.record;
+      const ok = rec && rec.coll && rec.id != null && !(d.errors && d.errors.length) && (del || (rec.data && typeof rec.data === "object"));
+      this.onChange(ok ? { del, coll: rec.coll, id: String(rec.id), data: del ? null : rec.data, updated_at: rec.updated_at || "" } : null);
       return;
     }
     if (m.event === "phx_error" || m.event === "phx_close" || m.event === "system" && m.payload && m.payload.status === "error") {

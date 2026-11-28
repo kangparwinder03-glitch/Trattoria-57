@@ -94,6 +94,17 @@ const mockCall = (method, p, body) => new Promise((ok, bad) => {
   await wait(300);
   check("and tablets hear about it", evs.join("").includes('"id":"qr1"'));
 
+  // a tablet working online whose clock is 5 minutes behind: the regular check would miss it, the live line doesn't
+  await mockCall("POST", "/__put", { coll: "tickets", id: "slow1", t: new Date(Date.now() - 300000).toISOString(), data: { station: "bar", date: "2031-01-01", label: "Table 5" } });
+  for (let i = 0; i < 40 && !hub.store.get("tickets", "slow1"); i++) await wait(50);
+  check("a save from a device with a slow clock is picked up", !!hub.store.get("tickets", "slow1"));
+  // deleted online (a tablet working online): gone here too, and the tablets hear about it
+  await mockCall("POST", "/__del", { coll: "tickets", id: "slow1" });
+  for (let i = 0; i < 40 && hub.store.get("tickets", "slow1"); i++) await wait(50);
+  check("an item deleted online is deleted here too", !hub.store.get("tickets", "slow1"));
+  await wait(200);
+  check("and tablets hear about the delete", evs.join("").includes('"id":"slow1","data":null'));
+
   // deleting
   await call("POST", "/hub/api", { op: "del", coll: "tickets", id: "new1" }, tok);
   await wait(600);

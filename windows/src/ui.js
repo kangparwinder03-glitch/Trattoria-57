@@ -67,6 +67,7 @@ function showHub(h) {
 }
 ipcRenderer.on("hub-status", (_e, h) => showHub(h));
 ipcRenderer.on("hub-log", (_e, t) => Hub.log(t));
+ipcRenderer.on("hub-print", () => S.printNow());   // a new order or bill was just saved: print it straight away
 setInterval(() => showHub(), 5000);
 
 // ---------- printers on this computer ----------

@@ -140,18 +140,41 @@ class Store {
 class Online {
   constructor(store, hub) { this.store = store; this.hub = hub; this.creds = null; this.token = null; this.tokenExp = 0;
     this.ok = false; this.msg = "Not signed in yet"; this.lastPull = 0; this.lastPush = 0; this.timer = null; this.pushT = null; this.busy = null; this.skew = 0;
-    this.liveT = null;
+    this.liveT = null; this.sent = new Map();   // "coll/id@time" of what this computer sent up lately (so its echo is ignored)
     this.live = new Realtime({ base: BASE, key: KEY, token: () => this.bearer(), onChange: row => this.heard(row),
       onState: up => { if (up) this.hub.log("⚡ Live line to the online database: changes made online arrive instantly"); this.hub.status(); } }); }
   setCreds(c) {
     this.creds = c && c.email && c.pass ? { email: c.email, pass: c.pass } : null; this.token = null; this.live.stop();
     if (this.creds) this.kick(500); else { this.ok = false; this.msg = "Not signed in"; }
   }
-  /** the live line says something was saved online: fetch it now (unless it's just this computer's own change coming back) */
-  heard(row) {
-    if (row && row.coll === "hub") return;
-    if (row && row.coll && row.id && row.data) { const mine = this.store.colls.get(row.coll)?.get(row.id); if (mine && same(mine.data, row.data)) return; }
+  /** the live line says something was saved online. It comes with the item itself, so it's taken straight away
+   *  (this also catches saves from a device whose clock is behind, which the regular check can miss, and items
+   *  deleted online, which the regular check can't see at all). Otherwise: go and look now. */
+  heard(ch) {
+    if (ch && this.store.meta.imported) {
+      if (ch.coll === "hub") return;
+      if (ch.del) this.takeDelete(ch.coll, ch.id); else if (this.take(ch)) this.hub.log(`⬇ 1 change picked up from online`);
+      return;
+    }
     if (!this.liveT) this.liveT = setTimeout(() => { this.liveT = null; this.kick(0); }, 50);
+  }
+  /** one item saved online: keep it here unless this computer has a newer change of its own still to send */
+  take(r) {
+    if (r.coll === "hub") return false;
+    const k = r.coll + "/" + r.id, mine = this.store.colls.get(r.coll)?.get(r.id);
+    if (mine && same(mine.data, r.data)) return false;
+    if (this.sent.has(k + "@" + tms(r.updated_at))) return false;   // this computer's own (older) change coming back
+    const waiting = this.store.dirty.get(k);
+    // changed here too and not sent yet: the newer change wins
+    if (waiting !== undefined && waiting !== "" && tms(waiting) >= tms(r.updated_at)) return false;
+    if (waiting === "") return false;   // deleted here, the delete is on its way
+    this.store.put(r.coll, r.id, r.data || {}, { local: false, t: r.updated_at || this.store.stamp() });
+    return true;
+  }
+  /** an item deleted online (a tablet working online, a manager's reset): delete it here too */
+  takeDelete(c, id) {
+    if (c === "hub" || this.store.dirty.has(c + "/" + id) || !this.store.colls.get(c)?.has(id)) return;   // changed here since: that change goes up
+    this.store.remove(c, id, { local: false });
   }
   async bearer() {
     if (this.token && Date.now() < this.tokenExp - 120000) return this.token;
@@ -241,14 +264,7 @@ class Online {
       const part = await this.call(`/rest/v1/t57_docs?select=coll,id,data,updated_at${from ? "&updated_at=gt." + encodeURIComponent(from) : ""}&order=updated_at.asc&offset=${off}&limit=1000`);
       for (const r of part || []) {
         if (tms(r.updated_at) > tms(cursor)) cursor = r.updated_at;
-        if (r.coll === "hub") continue;
-        const k = r.coll + "/" + r.id, mine = this.store.colls.get(r.coll)?.get(r.id);
-        if (mine && same(mine.data, r.data)) continue;
-        const waiting = this.store.dirty.get(k);
-        // changed here too and not sent yet: the newer change wins
-        if (waiting !== undefined && waiting !== "" && tms(waiting) >= tms(r.updated_at)) continue;
-        if (waiting === "") continue;   // deleted here, the delete is on its way
-        this.store.put(r.coll, r.id, r.data || {}, { local: false, t: r.updated_at }); got++;
+        if (this.take(r)) got++;
       }
       if (!part || part.length < 1000) break;
     }
@@ -267,7 +283,12 @@ class Online {
         if (t === "") dels.push([k, t, c, id]);
         else { const r = this.store.colls.get(c)?.get(id); if (r) ups.push({ coll: c, id, data: r.data, updated_at: r.t }); else dels.push([k, t, c, id]); }
       }
-      if (ups.length) await this.call("/rest/v1/t57_docs?on_conflict=coll,id", "POST", ups, "resolution=merge-duplicates,return=minimal");
+      if (ups.length) {
+        const now = Date.now();
+        for (const [key, at] of this.sent) if (now - at > 120000) this.sent.delete(key);
+        for (const u of ups) this.sent.set(u.coll + "/" + u.id + "@" + tms(u.updated_at), now);
+        await this.call("/rest/v1/t57_docs?on_conflict=coll,id", "POST", ups, "resolution=merge-duplicates,return=minimal");
+      }
       for (const [, , c, id] of dels) await this.call(`/rest/v1/t57_docs?coll=eq.${encodeURIComponent(c)}&id=eq.${encodeURIComponent(id)}`, "DELETE", null, "return=minimal");
       this.store.cleaned(batch);
       this.lastPush = Date.now();
