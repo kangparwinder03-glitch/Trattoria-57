@@ -14,8 +14,18 @@ fs.mkdirSync(outDir, { recursive: true });
 
 const ymd = () => { const d = new Date(Date.now() - 5 * 3600000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const now = Date.now();
-const docs = {};   // "coll/id" -> { coll, id, data }
-const put = (coll, id, data) => { docs[coll + "/" + id] = { coll, id, data, updated_at: new Date().toISOString() }; };
+const docs = {};
+const subs = new Map();   // live-update subscribers (see below)   // "coll/id" -> { coll, id, data }
+const put = (coll, id, data) => { docs[coll + "/" + id] = { coll, id, data, updated_at: new Date().toISOString() }; live(docs[coll + "/" + id]); };
+
+// pretend live updates (Supabase Realtime): a tiny WebSocket server that tells subscribers about every change
+function wsSend(sock, o) {
+  const b = Buffer.from(JSON.stringify(o)), n = b.length;
+  const h = n < 126 ? Buffer.from([0x81, n]) : n < 65536 ? Buffer.from([0x81, 126, n >> 8, n & 255]) : (() => { const x = Buffer.alloc(10); x[0] = 0x81; x[1] = 127; x.writeBigUInt64BE(BigInt(n), 2); return x; })();
+  try { sock.write(Buffer.concat([h, b])); } catch (e) {}
+}
+function live(rec, type = "UPDATE") { for (const [sock, topic] of subs) wsSend(sock, { topic, event: "postgres_changes", ref: null,
+  payload: { data: { schema: "public", table: "t57_docs", type, commit_timestamp: new Date().toISOString(), record: type === "DELETE" ? {} : rec, old_record: type === "DELETE" ? rec : {} }, ids: [1] } }); }
 
 // orders like the website saves them
 put("tickets", "t1", { station: "kitchen", date: ymd(), createdAt: now - 60000, label: "Table 4", no: 12, covers: 3, byName: "Sam",
@@ -82,7 +92,7 @@ const server = http.createServer((req, res) => {
     if (u.pathname === "/rest/v1/rpc/t57_merge") {
       const { c, i, patch } = JSON.parse(body);
       const d = docs[c + "/" + i] || { coll: c, id: i, data: {} };
-      d.data = Object.assign(d.data, patch); d.updated_at = new Date().toISOString(); docs[c + "/" + i] = d;
+      d.data = Object.assign(d.data, patch); d.updated_at = new Date().toISOString(); docs[c + "/" + i] = d; live(d);
       fs.writeFileSync(path.join(outDir, "db.json"), JSON.stringify(docs, null, 1));
       return send(200);
     }
@@ -90,20 +100,48 @@ const server = http.createServer((req, res) => {
     if (u.pathname === "/rest/v1/t57_docs" && req.method === "POST") {
       const rowsIn = [].concat(JSON.parse(body));
       if (!/merge-duplicates/.test(req.headers.prefer || "") && rowsIn.some(r => docs[r.coll + "/" + r.id])) return send(409, { code: "23505", message: "duplicate key value violates unique constraint" });
-      for (const r of rowsIn) docs[r.coll + "/" + r.id] = { coll: r.coll, id: r.id, data: r.data, updated_at: r.updated_at || new Date().toISOString() };
+      for (const r of rowsIn) { docs[r.coll + "/" + r.id] = { coll: r.coll, id: r.id, data: r.data, updated_at: r.updated_at || new Date().toISOString() }; live(docs[r.coll + "/" + r.id]); }
       log.push("UPSERT " + rowsIn.map(r => r.coll + "/" + r.id).join(" "));
       fs.writeFileSync(path.join(outDir, "db.json"), JSON.stringify(docs, null, 1));
       return send(201);
     }
     if (u.pathname === "/rest/v1/t57_docs" && req.method === "DELETE") {
-      for (const r of Object.values(docs).filter(r => filt(u.searchParams).every(([k, v]) => String(r[k]) === v))) delete docs[r.coll + "/" + r.id]; fs.writeFileSync(path.join(outDir, "db.json"), JSON.stringify(docs, null, 1));
+      for (const r of Object.values(docs).filter(r => filt(u.searchParams).every(([k, v]) => String(r[k]) === v))) { delete docs[r.coll + "/" + r.id]; live(r, "DELETE"); } fs.writeFileSync(path.join(outDir, "db.json"), JSON.stringify(docs, null, 1));
       return send(204);
     }
     // test helper: what's in the online database right now / add something as if a customer's phone saved it
     if (u.pathname === "/__all") return send(200, docs);
     if (u.pathname === "/__put" && req.method === "POST") { const r = JSON.parse(body); put(r.coll, r.id, r.data); return send(200, docs[r.coll + "/" + r.id]); }
+    if (u.pathname === "/__subs") return send(200, { n: subs.size });
     send(404, { message: "no such call" });
   });
+});
+server.on("upgrade", (req, sock) => {
+  const u = new URL(req.url, "http://x");
+  if (u.pathname !== "/realtime/v1/websocket" || !u.searchParams.get("apikey")) { sock.destroy(); return; }
+  const acc = require("crypto").createHash("sha1").update(req.headers["sec-websocket-key"] + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").digest("base64");
+  sock.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${acc}\r\n\r\n`);
+  let buf = Buffer.alloc(0);
+  sock.on("data", d => {
+    buf = Buffer.concat([buf, d]);
+    while (buf.length >= 2) {
+      let n = buf[1] & 0x7f, off = 2;
+      if (n === 126) { if (buf.length < 4) return; n = buf.readUInt16BE(2); off = 4; } else if (n === 127) { if (buf.length < 10) return; n = Number(buf.readBigUInt64BE(2)); off = 10; }
+      if (buf.length < off + 4 + n) return;
+      const op = buf[0] & 0x0f, mk = buf.slice(off, off + 4), data = Buffer.from(buf.slice(off + 4, off + 4 + n)); buf = buf.slice(off + 4 + n);
+      for (let i = 0; i < n; i++) data[i] ^= mk[i & 3];
+      if (op === 0x8) { subs.delete(sock); sock.destroy(); return; }
+      if (op !== 0x1) continue;
+      const m = JSON.parse(data.toString("utf8"));
+      log.push("WS " + m.event);
+      if (m.event === "phx_join") {
+        const ok = String((m.payload || {}).access_token || "").startsWith("tok-");
+        wsSend(sock, { topic: m.topic, event: "phx_reply", ref: m.ref, join_ref: m.join_ref, payload: ok ? { status: "ok", response: { postgres_changes: [{ id: 1, event: "*", schema: "public", table: "t57_docs" }] } } : { status: "error", response: { reason: "bad token" } } });
+        if (ok) subs.set(sock, m.topic);
+      } else wsSend(sock, { topic: m.topic, event: "phx_reply", ref: m.ref, payload: { status: "ok", response: {} } });
+    }
+  });
+  sock.on("close", () => subs.delete(sock)); sock.on("error", () => subs.delete(sock));
 });
 server.listen(dbPort, process.env.MOCK_HOST || "127.0.0.1", () => console.log("mock database on", dbPort));
 
